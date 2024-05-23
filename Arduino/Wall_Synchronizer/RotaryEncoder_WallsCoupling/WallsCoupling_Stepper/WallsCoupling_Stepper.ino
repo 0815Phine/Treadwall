@@ -96,7 +96,7 @@ void StreamData() {
 void SynchWalls() {
   if (pwmSynch != pwmOutput) {
     WallSpeed = map(pwmOutput, 0, 255, 0, 190);
-    myservo.write(WallSpeed);
+    tic.setTargetVelocity(WallSpeed);
     pwmSynch=pwmOutput;
   }
 }
