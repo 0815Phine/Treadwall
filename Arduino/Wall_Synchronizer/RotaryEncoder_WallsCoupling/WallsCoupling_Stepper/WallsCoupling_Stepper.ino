@@ -1,5 +1,6 @@
 #include <Tic.h>
 #include <SoftwareSerial.h>
+
 SoftwareSerial ticSerial(10, 11);
 TicSerial tic(ticSerial);
 
@@ -19,13 +20,17 @@ void delayWhileResettingCommandTimeout(uint32_t ms)
   } while ((uint32_t)(millis() - start) <= ms);
 }
 
+//Motor and Driver specs:
+#define StepsperRevolution 200
+#define MicrostepsPerStep 1
+#define WallWheelCircumference 0.1
+
 //Rotary encoder setup:
 //  Encoder A - pin 2 Black
 //  Encoder B - pin 4 White
 //  Encoder Z - NC    Orange
 //  Encoder VCC - 5V Brown
 //  Encoder ground GND Blue (0V common) and Shield
-//  Resolution 1024 P/R
 #define encAPin 2
 #define encBPin 4
 #define nSteps 1024 //number of steps per rotation
@@ -55,7 +60,6 @@ uint32_t ElapsedTimeNoChange=0;
 float AnalogOutput = AnalogBaseline;
 int pwmOutput = pwmBaseline;
 int pwmSynch = pwmBaseline;
-int WallSpeed = 95;
 
 float mapfloat(float x, float in_min, float in_max, float out_min, float out_max) {
   return (x-in_min) * (out_max-out_min) / (in_max - in_min) + out_min;
@@ -81,7 +85,6 @@ void StreamData() {
     AnalogOutput = constrain(AnalogOutput, 0.00, MaxAnalogOut);
     pwmOutput = mapfloat(CurrentSpeed, MinRunningSpeed, MaxRunningSpeed, 0, MaxPWMValue);
     pwmOutput = constrain(pwmOutput, 0, MaxPWMValue);
-    analogWrite(AnalogDataStreamPin, pwmOutput);
     DetectChange = false;
   } else if (DetectChange == false) {
     TimeNoChange = micros();
@@ -93,11 +96,25 @@ void StreamData() {
   }
 }
 
+int calculateTargetVelocity(float speed)
+{
+   // Calculate wheel revolutions per second (based on treadmill speed)
+  float wheelRevolutionsPerSecond = speed / WallWheelCircumference;
+  
+  // Convert wheel revolutions to motor steps per second
+  float motorStepsPerSecond = wheelRevolutionsPerSecond * StepsperRevolution;
+  
+  // Convert to microsteps per 10,000 seconds
+  int microstepsPerSecond = motorStepsPerSecond * 10000;
+  
+  return microstepsPerSecond;
+}
+
 void SynchWalls() {
   if (pwmSynch != pwmOutput) {
-    WallSpeed = map(pwmOutput, 0, 255, 0, 190);
-    tic.setTargetVelocity(WallSpeed);
-    pwmSynch=pwmOutput;
+    int targetVelocity = calculateTargetVelocity(CurrentSpeed);
+    tic.setTargetVelocity(targetVelocity);
+    pwmSynch = pwmOutput;
   }
 }
 
