@@ -1,69 +1,55 @@
 #include <Tic.h>
 #include <SoftwareSerial.h>
 
-SoftwareSerial ticSerial(10, 11);
+SoftwareSerial ticSerial(10, 11); //pin 10 to Driver RX; pin 11 to Driver TX
 TicSerial tic(ticSerial);
 
 // Sends a "Reset command timeout" command to the Tic.
-void resetCommandTimeout()
-{
+void resetCommandTimeout() {
   tic.resetCommandTimeout();
 }
 
 // Delays for the specified number of milliseconds while resetting the Tic's command timeout so that its movement does not get interrupted.
-void delayWhileResettingCommandTimeout(uint32_t ms)
-{
+void delayWhileResettingCommandTimeout(uint32_t ms) {
   uint32_t start = millis();
   do
   {
     resetCommandTimeout();
-  } while ((uint32_t)(millis() - start) <= ms);
+  } while ((uint32_t)(millis()-start) <= ms);
 }
 
-//Motor and Driver specs:
+// Motor and Driver specs:
 #define StepsperRevolution 200
-#define MicrostepsPerStep 1
-#define WallWheelCircumference 0.1
+#define MicrostepsPerStep 1 //can be adjusted in the pololu interface and has to be changed accordingly
 
-//Rotary encoder setup:
-//  Encoder A - pin 2 Black
-//  Encoder B - pin 4 White
-//  Encoder Z - NC    Orange
-//  Encoder VCC - 5V Brown
-//  Encoder ground GND Blue (0V common) and Shield
+// Rotary encoder setup:
+//   Encoder A - pin 2 Black
+//   Encoder B - pin 4 White
+//   Encoder Z - NC    Orange
+//   Encoder VCC - 5V Brown
+//   Encoder ground GND Blue (0V common) and Shield
 #define encAPin 2
 #define encBPin 4
 #define nSteps 1024 //number of steps per rotation
-#define wheelRadius (100*1000) //wheel radius in mm (1mm is 1000 microns) makes it easer to calculate speed later
-#define wheelDiameter ((float)wheelRadius*2*PI)
-#define DistancePerStep ((float)wheelDiameter/nSteps)
 
+// Setup measurements
+#define WallWheelCircumference 0.11 //in meters
+#define wheelRadius (51*1000) //wheel radius in microns (1mm is 1000 microns)
+#define wheelDiameter ((float)wheelRadius*2*PI)
+#define DistancePerStep ((float)wheelDiameter/nSteps) 
+
+// Direction, Speed and Time variables
 #define FW 1 //code for forward direction rotation
-#define BW -1 //same for backwards
-#define MaxRunningSpeed 2 // in m/s
-#define MinRunningSpeed (MaxRunningSpeed*-1)
-#define RunningTimeout 500000
+#define BW -1 //code for backwards direction rotation
 volatile int Direction = 0;
 volatile bool DetectChange = false;
-volatile static float TotalDistanceInMM=0.00;
-volatile uint32_t SampleStartTime=0;
-volatile uint32_t SampleStopTime=0;
-volatile uint32_t ElapsedTime=0;
-volatile static float CurrentSpeed=0.00;
-uint32_t TimeNoChange=0;
-uint32_t ElapsedTimeNoChange=0;
-
-#define AnalogBaseline 2.5 //Baseline for Analog signal is 2.5 to also encode BW motion
-#define MaxAnalogOut 5.0 //Maximum of 5V analog output for data stream
-#define pwmBaseline 127
-#define MaxPWMValue 255 //Value to generate 5V with PWM
-float AnalogOutput = AnalogBaseline;
-int pwmOutput = pwmBaseline;
-int pwmSynch = pwmBaseline;
-
-float mapfloat(float x, float in_min, float in_max, float out_min, float out_max) {
-  return (x-in_min) * (out_max-out_min) / (in_max - in_min) + out_min;
-}
+volatile static float TotalDistanceInMM = 0.00;
+volatile uint32_t SampleStartTime = 0;
+volatile uint32_t SampleStopTime = 0;
+volatile uint32_t ElapsedTime = 0;
+volatile static float CurrentSpeed = 0.00;
+static int previousTargetVelocity = 0;
+int targetVelocity = 0;
 
 void MeasureRotations() {
   DetectChange = true;
@@ -76,45 +62,27 @@ void MeasureRotations() {
   SampleStopTime = micros();
   ElapsedTime = SampleStopTime-SampleStartTime;
   SampleStartTime = SampleStopTime;
-  CurrentSpeed = (float)DistancePerStep/ElapsedTime*Direction; // microns/microseconds equals m/s negative means BW positive means FW
+  CurrentSpeed = (float)DistancePerStep/ElapsedTime*Direction; //in m/s 
 }
 
-void StreamData() {
-  if (DetectChange == true) {
-    AnalogOutput = mapfloat(CurrentSpeed, MinRunningSpeed, MaxRunningSpeed, 0.00, MaxAnalogOut);
-    AnalogOutput = constrain(AnalogOutput, 0.00, MaxAnalogOut);
-    pwmOutput = mapfloat(CurrentSpeed, MinRunningSpeed, MaxRunningSpeed, 0, MaxPWMValue);
-    pwmOutput = constrain(pwmOutput, 0, MaxPWMValue);
-    DetectChange = false;
-  } else if (DetectChange == false) {
-    TimeNoChange = micros();
-    ElapsedTimeNoChange = TimeNoChange-SampleStartTime;
-    if (ElapsedTimeNoChange > RunningTimeout && TimeNoChange > SampleStopTime) {
-      CurrentSpeed=0.00;
-      DetectChange=true;
-    }
-  }
-}
-
-int calculateTargetVelocity(float speed)
-{
-   // Calculate wheel revolutions per second (based on treadmill speed)
-  float wheelRevolutionsPerSecond = speed / WallWheelCircumference;
-  
-  // Convert wheel revolutions to motor steps per second
-  float motorStepsPerSecond = wheelRevolutionsPerSecond * StepsperRevolution;
-  
+int calculateTargetVelocity(float speed) {
+  // Calculate Wall-Wheel revolutions per second (based on treadmill speed)
+  float wheelRevolutionsPerSecond = speed/WallWheelCircumference;
+  // Convert Wall-Wheel revolutions to motor steps per second
+  float motorStepsPerSecond = wheelRevolutionsPerSecond*StepsperRevolution;
+  // Convert steps to microsteps per second
+  float microstepsPerSecond = motorStepsPerSecond*MicrostepsPerStep;
   // Convert to microsteps per 10,000 seconds
-  int microstepsPerSecond = motorStepsPerSecond * 10000;
+  int microstepsPerTenThousendSecond = microstepsPerSecond*10000;
   
-  return microstepsPerSecond;
+  return microstepsPerTenThousendSecond;
 }
 
 void SynchWalls() {
-  if (pwmSynch != pwmOutput) {
-    int targetVelocity = calculateTargetVelocity(CurrentSpeed);
+  targetVelocity = calculateTargetVelocity(CurrentSpeed);
+  if (targetVelocity != previousTargetVelocity) {
     tic.setTargetVelocity(targetVelocity);
-    pwmSynch = pwmOutput;
+    previousTargetVelocity = targetVelocity;
   }
 }
 
@@ -137,8 +105,6 @@ void setup()
 }
 
 void loop() {
-  //noInterrupts();
-  StreamData();
   SynchWalls();
-  //interrupts();
+  delayWhileResettingCommandTimeout(500);
 }
