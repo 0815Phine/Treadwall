@@ -1,12 +1,14 @@
 #include <Tic.h>
 #include <SoftwareSerial.h>
 
-SoftwareSerial ticSerial(10, 11); //pin 10 to Driver RX; pin 11 to Driver TX
-TicSerial tic(ticSerial);
+SoftwareSerial ticSerial(10, 11); //pin 10 (Arduino RX pin) to Driver TX; pin 11 (Arduino TX pin) to Driver RX
+TicSerial tic1(ticSerial, 14);
+TicSerial tic2(ticSerial, 15);
 
 // Sends a "Reset command timeout" command to the Tic.
 void resetCommandTimeout() {
-  tic.resetCommandTimeout();
+  tic1.resetCommandTimeout();
+  tic2.resetCommandTimeout();
 }
 
 // Delays for the specified number of milliseconds while resetting the Tic's command timeout so that its movement does not get interrupted.
@@ -38,15 +40,18 @@ void delayWhileResettingCommandTimeout(uint32_t ms) {
 #define wheelDiameter ((float)wheelRadius*2*PI)
 #define DistancePerStep ((float)wheelDiameter/nSteps) 
 
-// Direction, Speed and Time variables
+// Direction, Time and Speed variables
 #define FW 1 //code for forward direction rotation
 #define BW -1 //code for backwards direction rotation
-volatile int Direction = 0;
+#define RunningTimeout 500000
 volatile bool DetectChange = false;
+volatile int Direction = 0;
 volatile static float TotalDistanceInMM = 0.00;
 volatile uint32_t SampleStartTime = 0;
 volatile uint32_t SampleStopTime = 0;
 volatile uint32_t ElapsedTime = 0;
+uint32_t TimeNoChange = 0;
+uint32_t ElapsedTimeNoChange = 0;
 volatile static float CurrentSpeed = 0.00;
 static int previousTargetVelocity = 0;
 int targetVelocity = 0;
@@ -79,10 +84,21 @@ int calculateTargetVelocity(float speed) {
 }
 
 void SynchWalls() {
-  targetVelocity = calculateTargetVelocity(CurrentSpeed);
-  if (targetVelocity != previousTargetVelocity) {
-    tic.setTargetVelocity(targetVelocity);
-    previousTargetVelocity = targetVelocity;
+  if (DetectChange == true) {
+    targetVelocity = calculateTargetVelocity(CurrentSpeed);
+    if (targetVelocity != previousTargetVelocity) {
+      tic1.setTargetVelocity(targetVelocity);
+      tic2.setTargetVelocity(targetVelocity*-1);
+      previousTargetVelocity = targetVelocity;
+    DetectChange = false;
+    } 
+  } else if (DetectChange == false) {
+    TimeNoChange = micros();
+    ElapsedTimeNoChange = TimeNoChange-SampleStartTime;
+    if (ElapsedTimeNoChange > RunningTimeout && TimeNoChange > SampleStopTime) {
+      CurrentSpeed=0.00;
+      DetectChange=true;
+    }
   }
 }
 
@@ -98,7 +114,8 @@ void setup()
   // Give the Tic some time to start up.
   delay(20);
   // Tells the Tic that it is OK to start driving the motor.
-  tic.exitSafeStart();
+  tic1.exitSafeStart();
+  tic2.exitSafeStart();
 
   attachInterrupt(digitalPinToInterrupt(encAPin), MeasureRotations, RISING);
   SampleStartTime = micros();
