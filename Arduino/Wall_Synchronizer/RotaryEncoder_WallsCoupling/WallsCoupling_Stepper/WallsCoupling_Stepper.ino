@@ -5,34 +5,19 @@ SoftwareSerial ticSerial(10, 11); //pin 10 (Arduino RX pin) to Driver TX; pin 11
 TicSerial tic1(ticSerial, 14);
 TicSerial tic2(ticSerial, 15);
 
-// Sends a "Reset command timeout" command to the Tic.
-void resetCommandTimeout() {
-  tic1.resetCommandTimeout();
-  tic2.resetCommandTimeout();
-}
-
-// Delays for the specified number of milliseconds while resetting the Tic's command timeout so that its movement does not get interrupted.
-void delayWhileResettingCommandTimeout(uint32_t ms) {
-  uint32_t start = millis();
-  do
-  {
-    resetCommandTimeout();
-  } while ((uint32_t)(millis()-start) <= ms);
-}
-
-// Motor and Driver specs:
-#define StepsperRevolution 200
-#define MicrostepsPerStep 1 //can be adjusted in the pololu interface and has to be changed accordingly
-
-// Rotary encoder setup:
-//   Encoder A - pin 2 Black
-//   Encoder B - pin 4 White
+// Rotary encoder:
+//   Encoder A - Arduino pin 2 to Black
+//   Encoder B - Arduino pin 4 to White
 //   Encoder Z - NC    Orange
 //   Encoder VCC - 5V Brown
 //   Encoder ground GND Blue (0V common) and Shield
 #define encAPin 2
 #define encBPin 4
 #define nSteps 1024 //number of steps per rotation
+
+// Motor and Driver specs:
+#define StepsperRevolution 200
+#define MicrostepsPerStep 1 //can be adjusted in the pololu interface and has to be changed accordingly
 
 // Setup measurements
 #define WallWheelCircumference 0.11 //in meters
@@ -55,6 +40,21 @@ uint32_t ElapsedTimeNoChange = 0;
 volatile static float CurrentSpeed = 0.00;
 static int previousTargetVelocity = 0;
 int targetVelocity = 0;
+
+// Sends a "Reset command timeout" command to the Tic.
+void resetCommandTimeout() {
+  tic1.resetCommandTimeout();
+  tic2.resetCommandTimeout();
+}
+
+// Delays for the specified number of milliseconds while resetting the Tic's command timeout so that its movement does not get interrupted.
+void delayWhileResettingCommandTimeout(uint32_t ms) {
+  uint32_t start = millis();
+  do
+  {
+    resetCommandTimeout();
+  } while ((uint32_t)(millis()-start) <= ms);
+}
 
 void MeasureRotations() {
   DetectChange = true;
