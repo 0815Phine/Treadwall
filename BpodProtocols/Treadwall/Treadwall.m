@@ -8,16 +8,17 @@ S = BpodSystem.ProtocolSettings;
 
 %params_file = '';
 %run(params_file)
-start_path = 'Z:\Animals\Cohort00_Test'; %check on experiment computer
+start_path = 'C:\Users\TomBombadil\Desktop\Animals'; %check on experiment computer
+%start_path = uigetdir(start_path, 'Select Cohort');
 
 if isempty(fieldnames(S))
     freshGUI = 1;        %flag to indicate that prameters have not been loaded from previous session.
-    S.GUI.SubjectID = BpodSystem.GUIData.SubjectID;
-    S.GUI.SessionID = BpodSystem.GUIData.SessionID;
+    S.GUI.SubjectName = BpodSystem.GUIData.SubjectName;
+    %S.GUI.SessionID = BpodSystem.GUIData.SessionID;
     
     % Timings
-    S.GUI.ITIDur = 12; %in seconds
-    S.GUI.stimDur = 60; %in seconds
+    S.GUI.ITIDur = 5; %in seconds
+    S.GUI.stimDur = 10; %in seconds
 
     S.GUI.ExpInfoPath = start_path;
 else
@@ -27,8 +28,8 @@ end
 BpodParameterGUI('init', S);
 
 % define and randomize trials
-% trialList_Info = dir([start_path '\' '#Test' '\' '01' '\' 'triallist' '.csv'])
-trialList_Info = dir([S.GUI.ExpInfoPath '\' S.GUI.SubjectID '\' S.GUI.SessionID '\triallist.csv']);
+trialList_Info = dir([start_path '\Cohort00_Test\#Test\01\triallist.csv']);
+%trialList_Info = dir([S.GUI.ExpInfoPath '\' S.GUI.SubjectNme '\' S.GUI.SessionID '\triallist.csv']);
 if isempty(trialList_Info)
     [~,triallist_dir] = uigetfile(fullfile(start_path,'*.csv'));
 else
@@ -36,24 +37,32 @@ else
 end
 
 triallist = readtable(triallist_dir);
+triallist = triallist.type;
 S.GUI.MaxTrialNumber = numel(triallist);
 
 %% ---------- Analog Output Module ----------------------------------------
-BpodSystem.assertModule('WavePlayer1', {'WavePlayer1'});
-W = BpodWavePlayer('');
+% if (isfield(BpodSystem.ModuleUSB, 'WavePlayer1'))
+%     W = BpodSystem.ModuleUSB.WavePlayer1;
+% else
+%     error('Error: To run this protocol, you must first pair the WavePlayer1 module with its USB port on the Bpod console.')
+% end
+
+W = BpodWavePlayer('COM8');
 
 W.SamplingRate = 100;%in kHz
 W.OutputRange = '0V:5V';
 W.TriggerMode = 'Normal';
 
-oneVoltage = 1 * ones(1, W.SamplingRate); %1V
-loadWaveform(1, oneVoltage);
+lengthWave = S.GUI.stimDur*W.SamplingRate;
+W.loadWaveform(1, 3*ones(1,lengthWave));
+W.loadWaveform(2, 4*ones(1,lengthWave));
+W.loadWaveform(3, 5*ones(1,lengthWave));
 
-W.LoopMode = 'on';
-W.LoopDuration = S.GUI.ITIDur;
-W.BpodEvents = 'off';
+%W.LoopMode = 'on';
+%W.LoopDuration = S.GUI.ITIDur;
+%W.BpodEvents = 'off';
 
-LoadSerialMessages('WavePlayer1', {['P' 0]});
+%LoadSerialMessages('WavePlayer1', {['P' 0]});
 
 %% ---------- Restart Timer and start Rotary Encoder Stream ---------------
 BpodSystem.SerialPort.write('*', 'uint8');
@@ -67,25 +76,42 @@ for currentTrial = 1:S.GUI.MaxTrialNumber
     % read output action
     switch triallist{currentTrial}
         case 'C'
-            fixedVoltage = 5;
+            stimOutput = ['P' 3 0];
         case 'L'
-            fixedVoltage = 4;
+            stimOutput = ['P' 3 1];
         case 'R'
-            fixedVoltage = 3;
+            stimOutput = ['P' 3 2];
     end
 
     % construct state machine
     sma = NewStateMachine(); %Assemble new state machine description
+    
+    if currentTrial == numel(triallist) %last trial
+        sma = AddState(sma, 'Name', 'iti', ...
+            'Timer', S.GUI.ITIDur,...
+            'StateChangeConditions', {'Tup', 'stimulus'},...
+            'OutputActions', {});
 
-    sma = AddState(sma, 'Name', 'iti', ...
-        'Timer', S.GUI.ITIDur,...
-        'StateChangeConditions', {'Tup', 'stimulus'},...
-        'OutputActions', {'WavePlayer1', 1});
+        sma = AddState(sma, 'Name', 'stimulus', ...
+            'Timer', S.GUI.stimDur,...
+            'StateChangeConditions', {'Tup', 'EndBuffer'},...
+            'OutputActions', {'WavePlayer1', stimOutput});
 
-    sma = AddState(sma, 'Name', 'stimulus', ...
-        'Timer', S.GUI.stimDur,...
-        'StateChangeConditions', {'Tup', 'iti'},...
-        'OutputActions', {});
+        sma = AddState(sma, 'Name', 'EndBuffer', ...
+            'Timer', S.GUI.ITIDur,...
+            'StateChangeConditions', {'Tup', 'exit'},...
+            'OutputActions', {});
+    else
+        sma = AddState(sma, 'Name', 'iti', ...
+            'Timer', S.GUI.ITIDur,...
+            'StateChangeConditions', {'Tup', 'stimulus'},...
+            'OutputActions', {});
+
+        sma = AddState(sma, 'Name', 'stimulus', ...
+            'Timer', S.GUI.stimDur,...
+            'StateChangeConditions', {'Tup', 'exit'},...
+            'OutputActions', {'WavePlayer1', stimOutput});
+    end
 
     SendStateMachine(sma);
     RawEvents = RunStateMachine;
