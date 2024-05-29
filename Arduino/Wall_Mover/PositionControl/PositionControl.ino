@@ -3,18 +3,19 @@
 
 SoftwareSerial ticSerial(10, 11); //pin 10 (Arduino RX pin) to Driver TX; pin 11 (Arduino TX pin) to Driver RX
 TicSerial tic1(ticSerial, 14);
-TicSerial tic2(ticSerial, 15);
+//TicSerial tic2(ticSerial, 15);
 
-#define analogIn
+#define analogIn = A0
+int analogValue = 0;  //value read from analog output module
 
 // Time variables
 volatile uint32_t SampleStartTime = 0;
-
+int targetPosition = 0;
 
 // Sends a "Reset command timeout" command to the Tic.
 void resetCommandTimeout() {
   tic1.resetCommandTimeout();
-  tic2.resetCommandTimeout();
+  //tic2.resetCommandTimeout();
 }
 
 // Delays for the specified number of milliseconds while resetting the Tic's command timeout so that its movement does not get interrupted.
@@ -34,6 +35,20 @@ void waitForPosition(int32_t targetPosition) {
   } while (tic1.getCurrentPosition() != targetPosition);
 }
 
+int calculateTargetPosition(float voltage){
+  if (voltage == 5){
+    int ticPosition = 100;
+  } else if (voltage == 4){
+    int ticPosition = 200;
+  } else if (voltage == 3){
+    int ticPosition = 300;
+  } else {
+  int ticPosition = 0;
+  }
+
+  return ticPosition
+}
+
 
 void setup() {
   // Set the baud rate.
@@ -45,16 +60,18 @@ void setup() {
   delay(20);
   // Set the Tic's current position to 0
   tic1.haltAndSetPosition(0);
-  tic2.haltAndSetPosition(0);
+  //tic2.haltAndSetPosition(0);
   // Tells the Tic that it is OK to start driving the motor.
   tic1.exitSafeStart();
-  tic2.exitSafeStart();
+  //tic2.exitSafeStart();
 
   SampleStartTime = micros();
 }
 
 void loop() {
-tic1.setTargetPostition(targetPosition)
-tic2.setTargetPostition(targetPosition)
-waitForPosition(targetPosition);
+  analogValue = analogRead(analogIn);
+  targetPosition = calculateTargetPosition(analogValue);
+  tic1.setTargetPostition(targetPosition);
+  //tic2.setTargetPostition(targetPosition);
+  waitForPosition(targetPosition);
 }
