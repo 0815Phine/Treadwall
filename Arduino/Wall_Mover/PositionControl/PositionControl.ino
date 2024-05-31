@@ -3,23 +3,22 @@
 
 SoftwareSerial ticSerial(10, 11); //pin 10 (Arduino RX pin) to Driver TX; pin 11 (Arduino TX pin) to Driver RX
 TicSerial tic1(ticSerial, 14);
-//TicSerial tic2(ticSerial, 15);
+TicSerial tic2(ticSerial, 15);
 
 #define analogIn A0
 #define ThresholdCentre 500
 #define ThresholdLeft 700
 #define ThresholdRight 900
-volatile int pulseCount = 0; //Count of detected pulses
 int lastAnalogValue = 0;  //value read from analog output module
 volatile bool pulseDetected = false;
 
 volatile uint32_t SampleStartTime = 0;
-int targetPosition = 0;
+String TrialType = ""; // String variable to represent trial type
 
 // Sends a "Reset command timeout" command to the Tic.
 void resetCommandTimeout() {
   tic1.resetCommandTimeout();
-  //tic2.resetCommandTimeout();
+  tic2.resetCommandTimeout();
 }
 
 // Delays for the specified number of milliseconds while resetting the Tic's command timeout so that its movement does not get interrupted.
@@ -43,31 +42,41 @@ void DetectPulse(){
   // Read the analog input
   int analogValue = analogRead(analogIn);
 
-  // Detect rising edge
+  // Detect rising and falling edges
   if (analogValue > ThresholdRight && lastAnalogValue <= ThresholdRight) {
     pulseDetected = true;
-    pulseCount++;
-    targetPosition = 500;
+    TrialType  = "R";
   } else if (analogValue > ThresholdLeft  && lastAnalogValue <= ThresholdLeft) {
     pulseDetected = true;
-    pulseCount++;
-    targetPosition = 300;
+    TrialType  = "L";
   } else if (analogValue > ThresholdCentre  && lastAnalogValue <= ThresholdCentre) {
     pulseDetected = true;
-    pulseCount++;
-    targetPosition = 400;
-  }
-
-  // Detect falling edge
-  if (analogValue < ThresholdCentre && lastAnalogValue >= ThresholdCentre) {
+    TrialType = "C";
+  }  else if (analogValue < ThresholdCentre && lastAnalogValue >= ThresholdCentre) {
     pulseDetected = true;
-    pulseCount--;
-    targetPosition = 0;
+    TrialType = "ITI";
   }
 
   // Update the last analog value
   lastAnalogValue = analogValue;
 }
+
+void setTargetPosition() {
+  if (TrialType == "C") {
+    tic1.setTargetPosition(100);
+    tic2.setTargetPosition(-100);
+  } else if (TrialType == "L") {
+    tic1.setTargetPosition(150);
+    tic2.setTargetPosition(-50);
+  } else if (TrialType == "R") {
+    tic1.setTargetPosition(-50);
+    tic2.setTargetPosition(150);
+  } else if (TrialType == "ITI") {
+    tic1.setTargetPosition(0);
+    tic2.setTargetPosition(0);
+  }
+}
+
 
 void setup() {
   // Set the baud rate.
@@ -81,11 +90,12 @@ void setup() {
   // Give the Tic some time to start up.
   delay(20);
   // Set the Tic's current position to 0
+  //tic1.setTargetPosition(-200);
   tic1.haltAndSetPosition(0);
-  //tic2.haltAndSetPosition(0);
+  tic2.haltAndSetPosition(0);
   // Tells the Tic that it is OK to start driving the motor.
   tic1.exitSafeStart();
-  //tic2.exitSafeStart();
+  tic2.exitSafeStart();
 
   SampleStartTime = micros();
 }
@@ -93,16 +103,9 @@ void setup() {
 void loop() {
   DetectPulse();
 
-  // Print pulse count for debugging
   if (pulseDetected) {
-    Serial.print("Pulse Count: ");
-    Serial.println(pulseCount);
-    Serial.print("Target Position: ");
-    Serial.println(targetPosition);
+    setTargetPosition();
+    //waitForPosition(targetPosition);
     pulseDetected = false;
   }
-  
-  //tic1.setTargetPosition(targetPosition);
-  //tic2.setTargetPostition(targetPosition);
-  //waitForPosition(targetPosition);
 }
