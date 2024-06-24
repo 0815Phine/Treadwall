@@ -93,6 +93,8 @@ void setup() {
   //tic1.setTargetPosition(-200);
   tic1.haltAndSetPosition(0);
   tic2.haltAndSetPosition(0);
+
+  resetCommandTimeout();
   // Tells the Tic that it is OK to start driving the motor.
   tic1.exitSafeStart();
   tic2.exitSafeStart();
@@ -101,6 +103,7 @@ void setup() {
 }
 
 void loop() {
+  resetCommandTimeout();
   DetectPulse();
 
   if (pulseDetected) {
