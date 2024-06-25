@@ -61,16 +61,17 @@ void DetectPulse(){
   lastAnalogValue = analogValue;
 }
 
+// for 45mm
 void setTargetPosition() {
   if (TrialType == "C") {
-    tic1.setTargetPosition(100);
-    tic2.setTargetPosition(-100);
+    tic1.setTargetPosition(75);
+    tic2.setTargetPosition(-75);
   } else if (TrialType == "L") {
-    tic1.setTargetPosition(150);
-    tic2.setTargetPosition(-50);
+    tic1.setTargetPosition(106);
+    tic2.setTargetPosition(-44);
   } else if (TrialType == "R") {
-    tic1.setTargetPosition(-50);
-    tic2.setTargetPosition(150);
+    tic1.setTargetPosition(44);
+    tic2.setTargetPosition(-106);
   } else if (TrialType == "ITI") {
     tic1.setTargetPosition(0);
     tic2.setTargetPosition(0);
@@ -89,15 +90,16 @@ void setup() {
 
   // Give the Tic some time to start up.
   delay(20);
-  // Set the Tic's current position to 0
-  //tic1.setTargetPosition(-200);
-  tic1.haltAndSetPosition(0);
-  tic2.haltAndSetPosition(0);
 
   resetCommandTimeout();
   // Tells the Tic that it is OK to start driving the motor.
   tic1.exitSafeStart();
   tic2.exitSafeStart();
+
+  // add here moving out completely (measured by limit switches)
+  // Set the Tic's current position to 0
+  tic1.haltAndSetPosition(0);
+  tic2.haltAndSetPosition(0);
 
   SampleStartTime = micros();
 }
