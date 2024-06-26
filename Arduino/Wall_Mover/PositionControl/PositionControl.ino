@@ -96,7 +96,7 @@ void setup() {
   tic1.exitSafeStart();
   tic2.exitSafeStart();
 
-  // add here moving out completely (measured by limit switches)
+  // add here moving out completely (measured by limit switches) -> check out homing .. homing should be at the outer limit switch
   // Set the Tic's current position to 0
   tic1.haltAndSetPosition(0);
   tic2.haltAndSetPosition(0);
