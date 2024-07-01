@@ -20,15 +20,15 @@ TicSerial tic2(ticSerial, 15);
 #define MicrostepsPerStep 1 //can be adjusted in the pololu interface and has to be changed accordingly
 
 // Setup measurements
-#define WallWheelCircumference 0.11 //in meters
-#define wheelRadius (51*1000) //wheel radius in microns (1mm is 1000 microns)
+#define WallWheelCircumference (109*1000) //in microns (1mm is 1000 microns)
+#define wheelRadius (53*1000) //wheel radius in microns (1mm is 1000 microns)
 #define wheelDiameter ((float)wheelRadius*2*PI)
 #define DistancePerStep ((float)wheelDiameter/nSteps) 
 
 // Direction, Time and Speed variables
 #define FW 1 //code for forward direction rotation
 #define BW -1 //code for backwards direction rotation
-#define RunningTimeout 500000
+#define RunningTimeout 5000
 volatile bool DetectChange = false;
 volatile int Direction = 0;
 volatile static float TotalDistanceInMM = 0.00;
@@ -64,15 +64,15 @@ void MeasureRotations() {
   Direction = FW;
   }
   TotalDistanceInMM += DistancePerStep/1000;
-  SampleStopTime = micros();
+  SampleStopTime = micros(); //in ms
   ElapsedTime = SampleStopTime-SampleStartTime;
   SampleStartTime = SampleStopTime;
-  CurrentSpeed = (float)DistancePerStep/ElapsedTime*Direction; //in m/s 
+  CurrentSpeed = (float)DistancePerStep/ElapsedTime*Direction; //in microm/micros 
 }
 
 int calculateTargetVelocity(float speed) {
   // Calculate Wall-Wheel revolutions per second (based on treadmill speed)
-  float wheelRevolutionsPerSecond = speed/WallWheelCircumference;
+  float wheelRevolutionsPerSecond = (speed*1000000)/WallWheelCircumference;
   // Convert Wall-Wheel revolutions to motor steps per second
   float motorStepsPerSecond = wheelRevolutionsPerSecond*StepsperRevolution;
   // Convert steps to microsteps per second
@@ -123,5 +123,5 @@ void setup()
 
 void loop() {
   SynchWalls();
-  delayWhileResettingCommandTimeout(500);
+  resetCommandTimeout();
 }
