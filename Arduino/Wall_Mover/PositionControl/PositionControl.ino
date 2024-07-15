@@ -52,7 +52,7 @@ void DetectPulse(){
   } else if (analogValue > ThresholdCentre  && lastAnalogValue <= ThresholdCentre) {
     pulseDetected = true;
     TrialType = "C";
-  }  else if (analogValue < ThresholdCentre && lastAnalogValue >= ThresholdCentre) {
+  } else if (analogValue < ThresholdCentre && lastAnalogValue >= ThresholdCentre) {
     pulseDetected = true;
     TrialType = "ITI";
   }
