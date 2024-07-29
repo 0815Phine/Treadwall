@@ -73,8 +73,8 @@ void setTargetPosition() {
     tic1.setTargetPosition(44);
     tic2.setTargetPosition(-106);
   } else if (TrialType == "ITI") {
-    tic1.setTargetPosition(0);
-    tic2.setTargetPosition(0);
+    tic1.goHomeReverse();
+    tic2.goHomeForward();
   }
 }
 
