@@ -11,8 +11,10 @@
 |  |  | power input |  |
 | Fuse |  |  |  |
 | Switch |  |  |  |
+| Terminal Block | 2 pieces | 2 poles |  |
+| Wago connector block | 2 pieces | 5 poles | [reichelt.de](https://www.reichelt.de/verbindungsklemme-5-leiteranschluss-wago-221-415-p149800.html?PROVID=2788&gad_source=1&gclid=Cj0KCQjw-5y1BhC-ARIsAAM_oKnrkiWmjAkN6Ogq3tOb9gql4Mfviurv7-E2F_vv9MaZdrLDa4vFq5caAlLFEALw_wcB) |
 | Cables |  |  |  |
 | Shrinktube |  |  |  |
-| Nut |  |  |  |
+| Nut | 3 pieces | M8x0.5 |  |
 
 ### Wiring Diagram
