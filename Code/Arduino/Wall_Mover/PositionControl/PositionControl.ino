@@ -2,8 +2,8 @@
 #include <SoftwareSerial.h>
 
 SoftwareSerial ticSerial(10, 11); //pin 10 (Arduino RX pin) to Driver TX; pin 11 (Arduino TX pin) to Driver RX
-TicSerial tic1(ticSerial, 14);
-TicSerial tic2(ticSerial, 15);
+TicSerial tic1(ticSerial, 14); //right
+TicSerial tic2(ticSerial, 15); //left
 
 #define analogIn A0
 #define ThresholdCentre 500
@@ -64,17 +64,17 @@ void DetectPulse(){
 // for 45mm
 void setTargetPosition() {
   if (TrialType == "C") {
-    tic1.setTargetPosition(75);
-    tic2.setTargetPosition(-75);
+    tic1.setTargetPosition(-75);
+    tic2.setTargetPosition(75);
   } else if (TrialType == "L") {
-    tic1.setTargetPosition(106);
-    tic2.setTargetPosition(-44);
+    tic1.setTargetPosition(-106);
+    tic2.setTargetPosition(44);
   } else if (TrialType == "R") {
-    tic1.setTargetPosition(44);
-    tic2.setTargetPosition(-106);
+    tic1.setTargetPosition(-44);
+    tic2.setTargetPosition(106);
   } else if (TrialType == "ITI") {
-    tic1.goHomeReverse();
-    tic2.goHomeForward();
+    tic1.goHomeForward();
+    tic2.goHomeReverse();
   }
 }
 
@@ -97,8 +97,8 @@ void setup() {
   tic2.exitSafeStart();
 
   // homes motors at outer limit switches -> connect motors accordingly to correct tic
-  tic1.goHomeReverse();
-  tic2.goHomeForward();
+  tic1.goHomeForward();
+  tic2.goHomeReverse();
   // Set the Tic's current position to 0
   //tic1.haltAndSetPosition(0); tic2.haltAndSetPosition(0);
 
