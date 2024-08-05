@@ -20,3 +20,6 @@
 | Nut | 2 pieces | M8x0.5 |  |
 
 ### Wiring Diagram
+<p align="center">
+  <img src="./images/Wall_Synchronizer_Electronics.png" width="800">
+</p>
