@@ -16,5 +16,9 @@
 | Cables |  |  |  |
 | Shrinktube |  |  |  |
 | Nut | 3 pieces | M8x0.5 |  |
+|  |  |  | [conrad.de](https://www.conrad.de/de/p/tru-components-dc14-m-niedervolt-steckverbinder-stecker-gerade-5-5-mm-2-1-mm-1-st-1570700.html) |
 
 ### Wiring Diagram
+<p align="center">
+  <img src="./images/Wall_Mover_Electronics.png" width="800">
+</p>
