@@ -1,34 +1,36 @@
 #include <Tic.h>
 #include <SoftwareSerial.h>
 
-SoftwareSerial ticSerial(10, 11); //pin 10 (Arduino RX pin) to Driver TX; pin 11 (Arduino TX pin) to Driver RX
+// Tic Setup
+SoftwareSerial ticSerial(10, 11); //pin 10 to Driver TX; pin 11 to Driver RX
 TicSerial tic1(ticSerial, 14);
 TicSerial tic2(ticSerial, 15);
 
-// Rotary encoder:
-//   Encoder A - Arduino pin 2 to Black
-//   Encoder B - Arduino pin 4 to White
-//   Encoder Z - NC    Orange
-//   Encoder VCC - 5V Brown
-//   Encoder ground GND Blue (0V common) and Shield
-#define encAPin 2
-#define encBPin 4
-#define nSteps 1024 //number of steps per rotation
-
-// Motor and Driver specs:
-#define StepsperRevolution 200
-#define MicrostepsPerStep 1 //can be adjusted in the pololu interface and has to be changed accordingly
-
-// Setup measurements
+// Constants
+//    Arduino pins:
+#define AnalogDataStreamPin A0
+#define encAPin 2 //Encoder A - Arduino pin 2 to Black
+#define encBPin 4 //Encoder B - Arduino pin 4 to White
+//    Data Stream:
+#define FW 1 //forwards
+#define BW -1 //backwards
+#define RunningTimeout 5000
+#define MaxRunningSpeed 2 //in m/s
+#define MinRunningSpeed (MaxRunningSpeed*-1)
+#define MaxPWMValue 255 //Value to generate 5V with PWM
+#define pwmBaseline 127
+//    Rotary Encoder, Motor specs:
+#define nSteps 1024 //Rotary Encoder: number of steps per rotation
+#define StepsperRevolution 200 //Steppers
+#define MicrostepsPerStep 1 //Steppers
+//    Setup measurements
 #define WallWheelCircumference (109*1000) //in microns (1mm is 1000 microns)
 #define wheelRadius (53*1000) //wheel radius in microns (1mm is 1000 microns)
 #define wheelDiameter ((float)wheelRadius*2*PI)
 #define DistancePerStep ((float)wheelDiameter/nSteps) 
 
-// Direction, Time and Speed variables
-#define FW 1 //code for forward direction rotation
-#define BW -1 //code for backwards direction rotation
-#define RunningTimeout 5000
+// Variables
+int pwmOutput = pwmBaseline;
 volatile bool DetectChange = false;
 volatile int Direction = 0;
 volatile static float TotalDistanceInMM = 0.00;
@@ -56,12 +58,16 @@ void delayWhileResettingCommandTimeout(uint32_t ms) {
   } while ((uint32_t)(millis()-start) <= ms);
 }
 
+float mapfloat(float x, float in_min, float in_max, float out_min, float out_max) {
+  return (x-in_min) * (out_max-out_min) / (in_max - in_min) + out_min;
+}
+
 void MeasureRotations() {
   DetectChange = true;
   if (digitalRead(encAPin) == digitalRead(encBPin)) {
-  Direction = BW;
-  } else {
   Direction = FW;
+  } else {
+  Direction = BW;
   }
   TotalDistanceInMM += DistancePerStep/1000;
   SampleStopTime = micros(); //in ms
@@ -77,10 +83,8 @@ int calculateTargetVelocity(float speed) {
   float motorStepsPerSecond = wheelRevolutionsPerSecond*StepsperRevolution;
   // Convert steps to microsteps per second
   float microstepsPerSecond = motorStepsPerSecond*MicrostepsPerStep;
-  // Convert to microsteps per 10,000 seconds
-  int microstepsPerTenThousendSecond = microstepsPerSecond*10000;
   
-  return microstepsPerTenThousendSecond;
+  return microstepsPerSecond*10000;
 }
 
 void SynchWalls() {
@@ -90,26 +94,39 @@ void SynchWalls() {
       tic1.setTargetVelocity(targetVelocity);
       tic2.setTargetVelocity(targetVelocity*-1);
       previousTargetVelocity = targetVelocity;
+    }
     DetectChange = false;
-    } 
   } else if (DetectChange == false) {
     TimeNoChange = micros();
     ElapsedTimeNoChange = TimeNoChange-SampleStartTime;
     if (ElapsedTimeNoChange > RunningTimeout && TimeNoChange > SampleStopTime) {
       CurrentSpeed=0.00;
+      Direction = 0;
       DetectChange=true;
     }
   }
 }
 
+void StreamData() {
+  pwmOutput = mapfloat(CurrentSpeed, MinRunningSpeed, MaxRunningSpeed, 0, MaxPWMValue);
+  pwmOutput = constrain(pwmOutput, 0, MaxPWMValue);
+  analogWrite(AnalogDataStreamPin, pwmOutput);
 
-void setup()
-{
-  // Set the baud rate.
+  //Serial.print(CurrentSpeed);
+  //Serial.print(",");
+  //Serial.print(pwmOutput);
+  //Serial.print(",");
+  //Serial.println(TotalDistanceInMM);
+}
+
+
+void setup() {
   ticSerial.begin(9600);
+  Serial.begin(9600);
 
   pinMode(encAPin, INPUT_PULLUP);
   pinMode(encBPin, INPUT_PULLUP);
+  pinMode(AnalogDataStreamPin, OUTPUT);
 
   // Give the Tic some time to start up.
   delay(20);
@@ -123,5 +140,6 @@ void setup()
 
 void loop() {
   SynchWalls();
+  StreamData();
   resetCommandTimeout();
 }
