@@ -54,9 +54,18 @@ W.OutputRange = '0V:5V';
 W.TriggerMode = 'Normal';
 
 lengthWave = S.GUI.stimDur*W.SamplingRate;
-W.loadWaveform(1, 3*ones(1,lengthWave));
-W.loadWaveform(2, 4*ones(1,lengthWave));
-W.loadWaveform(3, 5*ones(1,lengthWave));
+W.loadWaveform(1, 0.4*ones(1,lengthWave));
+W.loadWaveform(2, 0.8*ones(1,lengthWave));
+W.loadWaveform(3, 1.2*ones(1,lengthWave));
+W.loadWaveform(4, 1.6*ones(1,lengthWave));
+W.loadWaveform(5, 2*ones(1,lengthWave));
+W.loadWaveform(6, 2.4*ones(1,lengthWave));
+W.loadWaveform(7, 2.8*ones(1,lengthWave));
+W.loadWaveform(8, 3.2*ones(1,lengthWave));
+W.loadWaveform(9, 3.6*ones(1,lengthWave));
+W.loadWaveform(10, 4*ones(1,lengthWave));
+W.loadWaveform(11, 4.5*ones(1,lengthWave));
+W.loadWaveform(12, 5*ones(1,lengthWave));
 
 %W.LoopMode = 'on';
 %W.LoopDuration = S.GUI.ITIDur;
@@ -75,12 +84,30 @@ for currentTrial = 1:S.GUI.MaxTrialNumber
 
     % read output action
     switch triallist{currentTrial}
-        case 'C'
+        case 'C45'
             stimOutput = ['P' 3 0];
-        case 'L'
+        case 'C39'
             stimOutput = ['P' 3 1];
-        case 'R'
+        case 'C33'
             stimOutput = ['P' 3 2];
+        case 'C27'
+            stimOutput = ['P' 3 3];
+        case 'L45'
+            stimOutput = ['P' 3 4];
+        case 'L39'
+            stimOutput = ['P' 3 5];
+        case 'L33'
+            stimOutput = ['P' 3 6];
+        case 'L27'
+            stimOutput = ['P' 3 7];
+        case 'R45'
+            stimOutput = ['P' 3 8];
+        case 'R39'
+            stimOutput = ['P' 3 9];
+        case 'R33'
+            stimOutput = ['P' 3 10];
+        case 'R27'
+            stimOutput = ['P' 3 11];
     end
 
     % construct state machine
