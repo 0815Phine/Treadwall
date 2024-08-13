@@ -8,7 +8,10 @@ add picture here
 - [Wall Synchronizer]()
 - [Wall Mover]()
 
-### Wiring Diagram
+### Wiring Overview
+<p align="center">
+  <img src="./images/Treadwall_Connections_Overview.png" width="800">
+</p>
 
 ## Lasercutting
 We used a Trotec Speedy Flex lasercutter with a 100W CO2 laser with the following settings:
