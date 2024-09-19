@@ -29,7 +29,7 @@ BpodParameterGUI('init', S);
 
 % define and randomize trials
 trialList_Info = dir([start_path '\Cohort00_Test\#Test\01\triallist.csv']);
-%trialList_Info = dir([S.GUI.ExpInfoPath '\' S.GUI.SubjectNme '\' S.GUI.SessionID '\triallist.csv']);
+%trialList_Info = dir([S.GUI.ExpInfoPath '\' S.GUI.SubjectName '\' S.GUI.SessionID '\triallist.csv']);
 if isempty(trialList_Info)
     [~,triallist_dir] = uigetfile(fullfile(start_path,'*.csv'));
 else
@@ -47,7 +47,7 @@ S.GUI.MaxTrialNumber = numel(triallist);
 %     error('Error: To run this protocol, you must first pair the WavePlayer1 module with its USB port on the Bpod console.')
 % end
 
-W = BpodWavePlayer('COM8');
+W = BpodWavePlayer('COM3'); %check which COM is paired with analog output module
 
 W.SamplingRate = 100;%in kHz
 W.OutputRange = '0V:5V';
@@ -140,6 +140,7 @@ for currentTrial = 1:S.GUI.MaxTrialNumber
             'OutputActions', {'WavePlayer1', stimOutput});
     end
 
+    % run state machine
     SendStateMachine(sma);
     RawEvents = RunStateMachine;
     if ~isempty(fieldnames(RawEvents)) %If trial data was returned
