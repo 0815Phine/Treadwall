@@ -6,6 +6,7 @@ TicSerial tic1(ticSerial, 14); //right
 TicSerial tic2(ticSerial, 15); //left
 
 #define analogIn A0
+#define MicrostepsPerStep 4 //Steppers
 
 // Thresholds for pulse detection
 #define ThresholdCentre45 80
@@ -100,41 +101,41 @@ void DetectPulse(){
 
 void setTargetPosition() {
   if (TrialType == "C45") {
-    tic1.setTargetPosition(-64);
-    tic2.setTargetPosition(64);
+    tic1.setTargetPosition(-60*MicrostepsPerStep);
+    tic2.setTargetPosition(60*MicrostepsPerStep);
   } else if (TrialType == "L45") {
-    tic1.setTargetPosition(-87);
-    tic2.setTargetPosition(40);
+    tic1.setTargetPosition(-83*MicrostepsPerStep);
+    tic2.setTargetPosition(37*MicrostepsPerStep);
   } else if (TrialType == "R45") {
-    tic1.setTargetPosition(-40);
-    tic2.setTargetPosition(87);
+    tic1.setTargetPosition(-37*MicrostepsPerStep);
+    tic2.setTargetPosition(83*MicrostepsPerStep);
   }  else if (TrialType == "C39") {
-    tic1.setTargetPosition(-75);
-    tic2.setTargetPosition(75);
+    tic1.setTargetPosition(-71*MicrostepsPerStep);
+    tic2.setTargetPosition(71*MicrostepsPerStep);
   } else if (TrialType == "L39") {
-    tic1.setTargetPosition(-98);
-    tic2.setTargetPosition(52);
+    tic1.setTargetPosition(-94*MicrostepsPerStep);
+    tic2.setTargetPosition(48*MicrostepsPerStep);
   }  else if (TrialType == "R39") {
-    tic1.setTargetPosition(-52);
-    tic2.setTargetPosition(98);
+    tic1.setTargetPosition(-48*MicrostepsPerStep);
+    tic2.setTargetPosition(94*MicrostepsPerStep);
   } else if (TrialType == "C33") {
-    tic1.setTargetPosition(-87);
-    tic2.setTargetPosition(87);
+    tic1.setTargetPosition(-83*MicrostepsPerStep);
+    tic2.setTargetPosition(83*MicrostepsPerStep);
   }  else if (TrialType == "L33") {
-    tic1.setTargetPosition(-110);
-    tic2.setTargetPosition(64);
+    tic1.setTargetPosition(-106*MicrostepsPerStep);
+    tic2.setTargetPosition(60*MicrostepsPerStep);
   } else if (TrialType == "R33") {
-    tic1.setTargetPosition(-64);
-    tic2.setTargetPosition(110);
+    tic1.setTargetPosition(-60*MicrostepsPerStep);
+    tic2.setTargetPosition(106*MicrostepsPerStep);
   }  else if (TrialType == "C27") {
-    tic1.setTargetPosition(-98);
-    tic2.setTargetPosition(98);
+    tic1.setTargetPosition(-94*MicrostepsPerStep);
+    tic2.setTargetPosition(94*MicrostepsPerStep);
   }  else if (TrialType == "L27") {
-    tic1.setTargetPosition(-121);
-    tic2.setTargetPosition(75);
+    tic1.setTargetPosition(-117*MicrostepsPerStep);
+    tic2.setTargetPosition(71*MicrostepsPerStep);
   } else if (TrialType == "R27") {
-    tic1.setTargetPosition(-75);
-    tic2.setTargetPosition(121);
+    tic1.setTargetPosition(-71*MicrostepsPerStep);
+    tic2.setTargetPosition(117*MicrostepsPerStep);
   } else if (TrialType == "ITI") {
     tic1.goHomeForward();
     tic2.goHomeReverse();
