@@ -9,17 +9,15 @@ void setup() {
 }
 
 void loop() {
-  // read the value from the sensor:
-  sensorValue = analogRead(sensorPin);
   // turn the ledPin on
   digitalWrite(ledPin, HIGH);
-  // stop the program for <sensorValue> milliseconds:
+  delay(0.4);
+  // read the value from the sensor:
+  sensorValue = analogRead(sensorPin);
   Serial.print("sensor = ");
   Serial.println(sensorValue);
-
-  delay(1.2);
+  delay(0.4);
   // turn the ledPin off:
   digitalWrite(ledPin, LOW);
-  // stop the program for <sensorValue> milliseconds:
-  delay(0.8);
+  delay(1.2);
 }
