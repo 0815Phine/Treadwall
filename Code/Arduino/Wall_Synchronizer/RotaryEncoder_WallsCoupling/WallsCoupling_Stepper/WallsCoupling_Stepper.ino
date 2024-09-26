@@ -15,7 +15,7 @@ TicSerial tic2(ticSerial, 15);
 #define FW 1 //forwards
 #define BW -1 //backwards
 #define RunningTimeout 5000
-#define MaxRunningSpeed 2 //in m/s
+#define MaxRunningSpeed 1 //in m/s
 #define MinRunningSpeed (MaxRunningSpeed*-1)
 #define MaxPWMValue 255 //Value to generate 5V with PWM
 #define pwmBaseline 127
@@ -112,11 +112,11 @@ void StreamData() {
   pwmOutput = constrain(pwmOutput, 0, MaxPWMValue);
   analogWrite(AnalogDataStreamPin, pwmOutput);
 
-  //Serial.print(CurrentSpeed);
-  //Serial.print(",");
-  //Serial.print(pwmOutput);
-  //Serial.print(",");
-  //Serial.println(TotalDistanceInMM);
+  Serial.print(CurrentSpeed);
+  Serial.print(",");
+  Serial.print(pwmOutput);
+  Serial.print(",");
+  Serial.println(TotalDistanceInMM);
 }
 
 
