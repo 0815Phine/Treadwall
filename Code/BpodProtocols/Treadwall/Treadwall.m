@@ -73,6 +73,9 @@ W.loadWaveform(12, 5*ones(1,lengthWave));
 
 %LoadSerialMessages('WavePlayer1', {['P' 0]});
 
+%% 
+% add here wavesurfer synching !!!!
+
 %% ---------- Restart Timer and start Rotary Encoder Stream ---------------
 BpodSystem.SerialPort.write('*', 'uint8');
 Confirmed = BpodSystem.SerialPort.read(1,'uint8');
