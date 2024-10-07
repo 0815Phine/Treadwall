@@ -3,33 +3,35 @@ function Treadwall
 global BpodSystem
 
 %% ---------- Define task parameters --------------------------------------
+start_path = BpodSystem.Path.DataFolder; % 'C:\Users\TomBombadil\Desktop\Animals';
+
 % initialize parameters
 S = BpodSystem.ProtocolSettings;
 
-%params_file = '';
-%run(params_file)
-start_path = 'C:\Users\TomBombadil\Desktop\Animals'; %check on experiment computer
-%start_path = uigetdir(start_path, 'Select Cohort');
+params_file = fullfile([BpodSystem.Path.ProtocolFolder '\treadwall_parameters.m']);
+run(params_file)
 
 if isempty(fieldnames(S))
     freshGUI = 1;        %flag to indicate that prameters have not been loaded from previous session.
-    S.GUI.SubjectName = BpodSystem.GUIData.SubjectName;
-    %S.GUI.SessionID = BpodSystem.GUIData.SessionID;
+    S.GUI.SubjectID = BpodSystem.GUIData.SubjectName;
+    S.GUI.SessionID = BpodSystem.GUIData.SessionID;
     
     % Timings
-    S.GUI.ITIDur = 5; %in seconds
-    S.GUI.stimDur = 10; %in seconds
+    S.GUI.ITIDur = ITIDur; %in seconds
+    S.GUI.stimDur = stimDur; %in seconds
 
-    S.GUI.ExpInfoPath = start_path;
+    %S.GUI.ExpInfoPath = start_path;
 else
     freshGUI  = 0;        %flag to indicate that prameters have been loaded from previous session.
 end
 
 BpodParameterGUI('init', S);
+% disp('Please do not yet start Wavesurfer...');
+% pause(1);
 
-% define and randomize trials
-trialList_Info = dir([start_path '\Cohort00_Test\#Test\01\triallist.csv']);
-%trialList_Info = dir([S.GUI.ExpInfoPath '\' S.GUI.SubjectName '\' S.GUI.SessionID '\triallist.csv']);
+% define trials (from previously created randomized list)
+%trialList_Info = dir([start_path '\Cohort00_Test\#Test\01\triallist.csv']);
+trialList_Info = dir([start_path '\' S.GUI.SubjectID '\' S.GUI.SessionID '\triallist.csv']);
 if isempty(trialList_Info)
     [~,triallist_dir] = uigetfile(fullfile(start_path,'*.csv'));
 else
@@ -73,16 +75,33 @@ W.loadWaveform(12, 5*ones(1,lengthWave));
 
 %LoadSerialMessages('WavePlayer1', {['P' 0]});
 
-%% 
-% add here wavesurfer synching !!!!
-
-%% ---------- Restart Timer and start Rotary Encoder Stream ---------------
+%% ---------- Restart Timer -----------------------------------------------
 BpodSystem.SerialPort.write('*', 'uint8');
 Confirmed = BpodSystem.SerialPort.read(1,'uint8');
 if Confirmed ~= 1, error('Faulty clock reset'); end
 
+%% ---------- Synching with WaveSurfer ------------------------------------
+sma = NewStateMachine();
+sma = AddState(sma, 'Name', 'WaitForWaveSurfer', ...
+    'Timer',0,...
+    'StateChangeConditions', {'BNC1High', 'exit'},...
+    'OutputActions', {});
+SendStateMachine(sma);
+RawEvents = RunStateMachine;
+
+if ~isempty(fieldnames(RawEvents)) % If trial data was returned
+    BpodSystem.Data = AddTrialEvents(BpodSystem.Data,RawEvents); % Computes trial events from raw data
+    SaveBpodSessionData; % Saves the field BpodSystem.Data to the current data file
+end
+
+disp('Synced with Wavesurfer.');
+
 %% ---------- Main Loop ---------------------------------------------------
 for currentTrial = 1:S.GUI.MaxTrialNumber
+    disp(' ');
+    disp('- - - - - - - - - - - - - - - ');
+    disp(['Trial: ' num2str(trial) ' - ' datestr(now,'HH:MM:SS') ' - ' 'Type: ' typeList{trial}]);
+
     S = BpodParameterGUI('sync', S); %Sync parameters with BpodParameterGUI plugin
 
     % read output action
@@ -152,4 +171,8 @@ for currentTrial = 1:S.GUI.MaxTrialNumber
     end
 
     if BpodSystem.Status.BeingUsed == 0; return; end
+end
+
+disp('Loop end');
+disp('Stop wavesurfer.');
 end
