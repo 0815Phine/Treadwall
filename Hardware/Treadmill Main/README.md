@@ -2,11 +2,14 @@
 ### File List
 | Treadwall Component | Production Amount | Material |
 | :---: | :---: | :---: |
-| Platform |  |  |
-| Platform extention (optional) |  |  |
-| Wheels | 2 pieces |  |
+| Platform | 1 piece |  |
+| Platform extention (optional) | 1 piece |  |
+| Wheel | 2 pieces |  |
+| Wheel gummy | 12 pieces |  |
+| Rot Sensor Holder | 1 piece |  |
+| Ball Bearing Holder | 3 pieces |  |
 
-All files are available as... 
+All files are available as .stl for 3D-printing.
 
 ### Commercial Parts List
 | Item | Quantity | Notes | Product Example Link |
