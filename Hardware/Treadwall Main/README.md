@@ -2,20 +2,20 @@
 ### File List
 | Treadwall Component | Production Amount | Material |
 | :---: | :---: | :---: |
-| Leadplate top | 1 piece | Acrylic glass 6mm, PLA or ABS |
-| Leadplate bottom | 1 piece | Acrylic glass 6mm, PLA or ABS |
+| Leadplate top | 1 piece | Acrylic glass 6mm |
+| Leadplate bottom | 1 piece | Acrylic glass 6mm |
 | Walls | 2 pieces |  |
 | Wall-band | 2 pieces | Silicone |
-| Tensioner | 2 pieces |  |
+| Tensioner add-on | 2 pieces |  |
 | Tensioner roller | 2 pieces |  |
-| Motorized wheels | 2 pieces |  |
-| Passive wheels | 2 pieces |  |
+| Motorized roller | 2 pieces |  |
+| Passive roller | 2 pieces |  |
 | Rack left | 1 piece |  |
 | Rack right | 1 piece |  |
 | Pinion gears | 2 pieces |  |
 | Motor holder | 2 pieces |  |
 
-All files are available as...
+All files are available as .stl for 3D-printing. Cutlines for lasercutting are available as .svg
 
 ### Commercial Parts List
 | Item | Quantity | Notes | Product Example Link |
