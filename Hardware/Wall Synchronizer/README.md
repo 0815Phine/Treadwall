@@ -1,4 +1,9 @@
 # Wall Synchronizer
+
+<p align="center">
+  <img src="./images/Wall_Synchronizer.png" width="800">
+</p>
+
 | Item | Quantity | Notes | Product Example Link |
 | :---: | :---: | :---: | :---: |
 | Arduino Uno | 1 piece |  | [arduino.cc](https://store-usa.arduino.cc/products/uno-r4-minima) |
