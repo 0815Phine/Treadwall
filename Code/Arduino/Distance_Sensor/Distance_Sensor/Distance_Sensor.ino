@@ -87,11 +87,11 @@ void StreamData() {
   Serial.print("Distance in mm right Side = ");
   Serial.println(Distance);
 
-  Distance = mapfloat(sensVoltageL, MinVoltage, MaxVoltage, MinDistance, MaxDistance);
+  //Distance = mapfloat(sensVoltageL, MinVoltage, MaxVoltage, MinDistance, MaxDistance);
   //Serial.print("sensor = ");
   //Serial.println(sensorVoltage);
-  Serial.print("Distance in mm left Side = ");
-  Serial.println(Distance);
+  //Serial.print("Distance in mm left Side = ");
+  //Serial.println(Distance);
 }
 
 
