@@ -3,10 +3,10 @@
 add picture here
 
 ### Components
-- [Treadmill-Main]()
-- [Treadwall-Main]()
-- [Wall Synchronizer]()
-- [Wall Mover]()
+- [Treadmill-Main](https://github.com/0815Phine/Treadwall/tree/main/Hardware/Treadmill%20Main)
+- [Treadwall-Main](https://github.com/0815Phine/Treadwall/tree/main/Hardware/Treadwall%20Main)
+- [Wall Synchronizer](https://github.com/0815Phine/Treadwall/tree/main/Hardware/Wall%20Synchronizer)
+- [Wall Mover](https://github.com/0815Phine/Treadwall/tree/main/Hardware/Wall%20Mover)
 
 ### Wiring Overview
 <p align="center">
