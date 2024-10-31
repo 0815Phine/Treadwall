@@ -1,16 +1,17 @@
 // Constants
 //    Arduino pins:
-#define sensorPinright A0  // VOut optical sensor right
-#define ledPinright 13     // pulse optical sensor right
-#define sensorPinleft A1   // VOut optical sensor left
-#define ledPinleft 12      // pulse optical sensor left
-#define DataStreamright 10 // PWM pin 
-#define DataStreamleft 11  // PWm pin
+#define sensorPinright A1  // VOut optical sensor right
+#define ledPinright 10     // pulse optical sensor right
+#define sensorPinleft A0   // VOut optical sensor left
+#define ledPinleft 11      // pulse optical sensor left
+#define DataStreamright 12 // PWM pin 
+#define DataStreamleft 13  // PWm pin
 //    the following constants have to be adjusted to the final tuning curve
-#define MinVoltage 0
-#define MaxVoltage 2.7
-#define MinDistance 0 // in mm
-#define MaxDistance 32.5 // in mm
+#define MinVoltage 0 //??
+#define MaxVoltage 0 //??
+#define MinDistance_left 11 // in mm
+#define MinDistance_right 9.5 // in mm
+#define MaxDistance 32.5 // in mm ??
 #define MaxPWMValue 255 // value to generate 5V with PWM
 #define pwmBaseline 127
 
@@ -71,7 +72,7 @@ void StreamData() {
   sensVoltageR = sensValR * (5.0 / 1023.0);
   sensValL = sensValOnL - sensValOffL;
   sensVoltageL = sensValL * (5.0 / 1023.0);
-
+  
   // Analog Stream:
   //pwmOutput = mapfloat(sensVoltageR, MinVoltage, MaxVoltage, 0, MaxPWMValue);
   //pwmOutput = constrain(pwmOutput, 0, MaxPWMValue);
@@ -82,18 +83,17 @@ void StreamData() {
   //analogWrite(DataStreamleft, pwmOutput);
 
   // Seriel Stream:
-  Distance_right = mapfloat(sensVoltageR, MinVoltage, MaxVoltage, MinDistance, MaxDistance);
+  Distance_right = mapfloat(sensVoltageR, MinVoltage, MaxVoltage, MinDistance_right, MaxDistance);
   //Serial.print("sensor = ");
   //Serial.println(sensorVoltage);
   Serial.print("Distance in mm right Side = ");
   Serial.println(Distance_right);
 
-  Distance_left = mapfloat(sensVoltageL, MinVoltage, MaxVoltage, MinDistance, MaxDistance);
+  Distance_left = mapfloat(sensVoltageL, MinVoltage, MaxVoltage, MinDistance_left, MaxDistance);
   //Serial.print("sensor = ");
   //Serial.println(sensorVoltage);
   Serial.print("Distance in mm left Side = ");
   Serial.println(Distance_left);
-  delay(1000);
 }
 
 
