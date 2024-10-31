@@ -25,7 +25,8 @@ int sensValOffL = 0;
 int buffersensVal = 0;
 float sensVoltageR = 0;
 float sensVoltageL = 0;
-volatile static float Distance = 0.00;
+volatile static float Distance_right = 0.00;
+volatile static float Distance_left = 0.00;
 
 float mapfloat(float x, float in_min, float in_max, float out_min, float out_max) {
   return (x-in_min) * (out_max-out_min) / (in_max - in_min) + out_min;
@@ -72,31 +73,33 @@ void StreamData() {
   sensVoltageL = sensValL * (5.0 / 1023.0);
 
   // Analog Stream:
-  pwmOutput = mapfloat(sensVoltageR, MinVoltage, MaxVoltage, 0, MaxPWMValue);
-  pwmOutput = constrain(pwmOutput, 0, MaxPWMValue);
-  analogWrite(DataStreamright, pwmOutput);
+  //pwmOutput = mapfloat(sensVoltageR, MinVoltage, MaxVoltage, 0, MaxPWMValue);
+  //pwmOutput = constrain(pwmOutput, 0, MaxPWMValue);
+  //analogWrite(DataStreamright, pwmOutput);
 
-  pwmOutput = mapfloat(sensVoltageL, MinVoltage, MaxVoltage, 0, MaxPWMValue);
-  pwmOutput = constrain(pwmOutput, 0, MaxPWMValue);
-  analogWrite(DataStreamleft, pwmOutput);
+  //pwmOutput = mapfloat(sensVoltageL, MinVoltage, MaxVoltage, 0, MaxPWMValue);
+  //pwmOutput = constrain(pwmOutput, 0, MaxPWMValue);
+  //analogWrite(DataStreamleft, pwmOutput);
 
   // Seriel Stream:
-  Distance = mapfloat(sensVoltageR, MinVoltage, MaxVoltage, MinDistance, MaxDistance);
+  Distance_right = mapfloat(sensVoltageR, MinVoltage, MaxVoltage, MinDistance, MaxDistance);
   //Serial.print("sensor = ");
   //Serial.println(sensorVoltage);
   Serial.print("Distance in mm right Side = ");
-  Serial.println(Distance);
+  Serial.println(Distance_right);
 
-  //Distance = mapfloat(sensVoltageL, MinVoltage, MaxVoltage, MinDistance, MaxDistance);
+  Distance_left = mapfloat(sensVoltageL, MinVoltage, MaxVoltage, MinDistance, MaxDistance);
   //Serial.print("sensor = ");
   //Serial.println(sensorVoltage);
-  //Serial.print("Distance in mm left Side = ");
-  //Serial.println(Distance);
+  Serial.print("Distance in mm left Side = ");
+  Serial.println(Distance_left);
+  delay(1000);
 }
 
 
 void setup() {
   pinMode(ledPinright, OUTPUT);
+  pinMode(ledPinleft, OUTPUT);
   Serial.begin(9600);
 }
 
