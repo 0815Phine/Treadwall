@@ -8,7 +8,8 @@
 #define DataStreamleft 13  // PWm pin
 //    the following constants have to be adjusted to the final tuning curve
 #define MinVoltage 0 //??
-#define MaxVoltage 0 //??
+#define MaxVoltage_left 762.46 // in mV
+#define MaxVoltage_right 3235.58 // in mV
 #define MinDistance_left 11 // in mm
 #define MinDistance_right 9.5 // in mm
 #define MaxDistance 32.5 // in mm ??
@@ -69,9 +70,9 @@ void PulseTrain(){
 
 void StreamData() {
   sensValR = sensValOnR - sensValOffR;
-  sensVoltageR = sensValR * (5.0 / 1023.0);
+  sensVoltageR = sensValR * (5.0 / 1023.0)*1000;
   sensValL = sensValOnL - sensValOffL;
-  sensVoltageL = sensValL * (5.0 / 1023.0);
+  sensVoltageL = sensValL * (5.0 / 1023.0)*1000;
   
   // Analog Stream:
   //pwmOutput = mapfloat(sensVoltageR, MinVoltage, MaxVoltage, 0, MaxPWMValue);
