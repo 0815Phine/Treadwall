@@ -57,9 +57,9 @@ void PulseTrain(){
 
 void StreamData() {
   sensValR = sensValOnR - sensValOffR;
-  sensVoltageR = sensValR * (5.0 / 1023.0);
+  sensVoltageR = sensValR * (5.0 / 1023.0)*1000; //in mV
   sensValL = sensValOnL - sensValOffL;
-  sensVoltageL = sensValL * (5.0 / 1023.0);
+  sensVoltageL = sensValL * (5.0 / 1023.0)*1000; //in mV
   
   // Update maximum voltage values if new peak is detected
   if (sensVoltageR > maxVoltageR) {
@@ -68,6 +68,15 @@ void StreamData() {
   if (sensVoltageL > maxVoltageL) {
     maxVoltageL = sensVoltageL;
   }
+
+  // Send measurements to Serial in CSV format
+  Serial.print(sensVoltageR);
+  Serial.print(",");
+  Serial.print(sensVoltageL);
+  Serial.print(",");
+  Serial.print(maxVoltageR);
+  Serial.print(",");
+  Serial.println(maxVoltageL);
 }
 
 
