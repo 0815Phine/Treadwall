@@ -25,6 +25,7 @@ ser.flush()
 data = []
 initial_delay = 20
 interval = 28  # Interval between measurements in seconds
+single_value_mode = False  # Flag to detect if only one measurement value is received
 
 # Start reading data
 try:
@@ -33,10 +34,13 @@ try:
     # Initial delay before the first measurement
     print(f"Waiting for {initial_delay} seconds before the first measurement...")
     time.sleep(initial_delay)
-    
+
     while True:
         start_time = time.time()
         received_data = False  # Reset flag for each interval
+
+        # Flush buffer to avoid stale data
+        ser.reset_input_buffer()
 
         # Try to read data within the current interval
         while not received_data and (time.time() - start_time) < interval:
@@ -47,9 +51,19 @@ try:
 
                 # Parse data (assumes "distance_right, distance_left" format)
                 try:
-                    distance_right, distance_left = map(float, line.split(','))
-                    data.append([timestamp, distance_right, distance_left])
-                    print(f"{timestamp} - Right: {distance_right} mV, Left: {distance_left} mV")
+                    values = line.split(',')
+                    if len(values) == 2:
+                        distance_right, distance_left = map(float, line.split(','))
+                        data.append([timestamp, distance_right, distance_left])
+                        print(f"{timestamp} - Right: {distance_right} mV, Left: {distance_left} mV")
+                    elif len(values) == 1:
+                        # Single sensor value received
+                        sensor_value = float(values[0])
+                        data.append([timestamp, sensor_value])
+                        print(f"{timestamp} - Sensor Value: {sensor_value} mV")
+                        single_value_mode = True
+                    else:
+                        print(f"Unexpected data format: {line}")
                     received_data = True
                 except ValueError:
                     print(f"Received unexpected data: {line}")
@@ -64,19 +78,27 @@ try:
         # If no data was received within the interval, log `NaN`
         if not received_data:
             print(f"No data received in this interval.")
-            data.append([datetime.now(), float('nan'), float('nan')])
+            if single_value_mode:
+                data.append([datetime.now(), float('nan')])
+            else:
+                data.append([datetime.now(), float('nan'), float('nan')])
 
         # Check again for stop file after each interval
         if os.path.exists(stop_file_path):
             print("Stop file detected. Exiting data logging.")
             break
 
-        # Wait for the remainder of the 15-second interval, if necessary
-        time.sleep(max(0, interval - (time.time() - start_time)))
+        # Wait for the remainder of the interval, if necessary
+        elapsed_time = time.time() - start_time
+        remaining_time = max(0, interval - elapsed_time)
+        time.sleep(remaining_time)
 
 finally:
     # Save data to Excel once collection is complete
-    df = pd.DataFrame(data, columns=['Timestamp', 'Distance_Right', 'Distance_Left'])
+    if single_value_mode:
+        df = pd.DataFrame(data, columns=['Timestamp', 'Sensor_Value'])
+    else:
+        df = pd.DataFrame(data, columns=['Timestamp', 'Distance_Right', 'Distance_Left'])
     df.to_excel(output_file_path, index=False)
     ser.close()
     print("Data saved to Excel and serial connection closed.")
