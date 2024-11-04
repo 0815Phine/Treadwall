@@ -15,7 +15,7 @@ if isempty(fieldnames(S))
     
     % Timings
     S.GUI.ITIDur = 8; %in seconds
-    S.GUI.stimDur = 10; %in seconds
+    S.GUI.stimDur = 20; %in seconds
 
     %S.GUI.ExpInfoPath = start_path;
 else
