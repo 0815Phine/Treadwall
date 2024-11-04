@@ -1,9 +1,9 @@
 // Constants
 //    Arduino pins:
-#define sensorPinright A1  // VOut optical sensor right
-#define ledPinright 10     // pulse optical sensor right
-#define sensorPinleft A0   // VOut optical sensor left
-#define ledPinleft 11      // pulse optical sensor left
+#define sensorPinright A0  // VOut optical sensor right
+#define ledPinright 11     // pulse optical sensor right
+#define sensorPinleft A1   // VOut optical sensor left
+#define ledPinleft 10      // pulse optical sensor left
 
 // Variables
 int sensValR = 0;

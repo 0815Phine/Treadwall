@@ -1,9 +1,9 @@
 // Constants
 //    Arduino pins:
-#define sensorPinright A1  // VOut optical sensor right
-#define ledPinright 10     // pulse optical sensor right
-#define sensorPinleft A0   // VOut optical sensor left
-#define ledPinleft 11      // pulse optical sensor left
+#define sensorPinright A0  // VOut optical sensor right
+#define ledPinright 11     // pulse optical sensor right
+#define sensorPinleft A1   // VOut optical sensor left
+#define ledPinleft 10      // pulse optical sensor left
 #define DataStreamright 12 // PWM pin 
 #define DataStreamleft 13  // PWm pin
 //    the following constants have to be adjusted to the final tuning curve
