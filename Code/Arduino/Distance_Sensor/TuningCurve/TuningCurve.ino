@@ -4,13 +4,8 @@
 #define ledPinright 10     // pulse optical sensor right
 #define sensorPinleft A0   // VOut optical sensor left
 #define ledPinleft 11      // pulse optical sensor left
-#define DataStreamright 12 // PWM pin 
-#define DataStreamleft 13  // PWm pin
 
 // Variables
-float maxVoltageR = 0.0;
-float maxVoltageL = 0.0;
-
 int sensValR = 0;
 int sensValOnR = 0;
 int sensValOffR = 0;
@@ -60,23 +55,11 @@ void StreamData() {
   sensVoltageR = sensValR * (5.0 / 1023.0)*1000; //in mV
   sensValL = sensValOnL - sensValOffL;
   sensVoltageL = sensValL * (5.0 / 1023.0)*1000; //in mV
-  
-  // Update maximum voltage values if new peak is detected
-  if (sensVoltageR > maxVoltageR) {
-    maxVoltageR = sensVoltageR;
-  }
-  if (sensVoltageL > maxVoltageL) {
-    maxVoltageL = sensVoltageL;
-  }
 
   // Send measurements to Serial in CSV format
   Serial.print(sensVoltageR);
   Serial.print(",");
-  Serial.print(sensVoltageL);
-  Serial.print(",");
-  Serial.print(maxVoltageR);
-  Serial.print(",");
-  Serial.println(maxVoltageL);
+  Serial.println(sensVoltageL);
 }
 
 
