@@ -3,6 +3,9 @@
 # -> trigger measurement via bpod at every trial
 # -> establich serial connection between bpod and arduino
 
+# Update 4.11.2024:
+# -> trigger measurement every 15 seconds (to ensure measurement at every trial created with bpod)
+
 
 import os
 import time
@@ -12,7 +15,7 @@ from datetime import datetime
 
 # Path to the Excel file
 stop_file_path = 'C:\\Users\\TomBombadil\\Documents\\GitHub\\Treadwall\\Code\\Arduino\\Distance_Sensor\\TuningCurve\\stop.txt'
-file_path = 'C:\\Users\\TomBombadil\\Documents\\GitHub\\Treadwall\\Code\\Arduino\\Distance_Sensor\\TuningCurve\\sensor_data.xlsx'
+output_file_path = 'C:\\Users\\TomBombadil\\Documents\\GitHub\\Treadwall\\Code\\Arduino\\Distance_Sensor\\TuningCurve\\sensor_data.xlsx'
 
 # Set up serial connection
 ser = serial.Serial('COM6', 9600, timeout=1)
@@ -20,34 +23,60 @@ ser.flush()
 
 # Data storage
 data = []
+initial_delay = 20
+interval = 28  # Interval between measurements in seconds
 
 # Start reading data
 try:
-    while True:
-        # Check for data from Arduino
-        if ser.in_waiting > 0:
-            line = ser.readline().decode('utf-8').strip()
-            timestamp = datetime.now()
-            try:
-                distance_right, distance_left = map(float, line.split(','))
-                data.append([timestamp, distance_right, distance_left])
-                print(f"{timestamp} - Right: {distance_right} mm, Left: {distance_left} mm")
-            except ValueError:
-                print(f"Received malformed data: {line}")
+    print("Starting data collection...")
 
-        # Check for stop file to exit
+    # Initial delay before the first measurement
+    print(f"Waiting for {initial_delay} seconds before the first measurement...")
+    time.sleep(initial_delay)
+    
+    while True:
+        start_time = time.time()
+        received_data = False  # Reset flag for each interval
+
+        # Try to read data within the current interval
+        while not received_data and (time.time() - start_time) < interval:
+            if ser.in_waiting > 0:  # Check if data is available
+                line = ser.readline().decode('utf-8').strip()
+                print(f"Raw data received: {line}")  # Debug: Print every line received
+                timestamp = datetime.now()
+
+                # Parse data (assumes "distance_right, distance_left" format)
+                try:
+                    distance_right, distance_left = map(float, line.split(','))
+                    data.append([timestamp, distance_right, distance_left])
+                    print(f"{timestamp} - Right: {distance_right} mV, Left: {distance_left} mV")
+                    received_data = True
+                except ValueError:
+                    print(f"Received unexpected data: {line}")
+            
+            # Check for stop file to exit the loop
+            if os.path.exists(stop_file_path):
+                print("Stop file detected. Exiting data logging.")
+                break
+
+            time.sleep(0.1)  # Small delay to avoid excessive CPU usage
+
+        # If no data was received within the interval, log `NaN`
+        if not received_data:
+            print(f"No data received in this interval.")
+            data.append([datetime.now(), float('nan'), float('nan')])
+
+        # Check again for stop file after each interval
         if os.path.exists(stop_file_path):
             print("Stop file detected. Exiting data logging.")
             break
 
-        time.sleep(0.1)  # Small delay for efficient looping
+        # Wait for the remainder of the 15-second interval, if necessary
+        time.sleep(max(0, interval - (time.time() - start_time)))
 
 finally:
-    # Save data to Excel on exit
-    if data:  # Ensure there is data to save
-        df = pd.DataFrame(data, columns=['Timestamp', 'Distance_Right', 'Distance_Left'])
-        df.to_excel(file_path, index=False)
-        print(f"Data saved to {file_path}")
-    else:
-        print("No data collected.")
+    # Save data to Excel once collection is complete
+    df = pd.DataFrame(data, columns=['Timestamp', 'Distance_Right', 'Distance_Left'])
+    df.to_excel(output_file_path, index=False)
     ser.close()
+    print("Data saved to Excel and serial connection closed.")
