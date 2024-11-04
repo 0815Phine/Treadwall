@@ -74,21 +74,18 @@ BpodSystem.SerialPort.write('*', 'uint8');
 Confirmed = BpodSystem.SerialPort.read(1,'uint8');
 if Confirmed ~= 1, error('Faulty clock reset'); end
 
-%% ---------- Synching with WaveSurfer ------------------------------------
-sma = NewStateMachine();
-sma = AddState(sma, 'Name', 'WaitForWaveSurfer', ...
-    'Timer',0,...
-    'StateChangeConditions', {'BNC1High', 'exit'},...
-    'OutputActions', {});
-SendStateMachine(sma);
-RawEvents = RunStateMachine;
+%% ---------- Synching with Python ----------------------------------------
+% Define the path to the Python executable and the Python script
+pythonExe = 'C:\Users\TomBombadil\anaconda3\python.exe'; % Path to Python interpreter
+pythonScript = 'C:\Users\TomBombadil\Documents\GitHub\Treadwall\Code\Arduino\Distance_Sensor\TuningCurve\import_serial.py';
 
-if ~isempty(fieldnames(RawEvents)) % If trial data was returned
-    BpodSystem.Data = AddTrialEvents(BpodSystem.Data,RawEvents); % Computes trial events from raw data
-    SaveBpodSessionData; % Saves the field BpodSystem.Data to the current data file
+% Run Python script in the background
+[status, cmdout] = system(sprintf('%s %s &', pythonExe, pythonScript));
+if status ~= 0
+    error('Failed to start Python script: %s', cmdout);
+else
+    disp('Python data logging script started successfully.');
 end
-
-disp('Synced with Wavesurfer.');
 
 %% ---------- Main Loop ---------------------------------------------------
 for currentTrial = 1:S.GUI.MaxTrialNumber
@@ -168,5 +165,11 @@ for currentTrial = 1:S.GUI.MaxTrialNumber
 end
 
 disp('Loop end');
-disp('Stop wavesurfer.');
+
+%% ---------- Stop Python -------------------------------------------------
+% Create stop file to signal Python script to terminate
+stopFilePath = 'C:\Users\TomBombadil\Documents\GitHub\Treadwall\Code\Arduino\Distance_Sensor\TuningCurve\stop.txt';
+fid = fopen(stopFilePath, 'w');
+fclose(fid);
+disp('Stop file created to end Python data logging.');
 end
