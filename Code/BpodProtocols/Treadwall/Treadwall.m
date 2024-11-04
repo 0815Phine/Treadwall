@@ -98,9 +98,9 @@ disp('Synced with Wavesurfer.');
 
 %% ---------- Main Loop ---------------------------------------------------
 for currentTrial = 1:S.GUI.MaxTrialNumber
-    disp(' ');
-    disp('- - - - - - - - - - - - - - - ');
-    disp(['Trial: ' num2str(trial) ' - ' datestr(now,'HH:MM:SS') ' - ' 'Type: ' typeList{trial}]);
+    % disp(' ');
+    % disp('- - - - - - - - - - - - - - - ');
+    % disp(['Trial: ' num2str(trial) ' - ' datestr(now,'HH:MM:SS') ' - ' 'Type: ' typeList{trial}]);
 
     S = BpodParameterGUI('sync', S); %Sync parameters with BpodParameterGUI plugin
 
