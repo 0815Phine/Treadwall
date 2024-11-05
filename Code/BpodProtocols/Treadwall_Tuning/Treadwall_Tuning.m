@@ -15,7 +15,7 @@ if isempty(fieldnames(S))
     
     % Timings
     S.GUI.ITIDur = 8; %in seconds
-    S.GUI.stimDur = 20; %in seconds
+    S.GUI.stimDur = 30; %in seconds
 
     %S.GUI.ExpInfoPath = start_path;
 else
@@ -76,16 +76,16 @@ if Confirmed ~= 1, error('Faulty clock reset'); end
 
 %% ---------- Synching with Python ----------------------------------------
 % Define the path to the Python executable and the Python script
-pythonExe = 'C:\Users\TomBombadil\anaconda3\python.exe'; % Path to Python interpreter
-pythonScript = 'C:\Users\TomBombadil\Documents\GitHub\Treadwall\Code\Arduino\Distance_Sensor\TuningCurve\import_serial.py';
-
-% Run Python script in the background
-[status, cmdout] = system(sprintf('%s %s &', pythonExe, pythonScript));
-if status ~= 0
-    error('Failed to start Python script: %s', cmdout);
-else
-    disp('Python data logging script started successfully.');
-end
+% pythonExe = 'C:\Users\TomBombadil\anaconda3\python.exe'; % Path to Python interpreter
+% pythonScript = 'C:\Users\TomBombadil\Documents\GitHub\Treadwall\Code\Arduino\Distance_Sensor\TuningCurve\import_serial.py';
+% 
+% % Run Python script in the background
+% [status, cmdout] = system(sprintf('%s %s &', pythonExe, pythonScript));
+% if status ~= 0
+%     error('Failed to start Python script: %s', cmdout);
+% else
+%     disp('Python data logging script started successfully.');
+% end
 
 %% ---------- Main Loop ---------------------------------------------------
 for currentTrial = 1:S.GUI.MaxTrialNumber
@@ -168,8 +168,8 @@ disp('Loop end');
 
 %% ---------- Stop Python -------------------------------------------------
 % Create stop file to signal Python script to terminate
-stopFilePath = 'C:\Users\TomBombadil\Documents\GitHub\Treadwall\Code\Arduino\Distance_Sensor\TuningCurve\stop.txt';
-fid = fopen(stopFilePath, 'w');
-fclose(fid);
-disp('Stop file created to end Python data logging.');
+% stopFilePath = 'C:\Users\TomBombadil\Documents\GitHub\Treadwall\Code\Arduino\Distance_Sensor\TuningCurve\stop.txt';
+% fid = fopen(stopFilePath, 'w');
+% fclose(fid);
+% disp('Stop file created to end Python data logging.');
 end
