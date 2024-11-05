@@ -30,7 +30,10 @@ void StreamData() {
   sensVoltage = sensVal * (5.0 / 1023.0)*1000; //in mV
 
   // Send measurements to Serial in CSV format
+  Serial.print(sensVal);
+  Serial.print(",");
   Serial.println(sensVoltage);
+  delay(1000);
 }
 
 
