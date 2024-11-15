@@ -55,7 +55,7 @@ void PulseTrain(){
   digitalWrite(ledPinright, LOW);
   delay(0.2);
   digitalWrite(ledPinleft, LOW);
-  delay(0.1);
+  delay(0.7);
 
   // read the value from the sensors:
   buffersensVal = analogRead(sensorPinright);
@@ -65,7 +65,7 @@ void PulseTrain(){
   buffersensVal = analogRead(sensorPinleft);
   delay(0.1);
   sensValOffL = analogRead(sensorPinleft); // repeat read to give multiplexer time to switch
-  delay(0.6);
+  //delay(0.2);
 }
 
 void StreamData() {
