@@ -6,7 +6,7 @@ global BpodSystem
 start_path = BpodSystem.Path.DataFolder; % 'C:\Users\TomBombadil\Desktop\Animals';
 
 % initialize parameters
-S = BpodSystem.ProtocolSettings;
+S = struct(); %BpodSystem.ProtocolSettings;
 
 params_file = fullfile([BpodSystem.Path.ProtocolFolder '\treadwall_parameters.m']);
 run(params_file)
