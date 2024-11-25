@@ -19,10 +19,10 @@ void PulseTrain(){
   delay(0.4);
   // turn the ledPin off:
   digitalWrite(ledPin, LOW);
-  delay(0.4);
+  delay(0.10);
   // read the value from the sensor:
   sensValOff = analogRead(sensorPin);
-  delay(0.8);
+  delay(0.2);
 }
 
 void StreamData() {
