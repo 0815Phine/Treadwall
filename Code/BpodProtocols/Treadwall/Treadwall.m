@@ -29,8 +29,11 @@ BpodParameterGUI('init', S);
 % disp('Please do not yet start Wavesurfer...');
 % pause(1);
 
-% define trials (from previously created randomized list)
-%trialList_Info = dir([start_path '\Cohort00_Test\#Test\01\triallist.csv']);
+%% ---------- Create Triallist and load Trials ----------------------------
+% create triallist (adjust function according to trials needed
+create_triallist_all(start_path, S.GUI.SubjectID, S.GUI.SessionID); % all distances and all offsets
+
+% read triallist
 trialList_Info = dir([start_path '\' S.GUI.SubjectID '\' S.GUI.SessionID '\triallist.csv']);
 if isempty(trialList_Info)
     [~,triallist_dir] = uigetfile(fullfile(start_path,'*.csv'));
@@ -168,11 +171,12 @@ for currentTrial = 1:S.GUI.MaxTrialNumber
     if ~isempty(fieldnames(RawEvents)) %If trial data was returned
         BpodSystem.Data = AddTrialEvents(BpodSystem.Data,RawEvents); %Computes trial events from raw data
         SaveBpodSessionData; %Saves the field BpodSystem.Data to the current data file
+        SaveProtocolSettings;
     end
 
     if BpodSystem.Status.BeingUsed == 0; return; end
 end
 
 disp('Loop end');
-disp('Stop wavesurfer.');
+disp('Stop wavesurfer. Stop Bpod');
 end
