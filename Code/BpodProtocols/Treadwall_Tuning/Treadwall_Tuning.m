@@ -6,7 +6,7 @@ global BpodSystem
 start_path = 'C:\Users\TomBombadil\Documents\GitHub\Treadwall\Code\Arduino\Distance_Sensor\TuningCurve';
 
 % initialize parameters
-S = BpodSystem.ProtocolSettings;
+S = struct();
 
 if isempty(fieldnames(S))
     freshGUI = 1;        %flag to indicate that prameters have not been loaded from previous session.
@@ -68,11 +68,6 @@ W.loadWaveform(12, 5*ones(1,lengthWave));
 %W.BpodEvents = 'off';
 
 %LoadSerialMessages('WavePlayer1', {['P' 0]});
-
-%% ---------- Restart Timer -----------------------------------------------
-BpodSystem.SerialPort.write('*', 'uint8');
-Confirmed = BpodSystem.SerialPort.read(1,'uint8');
-if Confirmed ~= 1, error('Faulty clock reset'); end
 
 %% ---------- Synching with Python ----------------------------------------
 % Define the path to the Python executable and the Python script
@@ -159,6 +154,7 @@ for currentTrial = 1:S.GUI.MaxTrialNumber
     if ~isempty(fieldnames(RawEvents)) %If trial data was returned
         BpodSystem.Data = AddTrialEvents(BpodSystem.Data,RawEvents); %Computes trial events from raw data
         SaveBpodSessionData; %Saves the field BpodSystem.Data to the current data file
+        SaveProtocolSettings;
     end
 
     if BpodSystem.Status.BeingUsed == 0; return; end
