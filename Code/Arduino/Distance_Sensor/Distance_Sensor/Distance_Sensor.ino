@@ -1,11 +1,11 @@
 // Constants
 //    Arduino pins:
 #define sensorPinright A0  // VOut optical sensor right
-#define ledPinright 11     // pulse optical sensor right
+#define ledPinright 13     // pulse optical sensor right
 #define sensorPinleft A1   // VOut optical sensor left
-#define ledPinleft 10      // pulse optical sensor left
-#define DataStreamright 13 // PWM pin 
-#define DataStreamleft 12  // PWm pin
+#define ledPinleft 12      // pulse optical sensor left
+#define DataStreamright 11 // PWM pin 
+#define DataStreamleft 10  // PWm pin
 //    
 #define MinDistance_left 11 // in mm
 #define MinDistance_right 10 // in mm
