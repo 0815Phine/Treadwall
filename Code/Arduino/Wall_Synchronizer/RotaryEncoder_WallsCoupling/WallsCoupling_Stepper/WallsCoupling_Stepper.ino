@@ -34,14 +34,16 @@ int pwmOutput = pwmBaseline;
 volatile bool DetectChange = false;
 volatile int Direction = 0;
 volatile static float TotalDistanceInMM = 0.00;
-volatile uint32_t SampleStartTime = 0;
+volatile static float CurrentSpeed = 0.00;
+static int previousTargetVelocity = 0;
+int targetVelocity = 0;
+//    Time variables
+volatile uint32_t WallStartTime = 0;  //Timestamp for wall movement start
+volatile uint32_t SampleStartTime = 0; 
 volatile uint32_t SampleStopTime = 0;
 volatile uint32_t ElapsedTime = 0;
 uint32_t TimeNoChange = 0;
 uint32_t ElapsedTimeNoChange = 0;
-volatile static float CurrentSpeed = 0.00;
-static int previousTargetVelocity = 0;
-int targetVelocity = 0;
 
 // Sends a "Reset command timeout" command to the Tic.
 void resetCommandTimeout() {
@@ -94,6 +96,11 @@ void SynchWalls() {
       tic1.setTargetVelocity(targetVelocity);
       tic2.setTargetVelocity(targetVelocity*-1);
       previousTargetVelocity = targetVelocity;
+
+      WallStartTime = micros();  // Record wall movement start time
+      uint32_t delay = (WallStartTime - SampleStopTime)/1000;
+      Serial.print("Delay (ms): ");
+      Serial.println(delay);  // Log the delay in milliseconds
     }
     DetectChange = false;
   } else if (DetectChange == false) {
@@ -112,11 +119,11 @@ void StreamData() {
   pwmOutput = constrain(pwmOutput, 0, MaxPWMValue);
   analogWrite(AnalogDataStreamPin, pwmOutput);
 
-  Serial.print(CurrentSpeed);
-  Serial.print(",");
-  Serial.print(pwmOutput);
-  Serial.print(",");
-  Serial.println(TotalDistanceInMM);
+  //Serial.print(CurrentSpeed);
+  //Serial.print(",");
+  //Serial.print(pwmOutput);
+  //Serial.print(",");
+  //Serial.println(TotalDistanceInMM);
 }
 
 
