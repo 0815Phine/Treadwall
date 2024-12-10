@@ -12,10 +12,10 @@
 #define MaxDistance_left 32 // in mm
 #define MaxDistance_right 31 // in mm 
 #define MaxPWMValue 255 // value to generate 5V with PWM
-#define pwmBaseline 127
 
 // Variables
-int pwmOutput = pwmBaseline;
+int pwmOutput_right = 0;
+int pwmOutput_left = 0;
 int sensValR = 0;
 int sensValOnR = 0;
 int sensValOffR = 0;
@@ -33,9 +33,9 @@ volatile static float Distance_left = 0.00;
 // had to remove the 'baseline' voltage value as this would interfere with the interpolation
 #define NUM_POINTS 8
 float distances_left[NUM_POINTS] = {11, 14, 17, 20, 23, 26, 29, 32};  // Distances in mm
-float voltages_left[NUM_POINTS] = {2923.99, 3026.64, 3103.62, 3173.27, 3227.03, 3233.75, 3241.69, 3242.94};  // Average voltages (mV)
+float voltages_left[NUM_POINTS] = {2834.8, 2976.54, 3044.97, 3098.73, 3172.04, 3191.54, 3196.48, 3201.37};  // Average voltages (mV)
 float distances_right[NUM_POINTS] = {10, 13, 16, 19, 22, 25, 28, 31};  // Distances in mm
-float voltages_right[NUM_POINTS] = {481.43, 540.08, 572.46, 593.85, 636.6, 676.92, 713.59, 733.14};  // Average voltages (mV)
+float voltages_right[NUM_POINTS] = {430.11, 483.87, 513.20, 537.63, 566.96, 615.84, 645.16, 659.82};  // Average voltages (mV)
 
 float mapfloat(float x, float in_min, float in_max, float out_min, float out_max) {
   return (x-in_min) * (out_max-out_min) / (in_max - in_min) + out_min;
@@ -85,7 +85,6 @@ void PulseTrain(){
   buffersensVal = analogRead(sensorPinleft);
   delay(0.1);
   sensValOffL = analogRead(sensorPinleft); // repeat read to give multiplexer time to switch
-  //delay(0.2);
 }
 
 void StreamData() {
@@ -98,13 +97,18 @@ void StreamData() {
   Distance_left = interpolate(sensVoltageL, voltages_left, distances_left, NUM_POINTS);
 
   // Analog Stream:
-  pwmOutput = mapfloat(Distance_right, MinDistance_right, MaxDistance_right, 0, MaxPWMValue);
-  pwmOutput = constrain(pwmOutput, 0, MaxPWMValue);
-  analogWrite(DataStreamright, pwmOutput);
+  pwmOutput_right = mapfloat(Distance_right, MinDistance_right, MaxDistance_right, 0, MaxPWMValue);
+  pwmOutput_right = constrain(pwmOutput_right, 0, MaxPWMValue);
+  analogWrite(DataStreamright, pwmOutput_right);
+  //Serial.print("PWM Output right: ");
+  //Serial.println(pwmOutput_right);
 
-  pwmOutput = mapfloat(Distance_left, MinDistance_left, MaxDistance_left, 0, MaxPWMValue);
-  pwmOutput = constrain(pwmOutput, 0, MaxPWMValue);
-  analogWrite(DataStreamleft, pwmOutput);
+  pwmOutput_left = mapfloat(Distance_left, MinDistance_left, MaxDistance_left, 0, MaxPWMValue);
+  pwmOutput_left = constrain(pwmOutput_left, 0, MaxPWMValue);
+  analogWrite(DataStreamleft, pwmOutput_left);
+  //Serial.print("PWM Output left: ");
+  //Serial.println(pwmOutput_left);
+  //delay(500);
 }
 
 void SerialStream() {
