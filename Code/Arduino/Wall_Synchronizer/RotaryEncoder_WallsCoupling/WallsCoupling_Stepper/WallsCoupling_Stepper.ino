@@ -17,8 +17,8 @@ TicSerial tic2(ticSerial, 15);
 #define RunningTimeout 5000
 #define MaxRunningSpeed 1 //in m/s
 #define MinRunningSpeed (MaxRunningSpeed*-1)
-#define MaxPWMValue 255 //Value to generate 5V with PWM
-#define pwmBaseline 127
+#define MaxPWMValue 4095 //Value to generate 5V with PWM
+#define pwmBaseline 2045
 //    Rotary Encoder, Motor specs:
 #define nSteps 1024 //Rotary Encoder: number of steps per rotation
 #define StepsperRevolution 200 //Steppers
@@ -128,12 +128,15 @@ void StreamData() {
 
 
 void setup() {
-  ticSerial.begin(9600);
-  Serial.begin(9600);
+  //ticSerial.begin(9600);
+  ticSerial.begin(115385);
+  //Serial.begin(9600);
+  //Serial.begin(115385);
+  analogWriteResolution(12);
 
   pinMode(encAPin, INPUT_PULLUP);
   pinMode(encBPin, INPUT_PULLUP);
-  pinMode(AnalogDataStreamPin, OUTPUT);
+  //pinMode(AnalogDataStreamPin, OUTPUT);
 
   // Give the Tic some time to start up.
   delay(20);
