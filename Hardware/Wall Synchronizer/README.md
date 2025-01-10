@@ -24,7 +24,7 @@
 | Terminal Block | 2 pieces | 10 poles, to solder on PCB |  |
 | Cables |  |  |  |
 | Shrinktube |  |  |  |
-| Nut | 3 pieces | M8x0.5 |  |
+| Nut | 3 pieces | M8x0.5, for sensor connectors |  |
 
 Alternatively to soldering the PCB yourself, a custom PCB design will be provided soon that can be ordered via commercial suppliers.
 
