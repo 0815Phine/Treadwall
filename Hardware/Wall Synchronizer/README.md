@@ -28,8 +28,8 @@
 | Terminal Block | 2 pieces | 10 poles, to solder on PCB |  |
 | Steckverbinder | | to solder on PCB |  |
 | Nut | 3 pieces | M8x0.5, to secure sensor connectors |  |
-| Nut | 4 pieces| to secure 6-pole Klemmenblock |  |
-| Screw | 4 pieces | to secure 6-pole Klemmenblock |  |
+| Nut | 2 pieces| to secure 6-pole Klemmenblock |  |
+| Screw | 2 pieces | to secure 6-pole Klemmenblock |  |
 
 Alternatively to soldering the PCB yourself, a custom PCB design will be provided soon that can be ordered via commercial suppliers.
 
