@@ -29,7 +29,6 @@ All files are available as .stl for 3D-printing. Cutlines for lasercutting are a
 | Stepper motor | 4 pieces |  | [pololu.com](https://www.pololu.com/product/1204) |
 | Sensor plug-in connector | 4 pieces | 4 poles, M8, optional, for open motor cable ends | [conrad.de](https://www.conrad.de/de/p/phoenix-contact-1441037-sensor-aktor-steckverbinder-unkonfektioniert-m8-stecker-gerade-polzahl-4-1-st-589885.html?refresh=true) |
 | Extension cable | 4 pieces | 4 poles, M8, optional | [conrad.de](https://www.conrad.de/de/p/bkl-electronic-2700038-sensor-aktor-verlaengerungsleitung-m8-stecker-gerade-auf-kupplung-gerade-2-m-polzahl-4-1-st-2807268.html) |
-| Rotary encoder | 1 piece |  |  |
 | Limit switch | 4 pieces |  | [rs-online.com](https://de.rs-online.com/web/p/mikroschalter/6821500) |
 | Optical sensor | 2 pieces | to sense distance to midline of each wall | [conrad.de ](https://www.conrad.de/de/p/omron-reflexions-lichtschranke-b5w-lb2101-1-b5w-lb2101-1-1-st-2590858.html) |
 | Sensor cable | 2 pieces | for optical sensor|[ rs-online.com](https://www.digikey.de/de/products/detail/jst-sales-america-inc/A04ZR04ZR28H305A/6009406) |
