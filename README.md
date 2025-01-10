@@ -1,6 +1,8 @@
-# Treadwall (working title)
+# Treadwall
 
-add picture here
+<p align="center">
+  <img src="./images/Aufbau.png" width="800">
+</p>
 
 ### Components
 - [Treadmill-Main](https://github.com/0815Phine/Treadwall/tree/main/Hardware/Treadmill%20Main)
