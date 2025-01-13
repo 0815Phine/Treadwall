@@ -1,7 +1,7 @@
 # this was a test on synchronizing data from arduino and Bpod
 # things to change to make this work:
 # -> trigger measurement via bpod at every trial
-# -> establich serial connection between bpod and arduino
+# -> establish serial connection between bpod and arduino
 
 # Update 4.11.2024:
 # -> trigger measurement every 15 seconds (to ensure measurement at every trial created with bpod)
