@@ -3,7 +3,7 @@ function Treadwall_Tuning
 global BpodSystem
 
 %% ---------- Define task parameters --------------------------------------
-start_path = 'C:\Users\TomBombadil\Documents\GitHub\Treadwall\Code\Arduino\Distance_Sensor\TuningCurve';
+start_path = BpodSystem.Path.DataFolder; % 'C:\Users\TomBombadil\Desktop\Animals' - Folder of current cohort selected in GUI;
 
 % initialize parameters
 S = struct();
@@ -25,9 +25,10 @@ end
 BpodParameterGUI('init', S);
 
 % define trials (from previously created randomized list)
-trialList_Info = dir([start_path '\triallist.csv']);
+trialList_Info = dir('C:\Users\TomBombadil\Documents\GitHub\Treadwall\Code\Arduino\Distance_Sensor\TuningCurve\triallist.csv');
 if isempty(trialList_Info)
-    [~,triallist_dir] = uigetfile(fullfile(start_path,'*.csv'));
+    %[~,triallist_dir] = uigetfile(fullfile(start_path,'*.csv'));
+    error('no triallist found')
 else
     triallist_dir = fullfile(trialList_Info.folder, trialList_Info.name);
 end
@@ -37,12 +38,6 @@ triallist = triallist.type;
 S.GUI.MaxTrialNumber = numel(triallist);
 
 %% ---------- Analog Output Module ----------------------------------------
-% if (isfield(BpodSystem.ModuleUSB, 'WavePlayer1'))
-%     W = BpodSystem.ModuleUSB.WavePlayer1;
-% else
-%     error('Error: To run this protocol, you must first pair the WavePlayer1 module with its USB port on the Bpod console.')
-% end
-
 W = BpodWavePlayer('COM3'); %check which COM is paired with analog output module
 
 W.SamplingRate = 100;%in kHz
@@ -50,37 +45,28 @@ W.OutputRange = '0V:5V';
 W.TriggerMode = 'Normal';
 
 lengthWave = S.GUI.stimDur*W.SamplingRate;
-W.loadWaveform(1, 0.4*ones(1,lengthWave));
-W.loadWaveform(2, 0.8*ones(1,lengthWave));
-W.loadWaveform(3, 1.2*ones(1,lengthWave));
-W.loadWaveform(4, 1.6*ones(1,lengthWave));
-W.loadWaveform(5, 2*ones(1,lengthWave));
-W.loadWaveform(6, 2.4*ones(1,lengthWave));
-W.loadWaveform(7, 2.8*ones(1,lengthWave));
-W.loadWaveform(8, 3.2*ones(1,lengthWave));
-W.loadWaveform(9, 3.6*ones(1,lengthWave));
-W.loadWaveform(10, 4*ones(1,lengthWave));
-W.loadWaveform(11, 4.5*ones(1,lengthWave));
-W.loadWaveform(12, 5*ones(1,lengthWave));
-
-%W.LoopMode = 'on';
-%W.LoopDuration = S.GUI.ITIDur;
-%W.BpodEvents = 'off';
-
-%LoadSerialMessages('WavePlayer1', {['P' 0]});
+waveforms = {0.4, 0.8, 1.2, 1.6, 2, 2.4, 2.8, 3.2, 3.6, 4, 4.5, 5};
+for i = 1:length(waveforms)
+    W.loadWaveform(i, waveforms{i}*ones(1,lengthWave));
+end
 
 %% ---------- Synching with Python ----------------------------------------
+% Define the tuning file path with current date
+date_str = datestr(now, 'yyyy-mm-dd');
+tuning_folder_path = fullfile(start_path,'\Tuning\', date_str);
+if ~exist(tuning_folder_path, 'dir')
+    mkdir(tuning_folder_path);
+end
+
+stopFile = fullfile(tuning_folder_path, 'stop.txt'); 
+if exist(stopFile, 'file'), delete(stopFile); end % Ensure no residual stop signal
+
 % Define the path to the Python executable and the Python script
-% pythonExe = 'C:\Users\TomBombadil\anaconda3\python.exe'; % Path to Python interpreter
-% pythonScript = 'C:\Users\TomBombadil\Documents\GitHub\Treadwall\Code\Arduino\Distance_Sensor\TuningCurve\import_serial.py';
-% 
-% % Run Python script in the background
-% [status, cmdout] = system(sprintf('%s %s &', pythonExe, pythonScript));
-% if status ~= 0
-%     error('Failed to start Python script: %s', cmdout);
-% else
-%     disp('Python data logging script started successfully.');
-% end
+pythonExe = 'C:\Users\TomBombadil\anaconda3\python.exe'; % Path to Python interpreter
+pythonScript = 'C:\Users\TomBombadil\Documents\GitHub\Treadwall\Code\Arduino\Distance_Sensor\TuningCurve\log_data.py';
+logFilePath = fullfile(tuning_folder_path, 'tuning.csv');
+cmd = sprintf('%s %s "%s" &', pythonExe, pythonScript, logFilePath);
+system(cmd);
 
 %% ---------- Main Loop ---------------------------------------------------
 for currentTrial = 1:S.GUI.MaxTrialNumber
@@ -91,36 +77,11 @@ for currentTrial = 1:S.GUI.MaxTrialNumber
     S = BpodParameterGUI('sync', S); %Sync parameters with BpodParameterGUI plugin
 
     % read output action
-    switch triallist{currentTrial}
-        case 'C45'
-            stimOutput = ['P' 1 0];
-        case 'C39'
-            stimOutput = ['P' 1 1];
-        case 'C33'
-            stimOutput = ['P' 1 2];
-        case 'C27'
-            stimOutput = ['P' 1 3];
-        case 'L45'
-            stimOutput = ['P' 1 4];
-        case 'L39'
-            stimOutput = ['P' 1 5];
-        case 'L33'
-            stimOutput = ['P' 1 6];
-        case 'L27'
-            stimOutput = ['P' 1 7];
-        case 'R45'
-            stimOutput = ['P' 1 8];
-        case 'R39'
-            stimOutput = ['P' 1 9];
-        case 'R33'
-            stimOutput = ['P' 1 10];
-        case 'R27'
-            stimOutput = ['P' 1 11];
-    end
+    stimOutput = GetStimOutput(triallist{currentTrial});
 
     % construct state machine
     sma = NewStateMachine(); %Assemble new state machine description
-    
+
     if currentTrial == numel(triallist) %last trial
         sma = AddState(sma, 'Name', 'iti', ...
             'Timer', S.GUI.ITIDur,...
@@ -151,10 +112,12 @@ for currentTrial = 1:S.GUI.MaxTrialNumber
     % run state machine
     SendStateMachine(sma);
     RawEvents = RunStateMachine;
-    if ~isempty(fieldnames(RawEvents)) %If trial data was returned
+
+    % Save data if returned
+    if ~isempty(fieldnames(RawEvents))
         BpodSystem.Data = AddTrialEvents(BpodSystem.Data,RawEvents); %Computes trial events from raw data
         SaveBpodSessionData; %Saves the field BpodSystem.Data to the current data file
-        SaveProtocolSettings;
+        %SaveProtocolSettings;
     end
 
     if BpodSystem.Status.BeingUsed == 0; return; end
@@ -163,9 +126,11 @@ end
 disp('Loop end');
 
 %% ---------- Stop Python -------------------------------------------------
-% Create stop file to signal Python script to terminate
-% stopFilePath = 'C:\Users\TomBombadil\Documents\GitHub\Treadwall\Code\Arduino\Distance_Sensor\TuningCurve\stop.txt';
-% fid = fopen(stopFilePath, 'w');
-% fclose(fid);
-% disp('Stop file created to end Python data logging.');
+% Signal file to stop Python logging (to be created at the end)
+stopSignalFile = fullfile(tuning_folder_path, 'stop.txt');
+% Create stop.txt at the end of the main loop
+if BpodSystem.Status.BeingUsed == 0 || currentTrial == S.GUI.MaxTrialNumber
+    fid = fopen(stopSignalFile, 'w');
+    fclose(fid);
+end
 end

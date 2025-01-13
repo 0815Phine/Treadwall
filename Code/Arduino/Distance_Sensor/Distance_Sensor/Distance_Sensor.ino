@@ -112,16 +112,18 @@ void StreamData() {
 }
 
 void SerialStream() {
-  Serial.print("sensor right= ");
+  //Serial.print("sensor right= ");
   Serial.println(sensVoltageR);
-  Serial.print("Distance in mm right Side = ");
-  Serial.println(Distance_right);
+  //Serial.print("Distance in mm right Side = ");
+  //Serial.print(Distance_right);
 
-  Serial.print("sensor left= ");
+  Serial.print(",");
+
+  //Serial.print("sensor left= ");
   Serial.println(sensVoltageL);
-  Serial.print("Distance in mm left Side = ");
-  Serial.println(Distance_left);
-  delay(1000);
+  //Serial.print("Distance in mm left Side = ");
+  //Serial.println(Distance_left);
+  //delay(1000);
 }
 
 
@@ -134,5 +136,5 @@ void setup() {
 void loop() {
   PulseTrain();
   StreamData();
-  //SerialStream();
+  SerialStream();
 }
