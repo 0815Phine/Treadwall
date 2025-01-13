@@ -1,4 +1,4 @@
-function Treadwall
+function Treadwall_scrambled
 
 global BpodSystem
 
