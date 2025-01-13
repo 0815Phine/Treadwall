@@ -93,29 +93,29 @@ for currentTrial = 1:S.GUI.MaxTrialNumber
     % read output action
     switch triallist{currentTrial}
         case 'C45'
-            stimOutput = ['P' 3 0];
+            stimOutput = ['P' 1 0];
         case 'C39'
-            stimOutput = ['P' 3 1];
+            stimOutput = ['P' 1 1];
         case 'C33'
-            stimOutput = ['P' 3 2];
+            stimOutput = ['P' 1 2];
         case 'C27'
-            stimOutput = ['P' 3 3];
+            stimOutput = ['P' 1 3];
         case 'L45'
-            stimOutput = ['P' 3 4];
+            stimOutput = ['P' 1 4];
         case 'L39'
-            stimOutput = ['P' 3 5];
+            stimOutput = ['P' 1 5];
         case 'L33'
-            stimOutput = ['P' 3 6];
+            stimOutput = ['P' 1 6];
         case 'L27'
-            stimOutput = ['P' 3 7];
+            stimOutput = ['P' 1 7];
         case 'R45'
-            stimOutput = ['P' 3 8];
+            stimOutput = ['P' 1 8];
         case 'R39'
-            stimOutput = ['P' 3 9];
+            stimOutput = ['P' 1 9];
         case 'R33'
-            stimOutput = ['P' 3 10];
+            stimOutput = ['P' 1 10];
         case 'R27'
-            stimOutput = ['P' 3 11];
+            stimOutput = ['P' 1 11];
     end
 
     % construct state machine

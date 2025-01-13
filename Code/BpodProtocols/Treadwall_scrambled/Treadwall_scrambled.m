@@ -8,7 +8,7 @@ start_path = BpodSystem.Path.DataFolder; % 'C:\Users\TomBombadil\Desktop\Animals
 % initialize parameters
 S = struct(); %BpodSystem.ProtocolSettings;
 
-params_file = fullfile([BpodSystem.Path.ProtocolFolder '\treadwall_parameters.m']);
+params_file = fullfile([BpodSystem.Path.ProtocolFolder '\treadwall_scrambled_parameters.m']);
 run(params_file)
 
 if isempty(fieldnames(S))
@@ -26,6 +26,8 @@ else
 end
 
 BpodParameterGUI('init', S);
+BpodSystem.ProtocolSettings = S;
+
 % disp('Please do not yet start Wavesurfer...');
 % pause(1);
 
@@ -110,29 +112,29 @@ for currentTrial = 1:S.GUI.MaxTrialNumber
     % read output action
     switch triallist{currentTrial}
         case 'C45'
-            stimOutput = ['P' 3 0];
+            stimOutput = ['P' 1 0];
         case 'C39'
-            stimOutput = ['P' 3 1];
+            stimOutput = ['P' 1 1];
         case 'C33'
-            stimOutput = ['P' 3 2];
+            stimOutput = ['P' 1 2];
         case 'C27'
-            stimOutput = ['P' 3 3];
+            stimOutput = ['P' 1 3];
         case 'L45'
-            stimOutput = ['P' 3 4];
+            stimOutput = ['P' 1 4];
         case 'L39'
-            stimOutput = ['P' 3 5];
+            stimOutput = ['P' 1 5];
         case 'L33'
-            stimOutput = ['P' 3 6];
+            stimOutput = ['P' 1 6];
         case 'L27'
-            stimOutput = ['P' 3 7];
+            stimOutput = ['P' 1 7];
         case 'R45'
-            stimOutput = ['P' 3 8];
+            stimOutput = ['P' 1 8];
         case 'R39'
-            stimOutput = ['P' 3 9];
+            stimOutput = ['P' 1 9];
         case 'R33'
-            stimOutput = ['P' 3 10];
+            stimOutput = ['P' 1 10];
         case 'R27'
-            stimOutput = ['P' 3 11];
+            stimOutput = ['P' 1 11];
     end
 
     % construct state machine
@@ -171,7 +173,7 @@ for currentTrial = 1:S.GUI.MaxTrialNumber
     if ~isempty(fieldnames(RawEvents)) %If trial data was returned
         BpodSystem.Data = AddTrialEvents(BpodSystem.Data,RawEvents); %Computes trial events from raw data
         SaveBpodSessionData; %Saves the field BpodSystem.Data to the current data file
-        SaveProtocolSettings;
+        %SaveProtocolSettings;
     end
 
     if BpodSystem.Status.BeingUsed == 0; return; end
