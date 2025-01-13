@@ -3,7 +3,7 @@ function Treadwall_scrambled
 global BpodSystem
 
 %% ---------- Define task parameters --------------------------------------
-start_path = BpodSystem.Path.DataFolder; % 'C:\Users\TomBombadil\Desktop\Animals';
+start_path = BpodSystem.Path.DataFolder; % 'C:\Users\TomBombadil\Desktop\Animals' - Folder of current cohort selected in GUI;
 
 % initialize parameters
 S = struct(); %BpodSystem.ProtocolSettings;
@@ -48,12 +48,6 @@ triallist = triallist.type;
 S.GUI.MaxTrialNumber = numel(triallist);
 
 %% ---------- Analog Output Module ----------------------------------------
-% if (isfield(BpodSystem.ModuleUSB, 'WavePlayer1'))
-%     W = BpodSystem.ModuleUSB.WavePlayer1;
-% else
-%     error('Error: To run this protocol, you must first pair the WavePlayer1 module with its USB port on the Bpod console.')
-% end
-
 W = BpodWavePlayer('COM3'); %check which COM is paired with analog output module
 
 W.SamplingRate = 100;%in kHz
@@ -61,24 +55,10 @@ W.OutputRange = '0V:5V';
 W.TriggerMode = 'Normal';
 
 lengthWave = S.GUI.stimDur*W.SamplingRate;
-W.loadWaveform(1, 0.4*ones(1,lengthWave));
-W.loadWaveform(2, 0.8*ones(1,lengthWave));
-W.loadWaveform(3, 1.2*ones(1,lengthWave));
-W.loadWaveform(4, 1.6*ones(1,lengthWave));
-W.loadWaveform(5, 2*ones(1,lengthWave));
-W.loadWaveform(6, 2.4*ones(1,lengthWave));
-W.loadWaveform(7, 2.8*ones(1,lengthWave));
-W.loadWaveform(8, 3.2*ones(1,lengthWave));
-W.loadWaveform(9, 3.6*ones(1,lengthWave));
-W.loadWaveform(10, 4*ones(1,lengthWave));
-W.loadWaveform(11, 4.5*ones(1,lengthWave));
-W.loadWaveform(12, 5*ones(1,lengthWave));
-
-%W.LoopMode = 'on';
-%W.LoopDuration = S.GUI.ITIDur;
-%W.BpodEvents = 'off';
-
-%LoadSerialMessages('WavePlayer1', {['P' 0]});
+waveforms = {0.4, 0.8, 1.2, 1.6, 2, 2.4, 2.8, 3.2, 3.6, 4, 4.5, 5};
+for i = 1:length(waveforms)
+    W.loadWaveform(i, waveforms{i}*ones(1,lengthWave));
+end
 
 %% ---------- Restart Timer -----------------------------------------------
 BpodSystem.SerialPort.write('*', 'uint8');
@@ -110,36 +90,11 @@ for currentTrial = 1:S.GUI.MaxTrialNumber
     S = BpodParameterGUI('sync', S); %Sync parameters with BpodParameterGUI plugin
 
     % read output action
-    switch triallist{currentTrial}
-        case 'C45'
-            stimOutput = ['P' 1 0];
-        case 'C39'
-            stimOutput = ['P' 1 1];
-        case 'C33'
-            stimOutput = ['P' 1 2];
-        case 'C27'
-            stimOutput = ['P' 1 3];
-        case 'L45'
-            stimOutput = ['P' 1 4];
-        case 'L39'
-            stimOutput = ['P' 1 5];
-        case 'L33'
-            stimOutput = ['P' 1 6];
-        case 'L27'
-            stimOutput = ['P' 1 7];
-        case 'R45'
-            stimOutput = ['P' 1 8];
-        case 'R39'
-            stimOutput = ['P' 1 9];
-        case 'R33'
-            stimOutput = ['P' 1 10];
-        case 'R27'
-            stimOutput = ['P' 1 11];
-    end
+    stimOutput = GetStimOutput(triallist{currentTrial});
 
     % construct state machine
     sma = NewStateMachine(); %Assemble new state machine description
-    
+
     if currentTrial == numel(triallist) %last trial
         sma = AddState(sma, 'Name', 'iti', ...
             'Timer', S.GUI.ITIDur,...
