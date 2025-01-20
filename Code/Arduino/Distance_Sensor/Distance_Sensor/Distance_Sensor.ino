@@ -113,7 +113,7 @@ void StreamData() {
 
 void SerialStream() {
   //Serial.print("sensor right= ");
-  Serial.println(sensVoltageR);
+  Serial.print(sensVoltageR);
   //Serial.print("Distance in mm right Side = ");
   //Serial.print(Distance_right);
 
