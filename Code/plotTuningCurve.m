@@ -9,7 +9,7 @@ for sensIDX = 1:length(data_paths)
 
     raw_dist = sens_data.Var2;
     dist = unique(raw_dist);
-    volt = horzcat(sens_data.Var3,sens_data.Var4,sens_data.Var5,sens_data.Var6);
+    volt = horzcat(sens_data.Var3,sens_data.Var4); %sens_data.Var5,sens_data.Var6);
     volt = cellfun(@str2double, volt);
 
     volt_mean = zeros(length(dist), 1);
@@ -18,8 +18,8 @@ for sensIDX = 1:length(data_paths)
         distFlag = (dist(i) == raw_dist);
 
         volt_at_dist = volt(distFlag,:);
-        volt_mean(i) = mean(volt_at_dist(:));
-        volt_std(i) = std(volt_at_dist(:));
+        volt_mean(i) = mean(volt_at_dist(:),'omitnan');
+        volt_std(i) = std(volt_at_dist(:),'omitnan');
     end
 
     figure, hold on
