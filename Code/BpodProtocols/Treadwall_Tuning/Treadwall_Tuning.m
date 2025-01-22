@@ -24,11 +24,13 @@ end
 
 BpodParameterGUI('init', S);
 
+%% ---------- Load Trialllist ---------------------------------------------
 % define trials (from previously created randomized list)
-trialList_Info = dir('C:\Users\TomBombadil\Documents\GitHub\Treadwall\Code\Arduino\Distance_Sensor\TuningCurve\triallist.csv');
+prot_StartPath = BpodSystem.Path.ProtocolFolder;
+%trialList_Info = dir('C:\Users\TomBombadil\Documents\GitHub\Treadwall\Code\BpodProtocols\Treadwall_Tuning\triallist.csv');
 if isempty(trialList_Info)
-    %[~,triallist_dir] = uigetfile(fullfile(start_path,'*.csv'));
-    error('no triallist found')
+    [~,triallist_dir] = uigetfile(fullfile(prot_StartPath,'*.csv'));
+    %error('no triallist found')
 else
     triallist_dir = fullfile(trialList_Info.folder, trialList_Info.name);
 end
@@ -63,8 +65,7 @@ if exist(stopFile, 'file'), delete(stopFile); end % Ensure no residual stop sign
 
 % Define the path to the Python executable and the Python script
 pythonExe = 'C:\Users\TomBombadil\anaconda3\python.exe'; % Path to Python interpreter
-%pythonScriptDir = 'C:\Users\TomBombadil\Documents\GitHub\Treadwall\Code\Arduino\Distance_Sensor\TuningCurve';
-pythonScript = 'C:\Users\TomBombadil\Documents\GitHub\Treadwall\Code\Arduino\Distance_Sensor\TuningCurve\log_data.py';
+pythonScript = 'C:\Users\TomBombadil\Documents\GitHub\Treadwall\Code\BpodProtocols\Treadwall_Tuning\log_data.py';
 logFilePath = fullfile(tuning_folder_path, 'tuning.csv');
 cmd = sprintf('"%s" "%s" "%s" &', pythonExe, pythonScript, logFilePath);
 system(cmd);
