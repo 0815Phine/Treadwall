@@ -24,10 +24,10 @@ TicSerial tic2(ticSerial, 15);
 #define StepsperRevolution 200 //Steppers
 #define MicrostepsPerStep 1 //Steppers
 //    Setup measurements
-#define WallWheelCircumference (109*1000) //in microns (1mm is 1000 microns)
+#define WallWheelCircumference (109*1000) //in microns (1mm is 1000 microns), of the roller wheel
 #define wheelRadius (53*1000) //wheel radius in microns (1mm is 1000 microns)
-#define wheelDiameter ((float)wheelRadius*2*PI)
-#define DistancePerStep ((float)wheelDiameter/nSteps) 
+#define wheelCircumference ((float)wheelRadius*2*PI)
+#define DistancePerStep ((float)wheelCircumference/nSteps) 
 
 // Variables
 int pwmOutput = pwmBaseline;
