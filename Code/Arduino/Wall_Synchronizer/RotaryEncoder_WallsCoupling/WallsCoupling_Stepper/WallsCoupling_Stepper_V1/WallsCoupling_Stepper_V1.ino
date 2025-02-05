@@ -119,7 +119,7 @@ void StreamData() {
   pwmOutput = constrain(pwmOutput, 0, MaxPWMValue);
   analogWrite(AnalogDataStreamPin, pwmOutput);
 
-  //Serial.print(CurrentSpeed);
+  //Serial.println(CurrentSpeed);
   //Serial.print(",");
   //Serial.print(pwmOutput);
   //Serial.print(",");
