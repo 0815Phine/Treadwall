@@ -47,6 +47,10 @@ triallist = readtable(triallist_dir);
 triallist = triallist.type;
 S.GUI.MaxTrialNumber = numel(triallist);
 
+%% ---------- Rotary Encoder Module ---------------------------------------
+R = RotaryEncoderModule('COM8'); %check which COM is paired with rotary encoder module
+%R.streamUI()
+
 %% ---------- Analog Output Module ----------------------------------------
 W = BpodWavePlayer('COM3'); %check which COM is paired with analog output module
 
