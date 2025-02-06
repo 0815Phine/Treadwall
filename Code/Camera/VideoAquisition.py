@@ -1,18 +1,37 @@
-# these four imports will provide most of the functionality required in 
-# to start working with basler cameras
-# pypylon 
 import pypylon.pylon as py
-# plotting for graphs and display of image
 import matplotlib.pyplot as plt
-# linear algebra and basic math on image matrices
 import numpy as np
-# OpenCV for image processing functions
-#import cv2
+import cv2
+
 # get instance of the pylon TransportLayerFactory
 tlf = py.TlFactory.GetInstance()
-# all pypylon objects are instances of SWIG wrappers around the underlying pylon c++ types
-tlf
 
-devices = tlf.EnumerateDevices()
 # list of pylon Device 
-devices
+devices = tlf.EnumerateDevices()
+# choose camera
+device = devices[0]
+cd = tlf.CreateDevice(device)
+cam = py.InstantCamera(cd)
+cam.Open()
+
+# cam settings
+cam.Width.Value = 1440
+cam.Height.Value = 1080
+cam.AcquisitionFrameRateEnable.Value = True
+cam.AcquisitionFrameRate.Value = 200
+cam.ExposureTime.Value = 4000
+cam.DeviceLinkThroughputLimitMode.Value = "Off"
+
+# video aquisition
+fourcc = cv2.VideoWriter_fourcc(*'XVID')
+video_writer = cv2.VideoWriter('output.avi', fourcc, fps=200, frameSize=(1440, 1080))
+
+cam.StartGrabbingMax(400)
+
+while cam.IsGrabbing():
+    res = cam.RetrieveResult(1000)
+    image = cv2.cvtColor(res.Array, cv2.COLOR_GRAY2BGR)
+    video_writer.write(image)
+    res.Release()
+cam.Close()
+video_writer.release()
