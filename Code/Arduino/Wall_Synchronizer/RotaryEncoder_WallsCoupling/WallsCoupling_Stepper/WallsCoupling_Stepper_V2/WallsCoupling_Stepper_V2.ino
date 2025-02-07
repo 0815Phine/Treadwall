@@ -26,31 +26,40 @@ float Degree = 0;
 static float CurrentSpeed = 0.00;
 static int previousTargetVelocity = 0;
 int targetVelocity = 0;
+int rotationCount = 0;
+//    Scaling
+volatile uint32_t pulseStart = 0;
+volatile uint32_t pulseWidth = 0;
+volatile bool newPulse = false;
+float scaleFactor = 1.0;  // Default scaling factor
 //    Time variables
 volatile uint32_t SampleStartTime = 0; 
 volatile uint32_t SampleStopTime = 0;
 volatile uint32_t ElapsedTime = 0;
 
+
 float mapfloat(float x, float in_min, float in_max, float out_min, float out_max) {
   return (x-in_min) * (out_max-out_min) / (in_max - in_min) + out_min;
 }
 
-//float readScaleFactor() {
-//    int pwmValue = pulseIn(ScalingPin, HIGH, 20000);  // Measure PWM HIGH duration (max 20ms)
-//    float dutyCycle = pwmValue / 20000.0;  // Convert to 0-1 range
-//    return mapFloat(dutyCycle, 0.0, 1.0, 0.5, 2.0);  // Scale from 0.5x to 2.0x speed
-//}
+void getPulseWidth() {
+    if (digitalRead(ScalingPin) == HIGH) {
+        pulseStart = micros();  // Capture start time on rising edge
+    } else {
+        pulseWidth = micros() - pulseStart;  // Calculate pulse duration
+        newPulse = true;  // Flag to indicate a new measurement is ready
+    }
+}
 
 // Function to read encoder position from 0-4V input
 float readEncoderPosition() {
     int rawValue = analogRead(EncoderPin);  // Read 12-bit ADC value of 4.5V (0-3686)
-    Serial.println(rawValue);
+    //Serial.println(rawValue);
     return (rawValue / 3686.0) * 360.0;  // Convert to 0-360°
 }
 
 int calculateTargetVelocity(float speed) {
-   //float scaleFactor = readScaleFactor();
-  return speed*StepsDegree*10000; // microsteps per 10000 seconds
+  return speed*StepsDegree*10000*scaleFactor; // microsteps per 10000 seconds
 }
 
 void MeasureRotation() {
@@ -61,11 +70,16 @@ void MeasureRotation() {
   Degree = currentPosition - lastPosition;
 
   // Handle wraparound
-  if (Degree > 180){ Degree -= 360;
-  } else if (Degree < -180){ Degree += 360;}
-  
+  if (Degree > 180){
+    Degree -= 360;
+    rotationCount --;
+  } else if (Degree < -180){
+    Degree += 360;
+    rotationCount ++;
+  }
+
   // Ignore small fluctuations
-  if (ElapsedTime > 0 && abs(Degree) >= DEAD_ZONE && abs(Degree) < 180) {
+  if (ElapsedTime > 0 && abs(Degree) >= DEAD_ZONE) {
     CurrentSpeed = Degree / ElapsedTime * 1000000;  // deg/s
   } else {
     CurrentSpeed = 0;  // Set speed to zero if change is too small
@@ -108,7 +122,7 @@ void setup() {
 
   pinMode(EncoderPin, INPUT);
   pinMode(ScalingPin, INPUT);
-  //attachInterrupt(digitalPinToInterrupt(ScalingPin), readScaleFactor, RISING);
+  attachInterrupt(digitalPinToInterrupt(ScalingPin), getPulseWidth, CHANGE);
   
   // Initialize Tic motor controllers
   delayWhileResettingCommandTimeout(20);
@@ -117,11 +131,25 @@ void setup() {
 }
 
 void loop() {
+  if (newPulse) {
+    newPulse = false;  // Reset flag
+
+    // Map pulse width to scaling factor (adjust values based on your pulse range)
+    scaleFactor = mapfloat(pulseWidth, 500, 5000, 0.5, 2.0);
+    scaleFactor = constrain(scaleFactor, 0.5, 2.0);  // Ensure it stays within range
+
+    Serial.print("Pulse Width: ");
+    Serial.print(pulseWidth);
+    Serial.print(" µs | Scale Factor: ");
+    Serial.println(scaleFactor);
+  }
+
   SynchWalls();
-  Serial.print("Current Pos: "); Serial.print(currentPosition);
-  Serial.print(" | Last Pos: "); Serial.print(lastPosition);
-  Serial.print(" | Degree: "); Serial.print(Degree);
-  Serial.print(" | Speed (deg/s): "); Serial.print(CurrentSpeed);
-  Serial.print(" | Target Velocity: "); Serial.println(targetVelocity);
+  //Serial.print("Current Pos: "); Serial.print(currentPosition);
+  //Serial.print(" | Last Pos: "); Serial.print(lastPosition);
+  //Serial.print(" | Degree: "); Serial.print(Degree);
+  //Serial.print(" | Speed (deg/s): "); Serial.print(CurrentSpeed);
+  //Serial.print(" | Target Velocity: "); Serial.print(targetVelocity);
+  //Serial.print(" | Rotation Count: "); Serial.println(rotationCount);
   resetCommandTimeout();
 }
