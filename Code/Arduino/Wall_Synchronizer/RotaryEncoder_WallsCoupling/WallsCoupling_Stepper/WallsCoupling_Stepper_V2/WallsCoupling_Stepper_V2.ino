@@ -131,6 +131,7 @@ void setup() {
 }
 
 void loop() {
+  noInterrupts();
   if (newPulse) {
     newPulse = false;  // Reset flag
 
@@ -143,6 +144,7 @@ void loop() {
     Serial.print(" µs | Scale Factor: ");
     Serial.println(scaleFactor);
   }
+  interrupts();
 
   SynchWalls();
   //Serial.print("Current Pos: "); Serial.print(currentPosition);
