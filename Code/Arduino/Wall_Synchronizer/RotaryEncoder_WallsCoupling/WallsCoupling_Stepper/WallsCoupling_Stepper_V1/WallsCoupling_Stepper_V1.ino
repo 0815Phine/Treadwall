@@ -11,6 +11,7 @@ TicSerial tic2(ticSerial, 15);
 #define AnalogDataStreamPin A0
 #define encAPin 2 //Encoder A - Arduino pin 2 to Black
 #define encBPin 4 //Encoder B - Arduino pin 4 to White
+#define ScalingPin 3
 //    Data Stream:
 #define FW 1 //forwards
 #define BW -1 //backwards
@@ -44,6 +45,11 @@ volatile uint32_t SampleStopTime = 0;
 volatile uint32_t ElapsedTime = 0;
 uint32_t TimeNoChange = 0;
 uint32_t ElapsedTimeNoChange = 0;
+//    Scaling
+volatile uint32_t pulseStart = 0;
+volatile uint32_t pulseWidth = 0;
+volatile bool newPulse = false;
+volatile float scaleFactor = 1.0; // Default scaling factor
 
 // Sends a "Reset command timeout" command to the Tic.
 void resetCommandTimeout() {
@@ -64,6 +70,15 @@ float mapfloat(float x, float in_min, float in_max, float out_min, float out_max
   return (x-in_min) * (out_max-out_min) / (in_max - in_min) + out_min;
 }
 
+void getPulseWidth() {
+  if (digitalRead(ScalingPin) == HIGH) {
+    pulseStart = micros();  // Capture start time on rising edge
+  } else {
+    pulseWidth = micros() - pulseStart;  // Calculate pulse duration
+    newPulse = true;  // Flag to indicate a new measurement is ready
+  }
+}
+
 void MeasureRotations() {
   DetectChange = true;
   if (digitalRead(encAPin) == digitalRead(encBPin)) {
@@ -79,6 +94,15 @@ void MeasureRotations() {
 }
 
 int calculateTargetVelocity(float speed) {
+  // Handle pulse width and scaling factor
+  if (newPulse) {
+    newPulse = false;  // Reset the flag
+    scaleFactor = mapfloat(pulseWidth, 500, 5000, 0.5, 2.0);
+    scaleFactor = constrain(scaleFactor, 0.5, 2.0);  // Ensure it stays within range
+    Serial.println(scaleFactor);
+  }
+  speed *= scaleFactor;
+
   // Calculate Wall-Wheel revolutions per second (based on treadmill speed)
   float wheelRevolutionsPerSecond = (speed*1000000)/WallWheelCircumference;
   // Convert Wall-Wheel revolutions to motor steps per second
@@ -99,8 +123,8 @@ void SynchWalls() {
 
       WallStartTime = micros();  // Record wall movement start time
       uint32_t delay = (WallStartTime - SampleStopTime)/1000;
-      Serial.print("Delay (ms): ");
-      Serial.println(delay);  // Log the delay in milliseconds
+      //Serial.print("Delay (ms): ");
+      //Serial.println(delay);  // Log the delay in milliseconds
     }
     DetectChange = false;
   } else if (DetectChange == false) {
@@ -131,11 +155,12 @@ void setup() {
   //ticSerial.begin(9600);
   ticSerial.begin(115385);
   //Serial.begin(9600);
-  //Serial.begin(115385);
+  Serial.begin(115200);
   analogWriteResolution(12);
 
   pinMode(encAPin, INPUT_PULLUP);
   pinMode(encBPin, INPUT_PULLUP);
+  pinMode(ScalingPin, INPUT_PULLUP);
   //pinMode(AnalogDataStreamPin, OUTPUT);
 
   // Give the Tic some time to start up.
@@ -145,11 +170,12 @@ void setup() {
   tic2.exitSafeStart();
 
   attachInterrupt(digitalPinToInterrupt(encAPin), MeasureRotations, RISING);
+  attachInterrupt(digitalPinToInterrupt(ScalingPin), getPulseWidth, CHANGE);
   SampleStartTime = micros();
 }
 
 void loop() {
   SynchWalls();
-  StreamData();
+  //StreamData();
   resetCommandTimeout();
 }
