@@ -117,7 +117,7 @@ void delayWhileResettingCommandTimeout(uint32_t ms) {
 
 void setup() {
   ticSerial.begin(115385);
-  Serial.begin(9600);
+  //Serial.begin(115200);
   analogReadResolution(12);
 
   pinMode(EncoderPin, INPUT);
@@ -139,10 +139,10 @@ void loop() {
     scaleFactor = mapfloat(pulseWidth, 500, 5000, 0.5, 2.0);
     scaleFactor = constrain(scaleFactor, 0.5, 2.0);  // Ensure it stays within range
 
-    Serial.print("Pulse Width: ");
-    Serial.print(pulseWidth);
-    Serial.print(" µs | Scale Factor: ");
-    Serial.println(scaleFactor);
+    //Serial.print("Pulse Width: ");
+    //Serial.print(pulseWidth);
+    //Serial.print(" µs | Scale Factor: ");
+    //Serial.println(scaleFactor);
   }
   interrupts();
 
