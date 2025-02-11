@@ -13,6 +13,9 @@ if isempty(fieldnames(S))
     S.GUI.SubjectID = BpodSystem.GUIData.SubjectName;
     S.GUI.SessionID = BpodSystem.GUIData.SessionID;
 
+    %Speed scaling
+    S.GUI.PulseDuration = 0.0025 ;%PulseDuration: default one-on-one scaling, pulse width in seconds
+
     % set thresholds for rotary encoder here
 
     %S.GUI.ExpInfoPath = start_path;
@@ -27,13 +30,16 @@ BpodSystem.ProtocolSettings = S;
 % pause(1);
 
 %% ----------
-
 % one trial will be defined as one lap on the tradmill
 
-%% ---------- Rotary Encoder Module ---------------------------------------
+% test for scalinmg of stepper speed
+PulseDuration = [0.0005, 0.001, 0.0015, 0.002, 0.0025, 0.003, 0.0035, 0.004, 0.0045, 0.005];
+S.GUI.MaxTrialNumber = numel(PulseDuration);
 
-R = RotaryEncoderModule('COM10'); %check which COM is paired with rotary encoder module
-R.moduleOutputStream = 'On'; %'0'
+%% ---------- Rotary Encoder Module ---------------------------------------
+R = RotaryEncoderModule('COM8'); %check which COM is paired with rotary encoder module
+
+%R.moduleOutputStream = 'On'; %'0'
 %R.streamUI()
 
 %% ---------- Analog Output Module ----------------------------------------
@@ -42,7 +48,14 @@ W = BpodWavePlayer('COM3'); %check which COM is paired with analog output module
 W.SamplingRate = 100;%in kHz
 W.OutputRange = '0V:5V';
 W.TriggerMode = 'Normal';
-W.TriggerProfileEnable = 'On'; % for simultaneous triggering of different channels
+%W.TriggerProfileEnable = 'On'; % for simultaneous triggering of different channels
+
+% %for setting tic analog position control
+% lengthWave = 30*W.SamplingRate;
+% waveforms = {0, 2.5, 5};
+% for i = 1:length(waveforms)
+%     W.loadWaveform(i, waveforms{i}*ones(1,lengthWave));
+% end
 
 % set wall trigger profiles for speed and wall diameter
 
@@ -52,25 +65,36 @@ Confirmed = BpodSystem.SerialPort.read(1,'uint8');
 if Confirmed ~= 1, error('Faulty clock reset'); end
 
 %% ---------- Synching with WaveSurfer ------------------------------------
-sma = NewStateMachine();
-sma = AddState(sma, 'Name', 'WaitForWaveSurfer', ...
-    'Timer',0,...
-    'StateChangeConditions', {'BNC1High', 'exit'},...
-    'OutputActions', {});
-SendStateMachine(sma);
-RawEvents = RunStateMachine;
+% sma = NewStateMachine();
+% sma = AddState(sma, 'Name', 'WaitForWaveSurfer', ...
+%     'Timer',0,...
+%     'StateChangeConditions', {'BNC1High', 'exit'},...
+%     'OutputActions', {});
+% SendStateMachine(sma);
+% RawEvents = RunStateMachine;
+% 
+% if ~isempty(fieldnames(RawEvents)) % If trial data was returned
+%     BpodSystem.Data = AddTrialEvents(BpodSystem.Data,RawEvents); % Computes trial events from raw data
+%     SaveBpodSessionData; % Saves the field BpodSystem.Data to the current data file
+% end
+% 
+% disp('Synced with Wavesurfer.');
+% %R.zeroPosition() % set position of rotary encoder to 0 or 'Z'
+% %R.startLogging() %'L'
 
-if ~isempty(fieldnames(RawEvents)) % If trial data was returned
-    BpodSystem.Data = AddTrialEvents(BpodSystem.Data,RawEvents); % Computes trial events from raw data
-    SaveBpodSessionData; % Saves the field BpodSystem.Data to the current data file
-end
-
-disp('Synced with Wavesurfer.');
-R.zeroPosition() % set position of rotary encoder to 0 or 'Z'
-R.startLogging() %'L'
+%% option with Behavior Port -> this doesn't work (invalid op code received)
+% sma = NewStateMachine(); %Assemble new state machine description
+% 
+% sma = AddState(sma, 'Name', 'LightPort1', ...
+%     'Timer', 60,...
+%     'StateChangeConditions', {'Tup', 'exit'},...
+%     'OutputActions', {'PWM1', 255});
+% 
+% SendStateMachine(sma);
+% RunStateMachine;
 
 %% ---------- Main Loop ---------------------------------------------------
-for currentTrial = 1:10
+for currentTrial = 1:S.GUI.MaxTrialNumber
     % disp(' ');
     % disp('- - - - - - - - - - - - - - - ');
     % disp(['Trial: ' num2str(trial) ' - ' datestr(now,'HH:MM:SS') ' - ' 'Type: ' typeList{trial}]);
@@ -80,13 +104,33 @@ for currentTrial = 1:10
     % construct state machine
     sma = NewStateMachine(); %Assemble new state machine description
 
-    sma = AddState(sma, 'Name', 'TrialStart', ...
-        'Timer', 0,...
-        'StateChangeConditions', {'Tup', 'ZeroEncoder'},...
-        'OutputActions', {'RotaryEncoder1', ['#' 0]}); % marks a trial start timestamp in the rotary encoder data stream (for sync)
+    % sma = AddState(sma, 'Name', 'Pulse', ...
+    %     'Timer', PulseDuration(currentTrial),...
+    %     'StateChangeConditions', {'Tup', 'Wait'},...
+    %     'OutputActions', {'BNC1', 1});
+    % 
+    % sma = AddState(sma, 'Name', 'Wait', ...
+    %     'Timer', 10,...
+    %     'StateChangeConditions', {'Tup', 'exit'},...
+    %     'OutputActions', {});
+
+    sma = AddState(sma, 'Name', 'stimulus_neu', ...
+        'Timer', 30,...
+        'StateChangeConditions', {'Tup', 'stimulus_max'},...
+        'OutputActions', {'WavePlayer1', ['!' 3 0 128]});
+
+    sma = AddState(sma, 'Name', 'stimulus_max', ...
+        'Timer', 30,...
+        'StateChangeConditions', {'Tup', 'stimulus_min'},...
+        'OutputActions', {'WavePlayer1', ['!' 3 255 255]});
+
+    sma = AddState(sma, 'Name', 'stimulus_min', ...
+        'Timer', 30,...
+        'StateChangeConditions', {'Tup', 'exit'},...
+        'OutputActions', {'WavePlayer1', ['!' 3 0 0]});
 
     % next move walls in at specific position
-    %exit trial at complete loop of treadmill
+    % exit trial at complete loop of treadmill
 
     % run state machine
     SendStateMachine(sma);
@@ -101,8 +145,8 @@ for currentTrial = 1:10
     if BpodSystem.Status.BeingUsed == 0; return; end
 end
 
-R.stopLogging()
-rotary_data = R.getLoggedData();
+%R.stopLogging()
+%rotary_data = R.getLoggedData();
 
 disp('Loop end');
 disp('Stop wavesurfer. Stop Bpod');
