@@ -32,7 +32,7 @@ BpodSystem.ProtocolSettings = S;
 % pause(1);
 
 %% ---------- Create Triallist and load Trials ----------------------------
-% create triallist (adjust function according to trials needed
+% create triallist (adjust function according to trials needed)
 create_triallist_all(start_path, S.GUI.SubjectID, S.GUI.SessionID); % all distances and all offsets
 
 % read triallist
@@ -58,8 +58,9 @@ W.SamplingRate = 100;%in kHz
 W.OutputRange = '0V:5V';
 W.TriggerMode = 'Normal';
 
+% Waveforms for offset distances
 lengthWave = S.GUI.stimDur*W.SamplingRate;
-waveforms = {0.4, 0.8, 1.2, 1.6, 2, 2.4, 2.8, 3.2, 3.6, 4, 4.5, 5};
+waveforms = {1.58, 2.05, 2.56, 3.03, 3.55, 4.02, 4.53, 5};
 for i = 1:length(waveforms)
     W.loadWaveform(i, waveforms{i}*ones(1,lengthWave));
 end
@@ -87,9 +88,9 @@ disp('Synced with Wavesurfer.');
 
 %% ---------- Main Loop ---------------------------------------------------
 for currentTrial = 1:S.GUI.MaxTrialNumber
-    % disp(' ');
-    % disp('- - - - - - - - - - - - - - - ');
-    % disp(['Trial: ' num2str(trial) ' - ' datestr(now,'HH:MM:SS') ' - ' 'Type: ' typeList{trial}]);
+    disp(' ');
+    disp('- - - - - - - - - - - - - - - ');
+    disp(['Trial: ' num2str(trial) ' - ' datestr(now,'HH:MM:SS') ' - ' 'Type: ' triallist{currenttrial}]);
 
     S = BpodParameterGUI('sync', S); %Sync parameters with BpodParameterGUI plugin
 
@@ -99,30 +100,30 @@ for currentTrial = 1:S.GUI.MaxTrialNumber
     % construct state machine
     sma = NewStateMachine(); %Assemble new state machine description
 
-    if currentTrial == numel(triallist) %last trial
-        sma = AddState(sma, 'Name', 'iti', ...
+    if currentTrial == 1 %first trial
+        sma = AddState(sma, 'Name', 'StartBuffer', ...
             'Timer', S.GUI.ITIDur,...
             'StateChangeConditions', {'Tup', 'stimulus'},...
-            'OutputActions', {});
+            'OutputActions', {'WavePlayer1', ['!' 3 0 0]});
 
         sma = AddState(sma, 'Name', 'stimulus', ...
             'Timer', S.GUI.stimDur,...
-            'StateChangeConditions', {'Tup', 'EndBuffer'},...
+            'StateChangeConditions', {'Tup', 'iti'},...
             'OutputActions', {'WavePlayer1', stimOutput});
 
-        sma = AddState(sma, 'Name', 'EndBuffer', ...
+        sma = AddState(sma, 'Name', 'iti', ...
             'Timer', S.GUI.ITIDur,...
             'StateChangeConditions', {'Tup', 'exit'},...
-            'OutputActions', {});
+            'OutputActions', {'WavePlayer1', ['!' 3 0 0]});
     else
         sma = AddState(sma, 'Name', 'iti', ...
             'Timer', S.GUI.ITIDur,...
-            'StateChangeConditions', {'Tup', 'stimulus'},...
-            'OutputActions', {});
+            'StateChangeConditions', {'Tup', 'exit'},...
+            'OutputActions', {'WavePlayer1', ['!' 3 0 0]});
 
         sma = AddState(sma, 'Name', 'stimulus', ...
             'Timer', S.GUI.stimDur,...
-            'StateChangeConditions', {'Tup', 'exit'},...
+            'StateChangeConditions', {'Tup', 'iti'},...
             'OutputActions', {'WavePlayer1', stimOutput});
     end
 
