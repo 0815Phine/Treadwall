@@ -1,3 +1,4 @@
+% This Protocol was used to tune the old omron IR-Distance sensors
 function Treadwall_Tuning
 
 global BpodSystem
@@ -27,7 +28,7 @@ BpodParameterGUI('init', S);
 %% ---------- Load Trialllist ---------------------------------------------
 % define trials (from previously created randomized list)
 prot_StartPath = BpodSystem.Path.ProtocolFolder;
-%trialList_Info = dir('C:\Users\TomBombadil\Documents\GitHub\Treadwall\Code\BpodProtocols\Treadwall_Tuning\triallist.csv');
+trialList_Info = dir('C:\Users\TomBombadil\Documents\GitHub\Treadwall\Code\BpodProtocols\Treadwall_Tuning\triallist.csv');
 if isempty(trialList_Info)
     [~,triallist_dir] = uigetfile(fullfile(prot_StartPath,'*.csv'));
     %error('no triallist found')
@@ -46,14 +47,16 @@ W.SamplingRate = 100;%in kHz
 W.OutputRange = '0V:5V';
 W.TriggerMode = 'Normal';
 
+% Waveforms for offset distances
 lengthWave = S.GUI.stimDur*W.SamplingRate;
-waveforms = {0.4, 0.8, 1.2, 1.6, 2, 2.4, 2.8, 3.2, 3.6, 4, 4.5, 5};
+waveforms = {1.58, 2.05, 2.56, 3.03, 3.55, 4.02, 4.53, 5};
 for i = 1:length(waveforms)
     W.loadWaveform(i, waveforms{i}*ones(1,lengthWave));
 end
 
 %% ---------- Synching with Python ----------------------------------------
 % Define the tuning file path with current date
+
 date_str = datestr(now, 'yyyy-mm-dd');
 tuning_folder_path = fullfile(start_path,'\Tuning\', date_str);
 if ~exist(tuning_folder_path, 'dir')
@@ -72,9 +75,9 @@ system(cmd);
 
 %% ---------- Main Loop ---------------------------------------------------
 for currentTrial = 1:S.GUI.MaxTrialNumber
-    % disp(' ');
-    % disp('- - - - - - - - - - - - - - - ');
-    % disp(['Trial: ' num2str(trial) ' - ' datestr(now,'HH:MM:SS') ' - ' 'Type: ' typeList{trial}]);
+    disp(' ');
+    disp('- - - - - - - - - - - - - - - ');
+    disp(['Trial: ' num2str(currentTrial) ' - ' datestr(now,'HH:MM:SS') ' - ' 'Type: ' triallist{currentTrial}]);
 
     S = BpodParameterGUI('sync', S); %Sync parameters with BpodParameterGUI plugin
 
@@ -88,7 +91,7 @@ for currentTrial = 1:S.GUI.MaxTrialNumber
         sma = AddState(sma, 'Name', 'iti', ...
             'Timer', S.GUI.ITIDur,...
             'StateChangeConditions', {'Tup', 'stimulus'},...
-            'OutputActions', {});
+            'OutputActions', {'WavePlayer1', ['!' 3 0 0]});
 
         sma = AddState(sma, 'Name', 'stimulus', ...
             'Timer', S.GUI.stimDur,...
@@ -98,12 +101,12 @@ for currentTrial = 1:S.GUI.MaxTrialNumber
         sma = AddState(sma, 'Name', 'EndBuffer', ...
             'Timer', S.GUI.ITIDur,...
             'StateChangeConditions', {'Tup', 'exit'},...
-            'OutputActions', {});
+            'OutputActions', {'WavePlayer1', ['!' 3 0 0]});
     else
         sma = AddState(sma, 'Name', 'iti', ...
             'Timer', S.GUI.ITIDur,...
             'StateChangeConditions', {'Tup', 'stimulus'},...
-            'OutputActions', {});
+            'OutputActions', {'WavePlayer1', ['!' 3 0 0]});
 
         sma = AddState(sma, 'Name', 'stimulus', ...
             'Timer', S.GUI.stimDur,...
@@ -129,6 +132,7 @@ disp('Loop end');
 
 %% ---------- Stop Python -------------------------------------------------
 % Signal file to stop Python logging (to be created at the end)
+
 stopSignalFile = fullfile(tuning_folder_path, 'stop.txt');
 % Create stop.txt at the end of the main loop
 if BpodSystem.Status.BeingUsed == 0 || currentTrial == S.GUI.MaxTrialNumber
