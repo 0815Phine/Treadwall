@@ -1,7 +1,5 @@
-function create_triallist_all(start_path, animal_id, session_id)
+function create_triallist_all(session_dir)
 % Ensure directories exist
-animal_dir = fullfile(start_path, animal_id);
-session_dir = fullfile(animal_dir, session_id);
 if ~exist(session_dir, 'dir')
     mkdir(session_dir);
 end
