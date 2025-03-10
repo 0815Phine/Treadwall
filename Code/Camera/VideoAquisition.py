@@ -2,13 +2,23 @@ import pypylon.pylon as py
 import cv2
 import time
 import os
+import sys
+
+# set output directory
+session_folder = sys.argv[1]
+animal_name = sys.argv[2]
+session_name = sys.argv[3]
+
+video_filename = f"{animal_name}_{session_name}.avi"
+op_name = os.path.join(session_folder, video_filename)
 
 # Create a stop flag file
-STOP_FILE = "stop_signal.txt"
+STOP_FILE = os.path.join(session_folder, "stop_signal.txt") 
 # Function to check if MATLAB requested a stop
 def check_stop_signal():
     return os.path.exists(STOP_FILE)
 
+# ------ set up camera ------
 # get instance of the pylon TransportLayerFactory
 tlf = py.TlFactory.GetInstance()
 
@@ -33,11 +43,8 @@ cam.TriggerSource.Value = "Line1"
 cam.TriggerActivation.Value = "RisingEdge"
 cam.TriggerSelector.Value = "FrameStart"
 
-# ----- video aquisition ------
+# ------ video aquisition ------
 cam.StartGrabbing(py.GrabStrategy_OneByOne)
-
-# set output directory
-op_name = 'output.avi'
 
 # set up video writer
 fourcc = cv2.VideoWriter_fourcc(*'XVID')
