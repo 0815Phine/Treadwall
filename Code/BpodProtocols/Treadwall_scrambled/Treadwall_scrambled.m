@@ -15,6 +15,7 @@ if isempty(fieldnames(S))
     freshGUI = 1;        %flag to indicate that prameters have not been loaded from previous session.
     S.GUI.SubjectID = BpodSystem.GUIData.SubjectName;
     S.GUI.SessionID = BpodSystem.GUIData.SessionID;
+    session_dir = ([start_path '\' S.GUI.SubjectID '\' S.GUI.SessionID]);
     
     % Timings
     S.GUI.ITIDur = ITIDur; %in seconds
@@ -28,15 +29,12 @@ end
 BpodParameterGUI('init', S);
 BpodSystem.ProtocolSettings = S;
 
-% disp('Please do not yet start Wavesurfer...');
-% pause(1);
-
 %% ---------- Create Triallist and load Trials ----------------------------
 % create triallist (adjust function according to trials needed)
-create_triallist_all(start_path, S.GUI.SubjectID, S.GUI.SessionID); % all distances and all offsets
+create_triallist_all(session_dir); % all distances and all offsets
 
 % read triallist
-trialList_Info = dir([start_path '\' S.GUI.SubjectID '\' S.GUI.SessionID '\triallist.csv']);
+trialList_Info = dir([session_dir '\triallist.csv']);
 if isempty(trialList_Info)
     [~,triallist_dir] = uigetfile(fullfile(start_path,'*.csv'));
 else
@@ -65,6 +63,18 @@ for i = 1:length(waveforms)
     W.loadWaveform(i, waveforms{i}*ones(1,lengthWave));
 end
 
+%% ---------- Setup Camera ------------------------------------------------
+disp('Starting Python video acquisition script...');
+
+pythonExe = 'C:\Users\TomBombadil\anaconda3\python.exe';
+pyenv('Version', pythonExe);
+
+scriptPath = "C:\Users\TomBombadil\Documents\GitHub\Treadwall\Code\Camera\VideoAquisition.py";
+
+% Run in background
+command = sprintf('"%s" "%s" "%s" "%s" "%s" &', pythonExe, scriptPath, session_dir, S.GUI.SubjectID, S.GUI.SessionID);
+system(command);
+
 %% ---------- Restart Timer -----------------------------------------------
 BpodSystem.SerialPort.write('*', 'uint8');
 Confirmed = BpodSystem.SerialPort.read(1,'uint8');
@@ -77,6 +87,7 @@ sma = AddState(sma, 'Name', 'WaitForWaveSurfer', ...
     'StateChangeConditions', {'BNC1High', 'exit'},...
     'OutputActions', {});
 SendStateMachine(sma);
+disp('Waiting for Wavesurfer...');
 RawEvents = RunStateMachine;
 
 if ~isempty(fieldnames(RawEvents)) % If trial data was returned
@@ -90,7 +101,7 @@ disp('Synced with Wavesurfer.');
 for currentTrial = 1:S.GUI.MaxTrialNumber
     disp(' ');
     disp('- - - - - - - - - - - - - - - ');
-    disp(['Trial: ' num2str(trial) ' - ' datestr(now,'HH:MM:SS') ' - ' 'Type: ' triallist{currenttrial}]);
+    disp(['Trial: ' num2str(currentTrial) ' - ' datestr(now,'HH:MM:SS') ' - ' 'Type: ' triallist{currentTrial}]);
 
     S = BpodParameterGUI('sync', S); %Sync parameters with BpodParameterGUI plugin
 
@@ -140,5 +151,23 @@ for currentTrial = 1:S.GUI.MaxTrialNumber
 end
 
 disp('Loop end');
+
+%% ---------- Stop Camera -------------------------------------------------
+disp('Stopping Python script...');
+
+stop_file = fullfile(session_dir, 'stop_signal.txt');
+fclose(fopen(stop_file, 'w'));  % Create stop flag file
+
+pause(2);  % Allow Python script to detect it before force killing (optional)
+[~, result] = system('tasklist /FI "IMAGENAME eq python.exe"');
+
+if contains(result, 'python.exe') 
+    % If python.exe is still running, then proceed to kill it
+    disp('Python process is still running, forcing to stop...');
+    system('taskkill /F /IM python.exe');
+else
+    disp('Python process succesfully stopped.');
+end
+
 disp('Stop wavesurfer. Stop Bpod');
 end
