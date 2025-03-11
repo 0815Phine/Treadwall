@@ -3,8 +3,10 @@ import cv2
 import time
 import os
 import sys
+import threading
+import queue
 
-# ------ setup output directory ------
+# ------ Set up Output Directory ------
 # get animal and session information
 session_folder = sys.argv[1]
 animal_name = sys.argv[2]
@@ -33,8 +35,7 @@ if os.path.exists(STOP_FILE):
     os.remove(STOP_FILE)
     print("Existing stop file found and removed.")
 
-# ------ set up camera ------
-# get instance of the pylon TransportLayerFactory
+# ------ Set up Camera ------
 tlf = py.TlFactory.GetInstance()
 # list of pylon Device 
 devices = tlf.EnumerateDevices()
@@ -47,7 +48,7 @@ cam.Open()
 # cam settings
 cam.Width.Value = 1440
 cam.Height.Value = 1080
-cam.ExposureTime.Value = 4000
+cam.ExposureTime.Value = 3500 #check lowest possible exposure time with animal!!
 cam.ExposureAuto.Value = "Off"
 cam.DeviceLinkThroughputLimitMode.Value = "Off"
 
@@ -57,7 +58,29 @@ cam.TriggerSource.Value = "Line1"
 cam.TriggerActivation.Value = "RisingEdge"
 cam.TriggerSelector.Value = "FrameStart"
 
-# ------ video aquisition ------
+# ------ Live Stream ------
+frame_queue = queue.Queue(maxsize=10)
+stop_event = threading.Event() 
+def live_stream():
+    """ Continuously display frames from the queue """
+    while not stop_event.is_set() or not frame_queue.empty():
+        if not frame_queue.empty():
+            frame = frame_queue.get()
+            cv2.imshow("Live Stream", frame)
+        
+        time.sleep(1 / 30) # live streaming fps = 30
+        # Ensure OpenCV refreshes window
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            print("Live stream stopped by user.")
+            stop_event.set()
+            break
+    print("Closing live stream...")
+    cv2.destroyAllWindows()
+
+thread = threading.Thread(target=live_stream, daemon=True)
+thread.start()
+
+# ------ Video Aquisition ------
 cam.StartGrabbing(py.GrabStrategy_OneByOne)
 
 # set up video writer
@@ -67,50 +90,53 @@ video_writer = cv2.VideoWriter(op_name, fourcc, fps=200, frameSize=(1440, 1080),
 # pipeline
 fcount = 0
 f_failed = 0
-flag_status = False
 trigger_lost = False
 
 print("Waiting for trigger...")
-try:
-    while not flag_status: # waiting for first trigger
-        flag_status = cam.LineStatus.Value
-        if flag_status: # if triggered: start pipeline
-            print("Acquisition started...")
-            stime = time.time()
-            while cam.IsGrabbing():
-                try:
-                    res = cam.RetrieveResult(1000, py.TimeoutHandling_ThrowException)
-                    if res.GrabSucceeded():
-                        fcount += 1
-                        image = res.Array
-                        video_writer.write(image)
-                    else:
-                        f_failed += 1
-                    res.Release()
-                except py.TimeoutException:
-                    etime = time.time()
-                    print("WARNING: Camera stopped grabbing unexpectedly! Ensure trigger is functioning correctly.")
-                    trigger_lost = True
-                    break
+while not cam.LineStatus.Value: # waiting for first trigger
+    pass
 
-                # check for stop signal from MATLAB
-                if os.path.exists(STOP_FILE):
-                    etime = time.time()
-                    print("Stop signal received. Exiting...")
-                    break
-except KeyboardInterrupt:
-    print("Acquisition stopped manually.")
-        
-# release camera
+print("Acquisition started...")
+stime = time.time()
+while cam.IsGrabbing():
+    try:
+        res = cam.RetrieveResult(1000, py.TimeoutHandling_ThrowException)
+        if res.GrabSucceeded():
+            fcount += 1
+            image = res.Array
+            video_writer.write(image)
+
+            if not frame_queue.full():
+                frame_queue.put(image)
+        else:
+            f_failed += 1
+        res.Release()
+    except py.TimeoutException:
+        etime = time.time()
+        print("WARNING: Camera stopped grabbing unexpectedly! Ensure trigger is functioning correctly.")
+        trigger_lost = True
+        stop_event.set()
+        break
+
+    # check for stop signal from MATLAB
+    if os.path.exists(STOP_FILE):
+        etime = time.time()
+        print("Stop signal received. Exiting...")
+        stop_event.set()
+        break
+
+# ------ Cleanup ------       
+# release resources
 cam.StopGrabbing()
 cam.Close()
 video_writer.release()
+thread.join()
 
-# cleanup stop file
+# remove stop file
 if os.path.exists(STOP_FILE):
     os.remove(STOP_FILE)
 
-# calculate fps
+# estimate fps
 elapsed_time = etime - stime
 if fcount > 0 and elapsed_time > 0:
     estimated_fps = fcount / elapsed_time
