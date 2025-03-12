@@ -91,6 +91,7 @@ video_writer = cv2.VideoWriter(op_name, fourcc, fps=200, frameSize=(1440, 1080),
 fcount = 0
 f_failed = 0
 trigger_lost = False
+timestamps = [] 
 
 print("Waiting for trigger...")
 while not cam.LineStatus.Value: # waiting for first trigger
@@ -105,6 +106,9 @@ while cam.IsGrabbing():
             fcount += 1
             image = res.Array
             video_writer.write(image)
+
+            timestamp = time.time()
+            timestamps.append(timestamp)
 
             if not frame_queue.full():
                 frame_queue.put(image)
@@ -149,3 +153,9 @@ if trigger_lost:
 else:
     print(f"Acquisition stopped. Total frames: {fcount}, Failed frames: {f_failed}")
     print(f"Elapsed time: {elapsed_time:.2f} seconds, Estimated FPS: {estimated_fps :.2f}")
+
+# save timestamps of frames
+timestamp_filename = os.path.join(session_folder, f"{animal_name}_{session_name}_video_timestamps.txt")
+with open(timestamp_filename, 'w') as f:
+    for timestamp in timestamps:
+        f.write(f"{timestamp}\n")
