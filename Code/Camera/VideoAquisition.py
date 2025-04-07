@@ -5,6 +5,9 @@ import os
 import sys
 import threading
 import queue
+import subprocess
+import numpy as np
+import shutil
 
 # ------ Set up Output Directory ------
 # get animal and session information
@@ -84,8 +87,27 @@ thread.start()
 cam.StartGrabbing(py.GrabStrategy_OneByOne)
 
 # set up video writer
-fourcc = cv2.VideoWriter_fourcc(*'XVID')
-video_writer = cv2.VideoWriter(op_name, fourcc, fps=200, frameSize=(1440, 1080), isColor=False)
+#fourcc = cv2.VideoWriter_fourcc(*'XVID')
+#video_writer = cv2.VideoWriter(op_name, fourcc, fps=200, frameSize=(1440, 1080), isColor=False)
+
+ffmpeg_path = shutil.which("ffmpeg")
+if ffmpeg_path is None:
+    raise RuntimeError("FFmpeg was not found. Make sure it's in your system PATH.")
+ffmpeg_cmd = [
+    ffmpeg_path,  # use absolute path found by shutil
+    '-y',
+    '-f', 'rawvideo',
+    '-vcodec', 'rawvideo',
+    '-pix_fmt', 'gray',
+    '-s', '1440x1080',
+    '-r', '200',
+    '-i', '-',
+    '-an',
+    '-vcodec', 'libx264',
+    '-pix_fmt', 'yuv420p',
+    op_name
+]
+ffmpeg_process = subprocess.Popen(ffmpeg_cmd, stdin=subprocess.PIPE)
 
 # pipeline
 fcount = 0
@@ -105,7 +127,7 @@ while cam.IsGrabbing():
         if res.GrabSucceeded():
             fcount += 1
             image = res.Array
-            video_writer.write(image)
+            ffmpeg_process.stdin.write(image.tobytes())
 
             timestamp = time.time()
             timestamps.append(timestamp)
@@ -133,7 +155,8 @@ while cam.IsGrabbing():
 # release resources
 cam.StopGrabbing()
 cam.Close()
-video_writer.release()
+ffmpeg_process.stdin.close()
+ffmpeg_process.wait()
 thread.join()
 
 # remove stop file
