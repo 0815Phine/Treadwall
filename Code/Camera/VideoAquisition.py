@@ -15,8 +15,9 @@ session_folder = sys.argv[1]
 animal_name = sys.argv[2]
 session_name = sys.argv[3]
 
-# create video file
-video_filename = f"{animal_name}_{session_name}.avi"
+# create tomestamp and video file
+video_filename = f"{animal_name}_{session_name}.mp4"
+timestamp_filename = os.path.join(session_folder, f"{animal_name}_{session_name}_video_timestamps.txt")
 op_name = os.path.join(session_folder, video_filename)
 # prevent overwriting an existing video file
 if os.path.exists(op_name):
@@ -26,17 +27,18 @@ if os.path.exists(op_name):
         # Generate a new filename by appending a number
         counter = 1
         while os.path.exists(op_name):
-            new_video_filename = f"{animal_name}_{session_name}_{counter}.avi"
+            new_video_filename = f"{animal_name}_{session_name}_{counter}.mp4"
+            timestamp_filename = os.path.join(session_folder, f"{animal_name}_{session_name}__{counter}_vi_timestamps.txt")
             op_name = os.path.join(session_folder, new_video_filename)
             counter += 1
         print(f"Saving as new file: {new_video_filename}")
 
 # create a stop flag file
-STOP_FILE = os.path.join(session_folder, "stop_signal.txt")
+#STOP_FILE = os.path.join(session_folder, "stop_signal.txt")
 # remove existing stop file at startup
-if os.path.exists(STOP_FILE):
-    os.remove(STOP_FILE)
-    print("Existing stop file found and removed.")
+#if os.path.exists(STOP_FILE):
+#    os.remove(STOP_FILE)
+#    print("Existing stop file found and removed.")
 
 # ------ Set up Camera ------
 tlf = py.TlFactory.GetInstance()
@@ -90,6 +92,7 @@ cam.StartGrabbing(py.GrabStrategy_OneByOne)
 #fourcc = cv2.VideoWriter_fourcc(*'XVID')
 #video_writer = cv2.VideoWriter(op_name, fourcc, fps=200, frameSize=(1440, 1080), isColor=False)
 
+# set up ffmpeg (video writer reliable option)
 ffmpeg_path = shutil.which("ffmpeg")
 if ffmpeg_path is None:
     raise RuntimeError("FFmpeg was not found. Make sure it's in your system PATH.")
@@ -103,16 +106,23 @@ ffmpeg_cmd = [
     '-r', '200',
     '-i', '-',
     '-an',
-    '-vcodec', 'libx264',
+    '-vcodec', 'h264_nvenc',
     '-pix_fmt', 'yuv420p',
+    '-f', 'mp4',
     op_name
 ]
-ffmpeg_process = subprocess.Popen(ffmpeg_cmd, stdin=subprocess.PIPE)
+ffmpeg_process = subprocess.Popen(
+    ffmpeg_cmd,
+    stdin=subprocess.PIPE,
+    stdout=subprocess.DEVNULL,
+    stderr=subprocess.DEVNULL
+)
 
 # pipeline
 fcount = 0
 f_failed = 0
-trigger_lost = False
+#trigger_lost = False
+no_trigger_start = None
 timestamps = [] 
 
 print("Waiting for trigger...")
@@ -134,22 +144,31 @@ while cam.IsGrabbing():
 
             if not frame_queue.full():
                 frame_queue.put(image)
+
+            no_trigger_start = None
         else:
             f_failed += 1
         res.Release()
     except py.TimeoutException:
         etime = time.time()
-        print("WARNING: Camera stopped grabbing unexpectedly! Ensure trigger is functioning correctly.")
-        trigger_lost = True
-        stop_event.set()
-        break
+        print("Grab timeout. Checking for sustained trigger loss...")
+        #trigger_lost = True
+        if not cam.LineStatus.Value:
+            if no_trigger_start is None: # first round
+                no_trigger_start = time.time()
+            elif time.time() - no_trigger_start > 0.1: # second round
+                print("Trigger stopped. Ending acquisition.")
+                stop_event.set()
+                break
+        else:
+            no_trigger_start = None  # Trigger is back, reset
 
     # check for stop signal from MATLAB
-    if os.path.exists(STOP_FILE):
-        etime = time.time()
-        print("Stop signal received. Exiting...")
-        stop_event.set()
-        break
+    #if os.path.exists(STOP_FILE):
+    #    etime = time.time()
+    #    print("Stop signal received. Exiting...")
+    #    stop_event.set()
+    #    break
 
 # ------ Cleanup ------       
 # release resources
@@ -160,8 +179,8 @@ ffmpeg_process.wait()
 thread.join()
 
 # remove stop file
-if os.path.exists(STOP_FILE):
-    os.remove(STOP_FILE)
+#f os.path.exists(STOP_FILE):
+#    os.remove(STOP_FILE)
 
 # estimate fps
 elapsed_time = etime - stime
@@ -170,15 +189,15 @@ if fcount > 0 and elapsed_time > 0:
 else:
     estimated_fps = 0.0  # No frames acquired, or very fast execution
 
-if trigger_lost:
-    print(f"Total frames: {fcount}, Failed frames: {f_failed}")
-    print(f"Elapsed time: {elapsed_time:.2f} seconds, Estimated FPS: {estimated_fps :.2f}")
-else:
-    print(f"Acquisition stopped. Total frames: {fcount}, Failed frames: {f_failed}")
-    print(f"Elapsed time: {elapsed_time:.2f} seconds, Estimated FPS: {estimated_fps :.2f}")
+#if trigger_lost:
+#    print(f"Total frames: {fcount}, Failed frames: {f_failed}")
+#    print(f"Elapsed time: {elapsed_time:.2f} seconds, Estimated FPS: {estimated_fps :.2f}")
+#else:
+print(f"Acquisition stopped. Total frames: {fcount}, Failed frames: {f_failed}")
+print(f"Elapsed time: {elapsed_time:.2f} seconds, Estimated FPS: {estimated_fps :.2f}")
 
 # save timestamps of frames
-timestamp_filename = os.path.join(session_folder, f"{animal_name}_{session_name}_video_timestamps.txt")
+print("Saving timestamps.")
 with open(timestamp_filename, 'w') as f:
     for timestamp in timestamps:
         f.write(f"{timestamp}\n")
