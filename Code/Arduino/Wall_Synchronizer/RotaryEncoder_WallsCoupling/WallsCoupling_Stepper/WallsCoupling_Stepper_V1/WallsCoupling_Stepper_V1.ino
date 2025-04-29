@@ -23,7 +23,7 @@ TicSerial tic2(ticSerial, 15);
 //    Rotary Encoder, Motor specs:
 #define nSteps 1024 //Rotary Encoder: number of steps per rotation
 #define StepsperRevolution 200 //Steppers
-#define MicrostepsPerStep 1 //Steppers
+#define MicrostepsPerStep 2 //Steppers
 //    Setup measurements
 #define WallWheelCircumference (109*1000) //in microns (1mm is 1000 microns), of the roller wheel
 #define wheelRadius (53*1000) //wheel radius in microns (1mm is 1000 microns)
@@ -99,7 +99,7 @@ int calculateTargetVelocity(float speed) {
     newPulse = false;  // Reset the flag
     scaleFactor = mapfloat(pulseWidth, 500, 5000, 0.5, 2.0);
     scaleFactor = constrain(scaleFactor, 0.5, 2.0);  // Ensure it stays within range
-    Serial.println(scaleFactor);
+    //Serial.println(scaleFactor);
   }
   speed *= scaleFactor;
 
@@ -139,11 +139,11 @@ void SynchWalls() {
 }
 
 void StreamData() {
-  pwmOutput = mapfloat(CurrentSpeed, MinRunningSpeed, MaxRunningSpeed, 0, MaxPWMValue);
-  pwmOutput = constrain(pwmOutput, 0, MaxPWMValue);
-  analogWrite(AnalogDataStreamPin, pwmOutput);
+  //pwmOutput = mapfloat(CurrentSpeed, MinRunningSpeed, MaxRunningSpeed, 0, MaxPWMValue);
+  //pwmOutput = constrain(pwmOutput, 0, MaxPWMValue);
+  //analogWrite(AnalogDataStreamPin, pwmOutput);
 
-  //Serial.println(CurrentSpeed);
+  Serial.println(CurrentSpeed);
   //Serial.print(",");
   //Serial.print(pwmOutput);
   //Serial.print(",");
@@ -155,7 +155,7 @@ void setup() {
   //ticSerial.begin(9600);
   ticSerial.begin(115385);
   //Serial.begin(9600);
-  Serial.begin(115200);
+  //Serial.begin(115200);
   analogWriteResolution(12);
 
   pinMode(encAPin, INPUT_PULLUP);
@@ -170,7 +170,7 @@ void setup() {
   tic2.exitSafeStart();
 
   attachInterrupt(digitalPinToInterrupt(encAPin), MeasureRotations, RISING);
-  attachInterrupt(digitalPinToInterrupt(ScalingPin), getPulseWidth, CHANGE);
+  //attachInterrupt(digitalPinToInterrupt(ScalingPin), getPulseWidth, CHANGE);
   SampleStartTime = micros();
 }
 
