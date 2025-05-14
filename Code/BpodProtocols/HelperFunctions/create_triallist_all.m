@@ -9,7 +9,7 @@ output_path = fullfile(session_dir, 'triallist.csv');
 
 % Define trial types
 offset = {'C', 'L', 'R'}; % Centre, Left, Right
-distance = {'45', '39', '33', '27'}; % Stimulus conditions
+distance = {'51', '45', '39', '33', '27'}; % Stimulus conditions
 
 % Create combinations of prefixes and angles
 trial_types = cell(numel(offset) * numel(distance), 1);
