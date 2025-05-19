@@ -55,6 +55,7 @@ cam.Width.Value = 1440
 cam.Height.Value = 1080
 cam.ExposureTime.Value = 3500 #check lowest possible exposure time with animal!!
 cam.ExposureAuto.Value = "Off"
+cam.Gain.Value = 12
 cam.DeviceLinkThroughputLimitMode.Value = "Off"
 
 # hardware trigger
@@ -62,6 +63,11 @@ cam.TriggerMode.Value = "On"
 cam.TriggerSource.Value = "Line1"  
 cam.TriggerActivation.Value = "RisingEdge"
 cam.TriggerSelector.Value = "FrameStart"
+
+# frame feedback
+cam.LineSelector.Value = "Line3"
+cam.LineMode.Value = "Output"
+cam.LineSource.Value = "ExposureActive"
 
 # ------ Live Stream ------
 frame_queue = queue.Queue(maxsize=10)
