@@ -31,7 +31,7 @@ BpodSystem.ProtocolSettings = S;
 
 %% ---------- Create Triallist and load Trials ----------------------------
 % create triallist (adjust function according to trials needed)
-create_triallist_all(session_dir); % all distances and all offsets
+create_triallist_adaptable(session_dir); % all distances and all offsets
 
 % read triallist
 trialList_Info = dir([session_dir '\triallist.csv']);
@@ -58,7 +58,8 @@ W.TriggerMode = 'Normal';
 
 % Waveforms for offset distances
 lengthWave = S.GUI.stimDur*W.SamplingRate;
-waveforms = {1.58, 2.05, 2.56, 3.03, 3.55, 4.02, 4.53, 5};
+waveforms = {1.2, 1.84, 2.47, 3.1, 3.73, 4.37,...
+    1.33, 1.91, 2.55, 3.14, 3.78, 4.36, 5};
 for i = 1:length(waveforms)
     W.loadWaveform(i, waveforms{i}*ones(1,lengthWave));
 end
