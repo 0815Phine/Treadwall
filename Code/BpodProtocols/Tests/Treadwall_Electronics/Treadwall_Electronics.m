@@ -1,11 +1,13 @@
 function Treadwall_Electronics
-%this script canbe used to test the proper functioning of the mover and synchronizer, trial and ITI times are kept short
+% this script can be used to test the proper functioning of the mover and synchronizer
+% wavesurfer is not needed for testing
+% trial and ITI times are kept short
 % trials iterate from wide to narrow distance
 
 global BpodSystem
 
 %% ---------- Define task parameters --------------------------------------
-start_path = BpodSystem.Path.DataFolder; % 'C:\Users\TomBombadil\Desktop\Animals' - Folder of current cohort selected in GUI;
+start_path = 'C:\Users\TomBombadil\Desktop\Animals\Cohort00_Test'; %Tests should always be saved in this folder
 
 % initialize parameters
 S = struct(); %BpodSystem.ProtocolSettings;
@@ -30,7 +32,7 @@ BpodSystem.ProtocolSettings = S;
 
 %% ---------- Create Triallist and load Trials ----------------------------
 % read triallist
-trialList_Info = fullfile([BpodSystem.Path.ProtocolFolder '\Tests\triallist_testing.csv']);
+trialList_Info =  dir([BpodSystem.Path.ProtocolFolder '\triallist_testing.csv']);
 if isempty(trialList_Info)
     [~,triallist_dir] = uigetfile(fullfile(start_path,'*.csv'));
 else
@@ -43,7 +45,7 @@ S.GUI.MaxTrialNumber = numel(triallist);
 
 %% ---------- Rotary Encoder Module ---------------------------------------
 R = RotaryEncoderModule('COM8'); %check which COM is paired with rotary encoder module
-R.streamUI()
+R.streamUI();
 
 %% ---------- Analog Output Module ----------------------------------------
 W = BpodWavePlayer('COM3'); %check which COM is paired with analog output module
@@ -120,5 +122,5 @@ for currentTrial = 1:S.GUI.MaxTrialNumber
 end
 
 disp('Loop end');
-disp('Stop wavesurfer. Stop Bpod');
+disp('Close Stream. Stop Bpod');
 end
