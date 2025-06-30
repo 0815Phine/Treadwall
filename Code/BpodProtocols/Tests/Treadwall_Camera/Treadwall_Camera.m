@@ -1,4 +1,6 @@
 function Treadwall_Camera
+% this script can be used to test proper starting and stopping of the camera
+% the main loop iterating through the trials is removed from this protocol
 
 global BpodSystem
 
