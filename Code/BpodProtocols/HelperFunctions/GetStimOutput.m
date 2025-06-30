@@ -1,4 +1,6 @@
 % Helper function to determine the correct stimulus output based on trial type
+% this outputs are currently calibrated for my guiding plate, they might have to be adapted
+
 function stimOutput = GetStimOutput(trialType)
     switch trialType
         case 'C51'
@@ -17,20 +19,23 @@ function stimOutput = GetStimOutput(trialType)
             stimOutput = ['>' 7 5 255 255];
         case 'L39'
             stimOutput = ['>' 8 6 255 255];
-        % case 'L33'
-        %     stimOutput = ['>' 3 7 255 255];
-        % case 'L27'
-        %     stimOutput = ['>' 4 8 255 255];
         case 'R51'
             stimOutput = ['>' 10 0 255 255];
         case 'R45'
             stimOutput = ['>' 11 1 255 255];
         case 'R39'
             stimOutput = ['>' 12 2 255 255];
-        % case 'R33'
-        %     stimOutput = ['>' 7 3 255 255];
-        % case 'R27'
-        %     stimOutput = ['>' 8 4 255 255];
+
+        % not calibrated
+        case 'L33'
+            stimOutput = ['>' 3 7 255 255];
+        case 'L27'
+            stimOutput = ['>' 4 8 255 255];
+        case 'R33'
+            stimOutput = ['>' 7 3 255 255];
+        case 'R27'
+            stimOutput = ['>' 8 4 255 255];
+            
         otherwise
             error('Unknown trial type: %s', trialType);
     end
