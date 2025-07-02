@@ -85,6 +85,9 @@ disp('Synced with Wavesurfer.');
 %% ---------- Main Loop ---------------------------------------------------
 for currentTrial = 1:floor(length(waveforms)/2)
     S = BpodParameterGUI('sync', S); %Sync parameters with BpodParameterGUI plugin
+    disp(' ');
+    disp('- - - - - - - - - - - - - - - ');
+    disp(['Trial: ' num2str(currentTrial) ' - ' datestr(now,'HH:MM:SS')]);
 
     % construct state machine
     sma = NewStateMachine(); %Assemble new state machine description
@@ -98,13 +101,13 @@ for currentTrial = 1:floor(length(waveforms)/2)
         sma = AddState(sma, 'Name', 'stimulus', ...
             'Timer', S.GUI.stimDur,...
             'StateChangeConditions', {'Tup', 'exit'},...
-            'OutputActions', {'WavePlayer1', ['>' currentTrial+6 currentTrial 255 255];});
+            'OutputActions', {'WavePlayer1', ['>' currentTrial+6 currentTrial 255 255]});
 
     else
         sma = AddState(sma, 'Name', 'stimulus', ...
             'Timer', S.GUI.stimDur,...
             'StateChangeConditions', {'Tup', 'exit'},...
-            'OutputActions', {'WavePlayer1', ['>' currentTrial+6 currentTrial 255 255];});
+            'OutputActions', {'WavePlayer1', ['>' currentTrial+6 currentTrial 255 255]});
     end
 
     % run state machine
