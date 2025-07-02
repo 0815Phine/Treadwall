@@ -1,4 +1,4 @@
-function Treadwall_Habituation_1
+function Treadwall_Habituation_2
 
 global BpodSystem
 
@@ -8,7 +8,7 @@ start_path = BpodSystem.Path.DataFolder; % 'C:\Users\TomBombadil\Desktop\Animals
 % initialize parameters
 S = struct(); %BpodSystem.ProtocolSettings;
 
-params_file = fullfile([BpodSystem.Path.ProtocolFolder '\treadwall_habituation1_parameters.m']);
+params_file = fullfile([BpodSystem.Path.ProtocolFolder '\treadwall_habituation2_parameters.m']);
 run(params_file)
 
 if isempty(fieldnames(S))
@@ -83,7 +83,7 @@ end
 disp('Synced with Wavesurfer.');
 
 %% ---------- Main Loop ---------------------------------------------------
-for currentTrial = 1:floor(length(waveforms)/4)
+for currentTrial = 1:floor(length(waveforms)/2)
     S = BpodParameterGUI('sync', S); %Sync parameters with BpodParameterGUI plugin
 
     % construct state machine
