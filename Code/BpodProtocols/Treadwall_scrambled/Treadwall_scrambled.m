@@ -31,7 +31,7 @@ BpodSystem.ProtocolSettings = S;
 
 %% ---------- Create Triallist and load Trials ----------------------------
 % create triallist (adjust function according to trials needed)
-create_triallist_adaptable(session_dir); % all distances and all offsets
+create_triallist_adaptable(session_dir); % not all offsets used, for all use "create_triallist_all"
 
 % read triallist
 trialList_Info = dir([session_dir '\triallist.csv']);
@@ -57,6 +57,7 @@ W.OutputRange = '0V:5V';
 W.TriggerMode = 'Normal';
 
 % Waveforms for offset distances
+% the following waveforms are calibrated for my guiding plate, they might have to be adapted
 lengthWave = S.GUI.stimDur*W.SamplingRate;
 waveforms = {1.2, 1.84, 2.47, 3.1, 3.73, 4.37,...
     1.33, 1.91, 2.55, 3.14, 3.78, 4.36, 5};
@@ -141,9 +142,10 @@ for currentTrial = 1:S.GUI.MaxTrialNumber
 
     % run state machine
     SendStateMachine(sma);
-    RawEvents = RunStateMachine;
+    RawEvents = RunStateMachine();
     if ~isempty(fieldnames(RawEvents)) %If trial data was returned
         BpodSystem.Data = AddTrialEvents(BpodSystem.Data,RawEvents); %Computes trial events from raw data
+        BpodSystem.Data.TrialSettings(currentTrial) = S;
         BpodSystem.Data.TrialTypes(currentTrial) = triallist(currentTrial);
         SaveBpodSessionData; %Saves the field BpodSystem.Data to the current data file
         %SaveProtocolSettings;
