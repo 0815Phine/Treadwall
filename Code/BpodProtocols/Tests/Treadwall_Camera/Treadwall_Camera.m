@@ -51,11 +51,6 @@ SendStateMachine(sma);
 disp('Waiting for Wavesurfer...');
 RawEvents = RunStateMachine;
 
-if ~isempty(fieldnames(RawEvents)) % If trial data was returned
-    BpodSystem.Data = AddTrialEvents(BpodSystem.Data,RawEvents); % Computes trial events from raw data
-    SaveBpodSessionData; % Saves the field BpodSystem.Data to the current data file
-end
-
 disp('Synced with Wavesurfer.');
 disp('Loop end');
 disp('Stop wavesurfer. Stop Bpod');

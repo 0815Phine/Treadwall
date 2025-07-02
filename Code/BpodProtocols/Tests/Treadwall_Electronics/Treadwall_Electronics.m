@@ -111,13 +111,6 @@ for currentTrial = 1:S.GUI.MaxTrialNumber
     % run state machine
     SendStateMachine(sma);
     RawEvents = RunStateMachine;
-    if ~isempty(fieldnames(RawEvents)) %If trial data was returned
-        BpodSystem.Data = AddTrialEvents(BpodSystem.Data,RawEvents); %Computes trial events from raw data
-        BpodSystem.Data.TrialTypes(currentTrial) = triallist(currentTrial);
-        SaveBpodSessionData; %Saves the field BpodSystem.Data to the current data file
-        %SaveProtocolSettings;
-    end
-
     if BpodSystem.Status.BeingUsed == 0; return; end
 end
 
