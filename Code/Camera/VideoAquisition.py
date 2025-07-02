@@ -28,7 +28,7 @@ if os.path.exists(op_name):
         counter = 1
         while os.path.exists(op_name):
             new_video_filename = f"{animal_name}_{session_name}_{counter}.mp4"
-            timestamp_filename = os.path.join(session_folder, f"{animal_name}_{session_name}__{counter}_vi_timestamps.txt")
+            timestamp_filename = os.path.join(session_folder, f"{animal_name}_{session_name}_{counter}_vi_timestamps.txt")
             op_name = os.path.join(session_folder, new_video_filename)
             counter += 1
         print(f"Saving as new file: {new_video_filename}")
@@ -67,7 +67,7 @@ cam.TriggerSelector.Value = "FrameStart"
 # frame feedback
 cam.LineSelector.Value = "Line3"
 cam.LineMode.Value = "Output"
-cam.LineSource.Value = "ExposureActive"
+cam.LineSource.Value = "ExposureActive" #"FrameTriggerWait"
 
 # ------ Live Stream ------
 frame_queue = queue.Queue(maxsize=10)
