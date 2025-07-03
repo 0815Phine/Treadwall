@@ -49,7 +49,7 @@ sma = AddState(sma, 'Name', 'WaitForWaveSurfer', ...
     'OutputActions', {});
 SendStateMachine(sma);
 disp('Waiting for Wavesurfer...');
-RawEvents = RunStateMachine;
+RunStateMachine;
 
 disp('Synced with Wavesurfer.');
 disp('Loop end');
