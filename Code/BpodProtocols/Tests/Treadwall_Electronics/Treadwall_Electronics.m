@@ -110,7 +110,7 @@ for currentTrial = 1:S.GUI.MaxTrialNumber
 
     % run state machine
     SendStateMachine(sma);
-    RawEvents = RunStateMachine;
+    RunStateMachine;
     if BpodSystem.Status.BeingUsed == 0; return; end
 end
 
