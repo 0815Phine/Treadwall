@@ -1,4 +1,4 @@
 %% Parameters for Treadwall Experiments
 
 % Timings
-stimDur = 300; %in seconds
+stimDur = 200; %in seconds
