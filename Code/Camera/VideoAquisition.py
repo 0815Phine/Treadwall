@@ -77,7 +77,11 @@ def live_stream():
     while not stop_event.is_set() or not frame_queue.empty():
         if not frame_queue.empty():
             frame = frame_queue.get()
-            cv2.imshow("Live Stream", frame)
+
+            # Resize the frame for display
+            display_frame = cv2.resize(frame, (960, 720))
+
+            cv2.imshow("Live Stream", display_frame)
         
         time.sleep(1 / 30) # live streaming fps = 30
         # Ensure OpenCV refreshes window
