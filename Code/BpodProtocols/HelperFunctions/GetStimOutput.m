@@ -3,38 +3,41 @@
 
 function stimOutput = GetStimOutput(trialType)
     switch trialType
+        %centered
         case 'C51'
-            stimOutput = ['>' 8 2 255 255];
+            stimOutput = ['>' 2 2 255 255];
         case 'C45'
-            stimOutput = ['>' 9 3 255 255]; %['!' 3 18 130];
+            stimOutput = ['>' 3 3 255 255]; %['!' 3 18 130];
         case 'C39'
-            stimOutput = ['>' 10 4 255 255]; %['!' 3  34 155];
+            stimOutput = ['>' 4 4 255 255]; %['!' 3  34 155];
         case 'C33'
-            stimOutput = ['>' 11 5 255 255]; %['!' 3 181 194];
+            stimOutput = ['>' 5 5 255 255]; %['!' 3 181 194];
         case 'C27'
-            stimOutput = ['>' 12 12 255 255]; %['!' 3 205 210];
+            stimOutput = ['>' 6 6 255 255]; %['!' 3 205 210];
+        %left
         case 'L51'
-            stimOutput = ['>' 6 4 255 255];
+            stimOutput = ['>' 0 4 255 255];
         case 'L45'
-            stimOutput = ['>' 7 5 255 255];
+            stimOutput = ['>' 1 5 255 255];
         case 'L39'
-            stimOutput = ['>' 8 6 255 255];
+            stimOutput = ['>' 2 6 255 255];
+        %right
         case 'R51'
-            stimOutput = ['>' 10 0 255 255];
+            stimOutput = ['>' 4 0 255 255];
         case 'R45'
-            stimOutput = ['>' 11 1 255 255];
+            stimOutput = ['>' 5 1 255 255];
         case 'R39'
-            stimOutput = ['>' 12 2 255 255];
+            stimOutput = ['>' 6 2 255 255];
 
         % not calibrated
         case 'L33'
-            stimOutput = ['>' 3 7 255 255];
+            stimOutput = ['>' 3 0 255 255];
         case 'L27'
-            stimOutput = ['>' 4 8 255 255];
+            stimOutput = ['>' 4 0 255 255];
         case 'R33'
-            stimOutput = ['>' 7 3 255 255];
+            stimOutput = ['>' 0 3 255 255];
         case 'R27'
-            stimOutput = ['>' 8 4 255 255];
+            stimOutput = ['>' 0 4 255 255];
             
         otherwise
             error('Unknown trial type: %s', trialType);

@@ -59,8 +59,7 @@ W.TriggerMode = 'Normal';
 % Waveforms for offset distances
 % the following waveforms are calibrated for my guiding plate, they might have to be adapted
 lengthWave = S.GUI.stimDur*W.SamplingRate;
-waveforms = {1.2, 1.84, 2.47, 3.1, 3.73, 4.37,...
-    1.33, 1.91, 2.55, 3.14, 3.78, 4.36, 5};
+waveforms = {1.5, 2.1, 2.6, 3.2, 3.8, 4.2, 5};
 for i = 1:length(waveforms)
     W.loadWaveform(i, waveforms{i}*ones(1,lengthWave));
 end
