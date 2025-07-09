@@ -15,7 +15,7 @@ session_folder = sys.argv[1]
 animal_name = sys.argv[2]
 session_name = sys.argv[3]
 
-# create tomestamp and video file
+# create timestamp and video file
 video_filename = f"{animal_name}_{session_name}.mp4"
 timestamp_filename = os.path.join(session_folder, f"{animal_name}_{session_name}_video_timestamps.txt")
 op_name = os.path.join(session_folder, video_filename)
@@ -42,8 +42,7 @@ if os.path.exists(op_name):
 
 # ------ Set up Camera ------
 tlf = py.TlFactory.GetInstance()
-# list of pylon Device 
-devices = tlf.EnumerateDevices()
+devices = tlf.EnumerateDevices() # list of pylon Device 
 if not devices:
     raise RuntimeError("No cameras found!")
 # choose camera
@@ -57,6 +56,9 @@ cam.ExposureTime.Value = 3500 #check lowest possible exposure time with animal!!
 cam.ExposureAuto.Value = "Off"
 cam.Gain.Value = 12
 cam.DeviceLinkThroughputLimitMode.Value = "Off"
+cam.AcquisitionFrameRateEnable.Value = False
+cam.AcquisitionMode.Value = "Continuous"
+cam.AcquisitionStopMode.Value = "Complete"
 
 # hardware trigger
 cam.TriggerMode.Value = "On"  
@@ -71,38 +73,37 @@ cam.LineSource.Value = "ExposureActive" #"FrameTriggerWait"
 
 # ------ Live Stream ------
 frame_queue = queue.Queue(maxsize=10)
-stop_event = threading.Event() 
+#stop_event = threading.Event() 
 def live_stream():
     """ Continuously display frames from the queue """
-    while not stop_event.is_set() or not frame_queue.empty():
+    while cam.IsGrabbing() or not frame_queue.empty():
         if not frame_queue.empty():
             frame = frame_queue.get()
+
+            if frame is None or frame.size == 0:
+                continue  # Skip empty frames
 
             # Resize the frame for display
             display_frame = cv2.resize(frame, (960, 720))
 
             cv2.imshow("Live Stream", display_frame)
+            cv2.waitKey(1)
         
         time.sleep(1 / 30) # live streaming fps = 30
-        # Ensure OpenCV refreshes window
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            print("Live stream stopped by user.")
-            stop_event.set()
-            break
+
+        #if cv2.waitKey(1) & 0xFF == ord('q'):
+        #    print("Live stream stopped by user.")
+        #    stop_event.set()
+        #    break
     print("Closing live stream...")
     cv2.destroyAllWindows()
 
-thread = threading.Thread(target=live_stream, daemon=True)
-thread.start()
-
-# ------ Video Aquisition ------
-cam.StartGrabbing(py.GrabStrategy_OneByOne)
-
-# set up video writer
+# ------ Video-Writer ------
+# set up OpenCV
 #fourcc = cv2.VideoWriter_fourcc(*'XVID')
 #video_writer = cv2.VideoWriter(op_name, fourcc, fps=200, frameSize=(1440, 1080), isColor=False)
 
-# set up ffmpeg (video writer reliable option)
+# set up ffmpeg
 ffmpeg_path = shutil.which("ffmpeg")
 if ffmpeg_path is None:
     raise RuntimeError("FFmpeg was not found. Make sure it's in your system PATH.")
@@ -113,27 +114,54 @@ ffmpeg_cmd = [
     '-vcodec', 'rawvideo',
     '-pix_fmt', 'gray',
     '-s', '1440x1080',
-    '-r', '200',
+    #'-r', '200',
     '-i', '-',
-    '-an',
+
     '-vcodec', 'h264_nvenc',
+    '-gpu', '0',
+    '-profile:v', 'high',
+    '-preset', 'slow',
+    '-crf', '17',
+    '-an',
+    '-vf', 'format=gray',
     '-pix_fmt', 'yuv420p',
+    #'-r', '200',
     '-f', 'mp4',
-    op_name
-]
+    op_name]
 ffmpeg_process = subprocess.Popen(
     ffmpeg_cmd,
     stdin=subprocess.PIPE,
     stdout=subprocess.DEVNULL,
-    stderr=subprocess.DEVNULL
-)
+    stderr=subprocess.DEVNULL)
 
-# pipeline
+frame_write_count = 0
+video_queue = queue.Queue(maxsize=100)  # Larger buffer for writing
+def video_writer_thread():
+    """ Writes frames from the queue """
+    global frame_write_count
+    while cam.IsGrabbing() or not video_queue.empty():
+        try:
+            frame = video_queue.get(timeout=0.1)
+            ffmpeg_process.stdin.write(frame.tobytes())
+            frame_write_count += 1
+            video_queue.task_done()
+        except queue.Empty:
+            continue
+
+# ------ Video Aquisition ------
 fcount = 0
 f_failed = 0
-#trigger_lost = False
-no_trigger_start = None
-timestamps = [] 
+timestamps = []
+trigger_lost = None
+trigger_started = False
+trigger_stopped = False
+
+# PIPELINE
+cam.StartGrabbing(py.GrabStrategy_OneByOne)
+live_thread = threading.Thread(target=live_stream, daemon=True)
+live_thread.start()
+writer_thread = threading.Thread(target=video_writer_thread, daemon=True)
+writer_thread.start()
 
 print("Waiting for trigger...")
 while not cam.LineStatus.Value: # waiting for first trigger
@@ -145,33 +173,42 @@ while cam.IsGrabbing():
     try:
         res = cam.RetrieveResult(1000, py.TimeoutHandling_ThrowException)
         if res.GrabSucceeded():
-            fcount += 1
             image = res.Array
-            ffmpeg_process.stdin.write(image.tobytes())
-
-            timestamp = time.time()
-            timestamps.append(timestamp)
-
+            #ffmpeg_process.stdin.write(image.tobytes())
+            if not trigger_stopped:
+                try:
+                    video_queue.put_nowait(image)
+                except queue.Full:
+                    print("Video queue full. Dropping frame.")
+                
+                timestamp = res.TimeStamp #time.time() #cam.TimestampLatch.Execute()
+                timestamps.append(timestamp)
+            else:
+                print("Frame grabbed after trigger stopped. Ignoring.")
+                
             if not frame_queue.full():
                 frame_queue.put(image)
 
-            no_trigger_start = None
+            fcount += 1
+            trigger_lost = None
+                    
         else:
             f_failed += 1
         res.Release()
+
     except py.TimeoutException:
         etime = time.time()
         print("Grab timeout. Checking for sustained trigger loss...")
-        #trigger_lost = True
         if not cam.LineStatus.Value:
-            if no_trigger_start is None: # first round
-                no_trigger_start = time.time()
-            elif time.time() - no_trigger_start > 0.1: # second round
+            if trigger_lost is None: # first round
+                trigger_lost = time.time()
+            elif time.time() - trigger_lost > 0.01: # second round
                 print("Trigger stopped. Ending acquisition.")
-                stop_event.set()
+                trigger_stopped = True
+                #stop_event.set()
                 break
         else:
-            no_trigger_start = None  # Trigger is back, reset
+            trigger_lost = None  # Trigger is back, reset
 
     # check for stop signal from MATLAB
     #if os.path.exists(STOP_FILE):
@@ -184,9 +221,11 @@ while cam.IsGrabbing():
 # release resources
 cam.StopGrabbing()
 cam.Close()
+video_queue.join()       # Wait for all frames to be written
+writer_thread.join()     # Wait for writer thread to finish
+live_thread.join()
 ffmpeg_process.stdin.close()
 ffmpeg_process.wait()
-thread.join()
 
 # remove stop file
 #f os.path.exists(STOP_FILE):
@@ -199,12 +238,10 @@ if fcount > 0 and elapsed_time > 0:
 else:
     estimated_fps = 0.0  # No frames acquired, or very fast execution
 
-#if trigger_lost:
-#    print(f"Total frames: {fcount}, Failed frames: {f_failed}")
-#    print(f"Elapsed time: {elapsed_time:.2f} seconds, Estimated FPS: {estimated_fps :.2f}")
-#else:
 print(f"Acquisition stopped. Total frames: {fcount}, Failed frames: {f_failed}")
 print(f"Elapsed time: {elapsed_time:.2f} seconds, Estimated FPS: {estimated_fps :.2f}")
+print(f"Final video queue size before shutdown: {video_queue.qsize()}")
+print(f"Frames written to ffmpeg: {frame_write_count}")
 
 # save timestamps of frames
 print("Saving timestamps.")
