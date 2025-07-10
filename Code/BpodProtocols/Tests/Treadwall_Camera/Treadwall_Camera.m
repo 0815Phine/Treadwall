@@ -52,6 +52,21 @@ disp('Waiting for Wavesurfer...');
 RunStateMachine;
 
 disp('Synced with Wavesurfer.');
+
+%% ---------- Synching with WaveSurfer ------------------------------------
+sma = NewStateMachine();
+sma = AddState(sma, 'Name', 'Camera Running', ...
+    'Timer',60,...
+    'StateChangeConditions', {'Tup', 'StopCamera'},...
+    'OutputActions', {});
+sma = AddState(sma, 'Name', 'StopCamera', ...
+    'Timer', 1,...
+    'StateChangeConditions', {'Tup', 'exit'},...
+    'OutputActions', {'BNC1',1});
+SendStateMachine(sma);
+disp('Test running...');
+RunStateMachine;
+
 disp('Loop end');
 disp('Stop wavesurfer. Stop Bpod');
 end
