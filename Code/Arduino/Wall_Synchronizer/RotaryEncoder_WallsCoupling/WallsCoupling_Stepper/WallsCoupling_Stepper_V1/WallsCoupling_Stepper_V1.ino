@@ -11,7 +11,7 @@ TicSerial tic2(ticSerial, 15);
 #define AnalogDataStreamPin A0
 #define encAPin 2 //Encoder A - Arduino pin 2 to Black
 #define encBPin 4 //Encoder B - Arduino pin 4 to White
-#define ScalingPin 3
+#define SpeedPin 3
 //    Data Stream:
 #define FW 1 //forwards
 #define BW -1 //backwards
@@ -60,23 +60,13 @@ void resetCommandTimeout() {
 // Delays for the specified number of milliseconds while resetting the Tic's command timeout so that its movement does not get interrupted.
 void delayWhileResettingCommandTimeout(uint32_t ms) {
   uint32_t start = millis();
-  do
-  {
+  do {
     resetCommandTimeout();
   } while ((uint32_t)(millis()-start) <= ms);
 }
 
 float mapfloat(float x, float in_min, float in_max, float out_min, float out_max) {
   return (x-in_min) * (out_max-out_min) / (in_max - in_min) + out_min;
-}
-
-void getPulseWidth() {
-  if (digitalRead(ScalingPin) == HIGH) {
-    pulseStart = micros();  // Capture start time on rising edge
-  } else {
-    pulseWidth = micros() - pulseStart;  // Calculate pulse duration
-    newPulse = true;  // Flag to indicate a new measurement is ready
-  }
 }
 
 void MeasureRotations() {
@@ -94,15 +84,6 @@ void MeasureRotations() {
 }
 
 int calculateTargetVelocity(float speed) {
-  // Handle pulse width and scaling factor
-  if (newPulse) {
-    newPulse = false;  // Reset the flag
-    scaleFactor = mapfloat(pulseWidth, 500, 5000, 0.5, 2.0);
-    scaleFactor = constrain(scaleFactor, 0.5, 2.0);  // Ensure it stays within range
-    //Serial.println(scaleFactor);
-  }
-  speed *= scaleFactor;
-
   // Calculate Wall-Wheel revolutions per second (based on treadmill speed)
   float wheelRevolutionsPerSecond = (speed*1000000)/WallWheelCircumference;
   // Convert Wall-Wheel revolutions to motor steps per second
@@ -139,11 +120,11 @@ void SynchWalls() {
 }
 
 void StreamData() {
-  //pwmOutput = mapfloat(CurrentSpeed, MinRunningSpeed, MaxRunningSpeed, 0, MaxPWMValue);
-  //pwmOutput = constrain(pwmOutput, 0, MaxPWMValue);
-  //analogWrite(AnalogDataStreamPin, pwmOutput);
+  pwmOutput = mapfloat(CurrentSpeed, MinRunningSpeed, MaxRunningSpeed, 0, MaxPWMValue);
+  pwmOutput = constrain(pwmOutput, 0, MaxPWMValue);
+  analogWrite(SpeedPin, pwmOutput);
 
-  Serial.println(CurrentSpeed);
+  //Serial.println(CurrentSpeed);
   //Serial.print(",");
   //Serial.print(pwmOutput);
   //Serial.print(",");
@@ -160,7 +141,7 @@ void setup() {
 
   pinMode(encAPin, INPUT_PULLUP);
   pinMode(encBPin, INPUT_PULLUP);
-  pinMode(ScalingPin, INPUT_PULLUP);
+  pinMode(SpeedPin, OUTPUT);
   //pinMode(AnalogDataStreamPin, OUTPUT);
 
   // Give the Tic some time to start up.
@@ -170,12 +151,11 @@ void setup() {
   tic2.exitSafeStart();
 
   attachInterrupt(digitalPinToInterrupt(encAPin), MeasureRotations, RISING);
-  //attachInterrupt(digitalPinToInterrupt(ScalingPin), getPulseWidth, CHANGE);
   SampleStartTime = micros();
 }
 
 void loop() {
   SynchWalls();
-  //StreamData();
+  StreamData();
   resetCommandTimeout();
 }
