@@ -58,13 +58,16 @@ cam.Gain.Value = 12
 cam.DeviceLinkThroughputLimitMode.Value = "Off"
 cam.AcquisitionFrameRateEnable.Value = False
 cam.AcquisitionMode.Value = "Continuous"
-cam.AcquisitionStopMode.Value = "Complete"
 
 # hardware trigger
 cam.TriggerMode.Value = "On"  
 cam.TriggerSource.Value = "Line1"  
 cam.TriggerActivation.Value = "RisingEdge"
 cam.TriggerSelector.Value = "FrameStart"
+
+# stop signal
+cam.LineSelector.Value = "Line2"
+cam.LineMode.Value = "Input"
 
 # frame feedback
 cam.LineSelector.Value = "Line3"
@@ -164,52 +167,59 @@ writer_thread = threading.Thread(target=video_writer_thread, daemon=True)
 writer_thread.start()
 
 print("Waiting for trigger...")
-while not cam.LineStatus.Value: # waiting for first trigger
+while not cam.LineStatus.Value: # this most likely reads line 3
     pass
 
-print("Acquisition started...")
+cam.LineSelector.Value = "Line2"
+print("Acquisition running...")
 stime = time.time()
+trigger_started = True
 while cam.IsGrabbing():
     try:
         res = cam.RetrieveResult(1000, py.TimeoutHandling_ThrowException)
         if res.GrabSucceeded():
             image = res.Array
+
+            # video writer
             #ffmpeg_process.stdin.write(image.tobytes())
-            if not trigger_stopped:
-                try:
-                    video_queue.put_nowait(image)
-                except queue.Full:
-                    print("Video queue full. Dropping frame.")
+            try:
+                video_queue.put_nowait(image)
+            except queue.Full:
+                print("Video queue full. Dropping frame.")
                 
-                timestamp = res.TimeStamp #time.time() #cam.TimestampLatch.Execute()
-                timestamps.append(timestamp)
-            else:
-                print("Frame grabbed after trigger stopped. Ignoring.")
+            # timestamps
+            timestamp = res.TimeStamp #time.time() #cam.TimestampLatch.Execute()
+            timestamps.append(timestamp)
                 
+            # live stream
             if not frame_queue.full():
                 frame_queue.put(image)
 
             fcount += 1
-            trigger_lost = None
-                    
         else:
             f_failed += 1
         res.Release()
 
+        if cam.LineStatus.Value:
+            etime = time.time()
+            print("Stop signal received. Ending acquisition.")
+            cam.AcquisitionStop.Execute()
+            break
+
     except py.TimeoutException:
-        etime = time.time()
         print("Grab timeout. Checking for sustained trigger loss...")
         if not cam.LineStatus.Value:
             if trigger_lost is None: # first round
+                etime = time.time()
                 trigger_lost = time.time()
             elif time.time() - trigger_lost > 0.01: # second round
-                print("Trigger stopped. Ending acquisition.")
+                print("Trigger stopped. Ending acquisition...")
                 trigger_stopped = True
                 #stop_event.set()
                 break
-        else:
+        else: # not sure if this works properly
             trigger_lost = None  # Trigger is back, reset
-
+    
     # check for stop signal from MATLAB
     #if os.path.exists(STOP_FILE):
     #    etime = time.time()
@@ -240,11 +250,11 @@ else:
 
 print(f"Acquisition stopped. Total frames: {fcount}, Failed frames: {f_failed}")
 print(f"Elapsed time: {elapsed_time:.2f} seconds, Estimated FPS: {estimated_fps :.2f}")
-print(f"Final video queue size before shutdown: {video_queue.qsize()}")
-print(f"Frames written to ffmpeg: {frame_write_count}")
+#print(f"Final video queue size before shutdown: {video_queue.qsize()}")
+#print(f"Frames written to ffmpeg: {frame_write_count}")
 
 # save timestamps of frames
-print("Saving timestamps.")
+print("Saving timestamps...")
 with open(timestamp_filename, 'w') as f:
     for timestamp in timestamps:
         f.write(f"{timestamp}\n")
