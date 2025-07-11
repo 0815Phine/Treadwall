@@ -38,6 +38,7 @@ volatile static float TotalDistanceInMM = 0.00;
 volatile static float CurrentSpeed = 0.00;
 static int previousTargetVelocity = 0;
 int targetVelocity = 0;
+float speedMultiplier = 1.0;
 //    Time variables
 volatile uint32_t WallStartTime = 0;  //Timestamp for wall movement start
 volatile uint32_t SampleStartTime = 0; 
@@ -84,6 +85,12 @@ void MeasureRotations() {
 }
 
 int calculateTargetVelocity(float speed) {
+  if (Serial.available()){
+    String input = Serial.readStringUntil('\n');
+    speedMultiplier = input.toFloat();
+  }
+  speed = speed*speedMultiplier;
+
   // Calculate Wall-Wheel revolutions per second (based on treadmill speed)
   float wheelRevolutionsPerSecond = (speed*1000000)/WallWheelCircumference;
   // Convert Wall-Wheel revolutions to motor steps per second
@@ -136,7 +143,7 @@ void setup() {
   //ticSerial.begin(9600);
   ticSerial.begin(115385);
   //Serial.begin(9600);
-  //Serial.begin(115200);
+  Serial.begin(115385);
   analogWriteResolution(12);
 
   pinMode(encAPin, INPUT_PULLUP);
