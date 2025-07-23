@@ -29,15 +29,15 @@ function stimOutput = GetStimOutput(trialType)
         case 'R39'
             stimOutput = ['>' 6 2 255 255];
 
-        % not calibrated
+        % calibrated for Israel
         case 'L33'
-            stimOutput = ['>' 3 0 255 255];
+            stimOutput = ['>' 3 7 255 255];
         case 'L27'
-            stimOutput = ['>' 4 0 255 255];
+            stimOutput = ['>' 4 8 255 255];
         case 'R33'
-            stimOutput = ['>' 0 3 255 255];
+            stimOutput = ['>' 7 3 255 255];
         case 'R27'
-            stimOutput = ['>' 0 4 255 255];
+            stimOutput = ['>' 8 4 255 255];
             
         otherwise
             error('Unknown trial type: %s', trialType);
