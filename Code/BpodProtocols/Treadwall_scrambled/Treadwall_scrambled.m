@@ -1,5 +1,6 @@
 function Treadwall_scrambled
 
+%% ADD SCALING ADD CAMERA STOP
 global BpodSystem
 
 %% ---------- Define task parameters --------------------------------------
@@ -154,23 +155,5 @@ for currentTrial = 1:S.GUI.MaxTrialNumber
 end
 
 disp('Loop end');
-
-%% ---------- Stop Camera -------------------------------------------------
-% disp('Stopping Python script...');
-% 
-% stop_file = fullfile(session_dir, 'stop_signal.txt');
-% fclose(fopen(stop_file, 'w'));  % Create stop flag file
-% 
-% pause(2);  % Allow Python script to detect it before force killing (optional)
-% [~, result] = system('tasklist /FI "IMAGENAME eq python.exe"');
-% 
-% if contains(result, 'python.exe') 
-%     % If python.exe is still running, then proceed to kill it
-%     disp('Python process is still running, forcing to stop...');
-%     system('taskkill /F /IM python.exe');
-% else
-%     disp('Python process succesfully stopped.');
-% end
-
 disp('Stop wavesurfer. Stop Bpod');
 end

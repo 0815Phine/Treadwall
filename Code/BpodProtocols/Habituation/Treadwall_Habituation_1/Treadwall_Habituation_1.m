@@ -1,5 +1,6 @@
 function Treadwall_Habituation_1
 
+%% ADD SCALING ADD CAMERA STOP
 global BpodSystem
 
 %% ---------- Define task parameters --------------------------------------
