@@ -53,7 +53,7 @@ RunStateMachine;
 
 disp('Synced with Wavesurfer.');
 
-%% ---------- Synching with WaveSurfer ------------------------------------
+%% ---------- Run for 1 Minute --------------------------------------------
 sma = NewStateMachine();
 sma = AddState(sma, 'Name', 'Camera Running', ...
     'Timer',60,...
