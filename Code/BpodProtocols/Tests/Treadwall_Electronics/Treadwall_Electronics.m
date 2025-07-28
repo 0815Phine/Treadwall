@@ -12,6 +12,17 @@ start_path = 'C:\Users\TomBombadil\Desktop\Animals\Cohort00_Test'; %Tests should
 % initialize parameters
 S = struct(); %BpodSystem.ProtocolSettings;
 
+location = questdlg('Where do you perform your experiments?',...
+    'Locations',...
+    'BN','ISR','ISR');
+
+Folder = BpodSystem.Path.ProtocolFolder;
+Folder = fullfile(Folder, '..');
+params_file = fullfile([Folder, '\treadwall_scrambled_parameters_', location, '.m']);
+run(params_file)
+
+fprintf('Parameters loaded for: %s \n', location);
+
 if isempty(fieldnames(S))
     freshGUI = 1;        %flag to indicate that prameters have not been loaded from previous session.
     S.GUI.SubjectID = BpodSystem.GUIData.SubjectName;
@@ -45,7 +56,7 @@ S.GUI.MaxTrialNumber = numel(triallist);
 
 %% ---------- Rotary Encoder Module ---------------------------------------
 R = RotaryEncoderModule('COM8'); %check which COM is paired with rotary encoder module
-R.streamUI();
+%R.streamUI();
 
 %% ---------- Analog Output Module ----------------------------------------
 W = BpodWavePlayer('COM3'); %check which COM is paired with analog output module
@@ -56,8 +67,6 @@ W.TriggerMode = 'Normal';
 
 % Waveforms for offset distances
 lengthWave = S.GUI.stimDur*W.SamplingRate;
-waveforms = {1.2, 1.84, 2.47, 3.1, 3.73, 4.37,...
-    1.33, 1.91, 2.55, 3.14, 3.78, 4.36, 5};
 for i = 1:length(waveforms)
     W.loadWaveform(i, waveforms{i}*ones(1,lengthWave));
 end
