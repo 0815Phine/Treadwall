@@ -29,6 +29,8 @@ We used a Trotec Speedy Flex lasercutter with a 100W CO2 laser with the followin
 | z-Offset | -2 | 0 |
 | Resolution | N.A. | 500 DPI |
 
+Red lines -> cut; black lines -> engrave; blue lines -> not assigned
+
 ## 3D Printing
 
 ## Bpod System
