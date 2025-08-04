@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg width="100%" height="100%" viewBox="0 0 3508 2481" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:serif="http://www.serif.com/" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:1.5;">
+    <g transform="matrix(1.33653,0,0,1.10817,-645.004,-163.83)">
+        <rect x="690.27" y="680.747" width="2209.28" height="1172.4" style="fill:none;stroke:rgb(242,13,13);stroke-width:0.85px;"/>
+    </g>
+    <g transform="matrix(1.96793,0,0,1.46709,-1006.42,-674.991)">
+        <rect x="652.45" y="1024.27" width="690.202" height="406.557" style="fill:none;stroke:rgb(242,13,13);stroke-width:0.6px;"/>
+    </g>
+    <g transform="matrix(1.96793,0,0,1.46709,588.067,-674.991)">
+        <rect x="652.45" y="1024.27" width="690.202" height="406.557" style="fill:none;stroke:rgb(242,13,13);stroke-width:0.6px;"/>
+    </g>
+    <g id="cutout-for-motors-of-wall" serif:id="cutout for motors of wall" transform="matrix(2.4813,0,0,0.522924,-721.287,1141.55)">
+        <rect x="652.45" y="1024.27" width="690.202" height="406.557" style="fill:none;stroke:rgb(242,13,13);stroke-width:0.58px;"/>
+    </g>
+    <g transform="matrix(0.619799,0,0,0.503586,-429.085,492.774)">
+        <ellipse cx="1333.2" cy="431.77" rx="40.971" ry="50.426" style="fill:none;stroke:rgb(242,13,13);stroke-width:1.84px;"/>
+    </g>
+    <g transform="matrix(0.619799,0,0,0.503586,-429.085,1552.21)">
+        <ellipse cx="1333.2" cy="431.77" rx="40.971" ry="50.426" style="fill:none;stroke:rgb(242,13,13);stroke-width:1.84px;"/>
+    </g>
+    <g transform="matrix(0.619799,0,0,0.503586,2284.66,1552.21)">
+        <ellipse cx="1333.2" cy="431.77" rx="40.971" ry="50.426" style="fill:none;stroke:rgb(242,13,13);stroke-width:1.84px;"/>
+    </g>
+    <g transform="matrix(0.619799,0,0,0.503586,1827.01,1334.02)">
+        <ellipse cx="1333.2" cy="431.77" rx="40.971" ry="50.426" style="fill:none;stroke:rgb(242,13,13);stroke-width:1.84px;"/>
+    </g>
+    <g transform="matrix(0.619799,0,0,0.503586,2319.05,1334.02)">
+        <ellipse cx="1333.2" cy="431.77" rx="40.971" ry="50.426" style="fill:none;stroke:rgb(242,13,13);stroke-width:1.84px;"/>
+    </g>
+    <g transform="matrix(0.619799,0,0,0.503586,-464.683,1334.02)">
+        <ellipse cx="1333.2" cy="431.77" rx="40.971" ry="50.426" style="fill:none;stroke:rgb(242,13,13);stroke-width:1.84px;"/>
+    </g>
+    <g transform="matrix(0.619799,0,0,0.503586,27.6664,1334.02)">
+        <ellipse cx="1333.2" cy="431.77" rx="40.971" ry="50.426" style="fill:none;stroke:rgb(242,13,13);stroke-width:1.84px;"/>
+    </g>
+    <g transform="matrix(0.619799,0,0,0.503586,2284.66,492.774)">
+        <ellipse cx="1333.2" cy="431.77" rx="40.971" ry="50.426" style="fill:none;stroke:rgb(242,13,13);stroke-width:1.84px;"/>
+    </g>
+    <g transform="matrix(1.13077,0,0,1.67124,-107.616,-1204.11)">
+        <rect x="956.694" y="1572.65" width="679.135" height="116.609" style="fill:none;stroke:rgb(255,0,0);stroke-width:1.46px;"/>
+    </g>
+    <g transform="matrix(1.12999,0,0,1.67124,684.695,-1204.11)">
+        <rect x="956.694" y="1572.65" width="679.135" height="116.609" style="fill:none;stroke:rgb(255,0,0);stroke-width:1.46px;"/>
+    </g>
+    <g transform="matrix(0.925781,0,0,0.921548,189.458,-13.9891)">
+        <rect x="853.636" y="694.76" width="1807.76" height="153.798" style="fill:none;stroke:rgb(255,0,0);stroke-width:2.26px;"/>
+    </g>
+    <g transform="matrix(0.636484,0,0,0.821126,2092.25,877.506)">
+        <ellipse cx="572.425" cy="737.665" rx="18.557" ry="14.384" style="fill:none;stroke:rgb(13,40,242);stroke-width:1.42px;"/>
+    </g>
+    <g transform="matrix(0.636484,0,0,0.821126,2092.25,954.278)">
+        <ellipse cx="572.425" cy="737.665" rx="18.557" ry="14.384" style="fill:none;stroke:rgb(13,40,242);stroke-width:1.42px;"/>
+    </g>
+    <g transform="matrix(0.636484,0,0,0.821126,686.415,877.506)">
+        <ellipse cx="572.425" cy="737.665" rx="18.557" ry="14.384" style="fill:none;stroke:rgb(13,40,242);stroke-width:1.42px;"/>
+    </g>
+    <g transform="matrix(0.636484,0,0,0.821126,686.415,954.278)">
+        <ellipse cx="572.425" cy="737.665" rx="18.557" ry="14.384" style="fill:none;stroke:rgb(13,40,242);stroke-width:1.42px;"/>
+    </g>
+    <g transform="matrix(0.82474,0,0,1.10484,368.175,-351.256)">
+        <ellipse cx="2839.59" cy="1910.48" rx="57.284" ry="42.761" style="fill:none;stroke:rgb(255,0,0);stroke-width:2.14px;"/>
+    </g>
+    <g transform="matrix(0.985263,0,0,1.6294,904.441,-326.871)">
+        <rect x="916.568" y="599.459" width="719.261" height="57.99" style="fill:none;stroke:rgb(13,40,242);stroke-width:1.55px;"/>
+    </g>
+    <g transform="matrix(1.23267,0,0,0.879756,732.266,232.046)">
+        <rect x="912.526" y="511.871" width="494.414" height="33.563" style="fill:none;stroke:rgb(13,40,242);stroke-width:0.93px;"/>
+    </g>
+    <g transform="matrix(0.985263,0,0,1.6294,88.6502,-326.871)">
+        <rect x="916.568" y="599.459" width="719.261" height="57.99" style="fill:none;stroke:rgb(13,40,242);stroke-width:1.55px;"/>
+    </g>
+    <g transform="matrix(1.23267,0,0,0.879756,-83.5252,232.046)">
+        <rect x="912.526" y="511.871" width="494.414" height="33.563" style="fill:none;stroke:rgb(13,40,242);stroke-width:0.93px;"/>
+    </g>
+    <g transform="matrix(0.636484,0,0,0.821126,1478.18,877.506)">
+        <ellipse cx="572.425" cy="737.665" rx="18.557" ry="14.384" style="fill:none;stroke:rgb(13,40,242);stroke-width:1.42px;"/>
+    </g>
+    <g transform="matrix(0.636484,0,0,0.821126,1478.18,954.278)">
+        <ellipse cx="572.425" cy="737.665" rx="18.557" ry="14.384" style="fill:none;stroke:rgb(13,40,242);stroke-width:1.42px;"/>
+    </g>
+    <g transform="matrix(0.636484,0,0,0.821126,1301.02,877.506)">
+        <ellipse cx="572.425" cy="737.665" rx="18.557" ry="14.384" style="fill:none;stroke:rgb(13,40,242);stroke-width:1.42px;"/>
+    </g>
+    <g transform="matrix(0.636484,0,0,0.821126,1301.02,954.278)">
+        <ellipse cx="572.425" cy="737.665" rx="18.557" ry="14.384" style="fill:none;stroke:rgb(13,40,242);stroke-width:1.42px;"/>
+    </g>
+</svg>
