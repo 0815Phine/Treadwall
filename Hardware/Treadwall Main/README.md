@@ -38,9 +38,9 @@ All files are available as .stl for 3D-printing. Cutlines for lasercutting are a
 | Bearings | 10 pieces | 4 mm inner diameter, 12 mm outer diameter | [kugellager-express.de](https://www.kugellager-express.de/miniatur-kugellager-604-zz-4x12x4-mm) |
 | Post Holder | 4 pieces | Partnumber: UPH30/M, adaptable | [thorlabs.com](https://www.thorlabs.com/newgrouppage9.cfm?objectgroup_id=1982) |
 | Post | 4 pieces | Partnumber: TR30/M, adaptable | [thorlabs.com](https://www.thorlabs.com/newgrouppage9.cfm?objectgroup_id=1266) |
-| Dovel | 2 pieces | 32x4mm |  |
-| Dovel | 2 pieces | 20x4mm |  |
-| Dovel | 2 pieces | ??x4mm |  |
+| Dovel | 2 pieces | 32x4mm | for passive roller |
+| Dovel | 2 pieces | 20x4mm | for motorized roller |
+| Dovel | 4 pieces |  | for attaching wall to rack |
 | Screw | 2 pieces | M4 40mm |  |
 | Screw | 8 pieces | M4 20mm |  |
 | Screw | 8 pieces | M2 20mm |  |
