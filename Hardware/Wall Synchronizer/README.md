@@ -1,7 +1,7 @@
 # Wall Synchronizer
 
 <p align="center">
-  <img src="./images/Wall_Synchronizer.png" width="800">
+  <img src="./images/Wall_Synchronizer.jpg" width="800">
 </p>
 
 | Item | Quantity | Notes | Product Example Link |
