@@ -1,7 +1,7 @@
 # Wall Mover
 
 <p align="center">
-  <img src="./images/Wall_Mover.png" width="800">
+  <img src="./images/Wall_Mover.jpg" width="800">
 </p>
 
 | Item | Quantity | Notes | Product Example Link |
