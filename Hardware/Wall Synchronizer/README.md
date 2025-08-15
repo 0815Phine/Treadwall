@@ -35,4 +35,4 @@ Alternatively to soldering the PCB yourself, a custom PCB design will be provide
   <img src="./images/Wall_Synchronizer_Electronics_V2.3.png" width="800">
 </p>
 
-**Caution:** If using the Bpod-Rotary-Encoder-Module the connection to the Arduino 5V Pin has to be removed. The Rotary Encoder will get power from the Bpod-Module.
+**Caution:** The Rotary Encoder will get power from the Bpod-Rotary-Encoder-Module. Power has to be provided differently if not using the Bpod-System.
