@@ -12,7 +12,7 @@
 
 ### Wiring Overview
 <p align="center">
-  <img src="./images/Treadwall_Connections_Overview.png" width="800">
+  <img src="./images/Treadwall_Connections_Overview_V2.3.png" width="800">
 </p>
 
 ## Lasercutting
