@@ -1,6 +1,7 @@
 function Treadwall_Habituation_1
+% iterating through half of the travel length
+% stay in each phase for 200s
 
-%% ADD SCALING ADD CAMERA STOP
 global BpodSystem
 
 %% ---------- Define task parameters --------------------------------------
@@ -9,19 +10,21 @@ start_path = BpodSystem.Path.DataFolder; % 'C:\Users\TomBombadil\Desktop\Animals
 % initialize parameters
 S = struct(); %BpodSystem.ProtocolSettings;
 
+% load parameters
 params_file = fullfile([BpodSystem.Path.ProtocolFolder '\treadwall_habituation1_parameters.m']);
 run(params_file)
 
 if isempty(fieldnames(S))
     freshGUI = 1;        %flag to indicate that prameters have not been loaded from previous session.
+    
     S.GUI.SubjectID = BpodSystem.GUIData.SubjectName;
     S.GUI.SessionID = BpodSystem.GUIData.SessionID;
-    session_dir = ([start_path '\' S.GUI.SubjectID '\' S.GUI.SessionID]);
-    
-    % Timings
     S.GUI.stimDur = stimDur; %in seconds
-
+    S.GUI.ITIDur = ITIDur; %in seconds
+    S.GUI.ScalingFactor = 1;
     %S.GUI.ExpInfoPath = start_path;
+
+    session_dir = ([start_path '\' S.GUI.SubjectID '\' S.GUI.SessionID]);
 else
     freshGUI  = 0;        %flag to indicate that prameters have been loaded from previous session.
 end
@@ -29,9 +32,13 @@ end
 BpodParameterGUI('init', S);
 BpodSystem.ProtocolSettings = S;
 
-%% ---------- Rotary Encoder Module ---------------------------------------
-R = RotaryEncoderModule('COM8'); %check which COM is paired with rotary encoder module
-%R.streamUI()
+%% ---------- Arduino Synchronizer ----------------------------------------
+arduino = serialport('COM7', 115385);
+
+% Send initial value to Arduino
+scalingValue = S.GUI.ScalingFactor;
+writeline(arduino, strcat(num2str(scalingValue), '\n'));
+lastScalingFactor = scalingValue;
 
 %% ---------- Analog Output Module ----------------------------------------
 W = BpodWavePlayer('COM3'); %check which COM is paired with analog output module
@@ -40,10 +47,8 @@ W.SamplingRate = 100;%in kHz
 W.OutputRange = '0V:5V';
 W.TriggerMode = 'Normal';
 
-% Waveforms for offset distances
-% the following waveforms are calibrated for my guiding plate, they might have to be adapted
+% load waveforms (part of parameter file)
 lengthWave = S.GUI.stimDur*W.SamplingRate;
-waveforms = {0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5};
 for i = 1:length(waveforms)
     W.loadWaveform(i, waveforms{i}*ones(1,lengthWave));
 end
@@ -84,15 +89,26 @@ disp('Synced with Wavesurfer.');
 
 %% ---------- Main Loop ---------------------------------------------------
 for currentTrial = 1:floor(length(waveforms)/2)
-    S = BpodParameterGUI('sync', S); %Sync parameters with BpodParameterGUI plugin
     disp(' ');
     disp('- - - - - - - - - - - - - - - ');
     disp(['Trial: ' num2str(currentTrial) ' - ' datestr(now,'HH:MM:SS')]);
 
+    S = BpodParameterGUI('sync', S); %Sync parameters with BpodParameterGUI plugin
+
+    % Get current Scaling value
+    scalingValue = S.GUI.ScalingFactor;
+    % If changed, update Arduino
+    if scalingValue ~= lastScalingFactor
+        writeline(arduino, strcat(num2str(scalingValue), '\n'));
+        lastScalingFactor = scalingValue;
+        fprintf('Updated Arduino with new ScalingFactor: %.1f \n', scalingValue);
+    end
+
     % construct state machine
     sma = NewStateMachine(); %Assemble new state machine description
 
-    if currentTrial == 1 %first trial
+    % first trial
+    if currentTrial == 1
         sma = AddState(sma, 'Name', 'Baseline', ...
             'Timer', S.GUI.stimDur,...
             'StateChangeConditions', {'Tup', 'stimulus'},...
@@ -102,6 +118,23 @@ for currentTrial = 1:floor(length(waveforms)/2)
             'Timer', S.GUI.stimDur,...
             'StateChangeConditions', {'Tup', 'exit'},...
             'OutputActions', {'WavePlayer1', ['>' currentTrial-1 currentTrial-1 255 255]});
+        
+    % last trial
+    elseif currentTrial == floor(length(waveforms)/2)
+        sma = AddState(sma, 'Name', 'stimulus', ...
+            'Timer', S.GUI.stimDur,...
+            'StateChangeConditions', {'Tup', 'EndBuffer'},...
+            'OutputActions', {'WavePlayer1', ['>' currentTrial-1 currentTrial-1 255 255]});
+
+        sma = AddState(sma, 'Name', 'EndBuffer', ...
+            'Timer', S.GUI.ITIDur,...
+            'StateChangeConditions', {'Tup', 'StopCamera'},...
+            'OutputActions', {'WavePlayer1', ['!' 3 0 0]});
+
+        sma = AddState(sma, 'Name', 'StopCamera', ...
+            'Timer', 0,...
+            'StateChangeConditions', {'Tup', 'exit'},...
+            'OutputActions', {'BNC1',1});
 
     else
         sma = AddState(sma, 'Name', 'stimulus', ...
@@ -124,6 +157,7 @@ for currentTrial = 1:floor(length(waveforms)/2)
     if BpodSystem.Status.BeingUsed == 0; return; end
 end
 
+clear arduino
 disp('Loop end');
 disp('Stop wavesurfer. Stop Bpod');
 end
