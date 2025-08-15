@@ -9,7 +9,7 @@
 - [Treadwall-Main](https://github.com/0815Phine/Treadwall/tree/main/Hardware/Treadwall%20Main)
 - [Wall Synchronizer](https://github.com/0815Phine/Treadwall/tree/main/Hardware/Wall%20Synchronizer)
 - [Wall Mover](https://github.com/0815Phine/Treadwall/tree/main/Hardware/Wall%20Mover)
-- Circuit Box
+- [Circuit Box](https://github.com/0815Phine/Treadwall/tree/main/Hardware/Circuit%20Box)
 
 ### Wiring Overview
 <p align="center">
