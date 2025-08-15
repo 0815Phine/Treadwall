@@ -4,11 +4,12 @@
   <img src="./images/" width="800">
 </p>
 
-### Components
+### Hardware Components
 - [Treadmill-Main](https://github.com/0815Phine/Treadwall/tree/main/Hardware/Treadmill%20Main)
 - [Treadwall-Main](https://github.com/0815Phine/Treadwall/tree/main/Hardware/Treadwall%20Main)
 - [Wall Synchronizer](https://github.com/0815Phine/Treadwall/tree/main/Hardware/Wall%20Synchronizer)
 - [Wall Mover](https://github.com/0815Phine/Treadwall/tree/main/Hardware/Wall%20Mover)
+- Circuit Box
 
 ### Wiring Overview
 <p align="center">
@@ -44,3 +45,9 @@ Modules used for scrambled and predictable experiments:
 | Rotary Encoder Module V2 | [sanworks.io](https://sanworks.io/shop/viewproduct?productID=1034) | connected directly to the rotary encoder, provides power and sends speed information to analog input module, loaded with modified firmware ([github.com](https://github.com/0815Phine/Bpod_RotaryEncoder_Firmware)) |
 
 For further modules see [sanworks.io/products](https://sanworks.io/shop/products.php).
+
+## Camera
+
+
+## Data aquisition
+
