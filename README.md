@@ -1,7 +1,7 @@
 # Treadwall
 
 <p align="center">
-  <img src="./images/Aufbau.png" width="800">
+  <img src="./images/" width="800">
 </p>
 
 ### Components
