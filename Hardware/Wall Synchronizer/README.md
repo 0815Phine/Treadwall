@@ -22,8 +22,9 @@
 | Nut | 2 pieces| to secure 3-pole Klemmenblock |  |
 | Screw | 2 pieces | to secure 3-pole Klemmenblock |  |
 | Leiterplatte |  | needed if soldering PCB yourself | [conrad.de](https://www.conrad.de/de/p/tru-components-su527629-europlatine-hartpapier-l-x-b-90-mm-x-50-mm-35-m-rastermass-2-54-mm-inhalt-1-st-1570117.html) |
-| Stiftleiste |  | to solder on Cables | [conrad.de](https://www.conrad.de/de/p/tru-components-stiftleiste-standard-anzahl-reihen-1-polzahl-je-reihe-36-1581019-1-st-1581019.html?awaid=11354&referrer=awin&gclid=CjwKCAiAp4O8BhAkEiwAqv2UqGAKbz2nYjUaC9iiHpfdMra5NqZEagBBe5bU08z4UvzodAJE0Htk_xoC-UoQAvD_BwE&utm_source=awin&utm_medium=deeplink&utm_campaign=affiliate&utm_content=article&sv1=affiliate&sv_campaign_id=323889&gad_source=1) |
-| Buchsenleiste |  | to solder on PCB | [conrad.de](https://www.conrad.de/de/p/tru-components-buchsenleiste-standard-anzahl-reihen-1-polzahl-je-reihe-36-1580960-1-st-1580960.html) |
+| Stiftleiste | 5 poles | to solder on Cables | [conrad.de](https://www.conrad.de/de/p/tru-components-stiftleiste-standard-anzahl-reihen-1-polzahl-je-reihe-36-1581019-1-st-1581019.html?awaid=11354&referrer=awin&gclid=CjwKCAiAp4O8BhAkEiwAqv2UqGAKbz2nYjUaC9iiHpfdMra5NqZEagBBe5bU08z4UvzodAJE0Htk_xoC-UoQAvD_BwE&utm_source=awin&utm_medium=deeplink&utm_campaign=affiliate&utm_content=article&sv1=affiliate&sv_campaign_id=323889&gad_source=1) |
+| Buchsenleiste | 5 poles | to solder on PCB | [conrad.de](https://www.conrad.de/de/p/tru-components-buchsenleiste-standard-anzahl-reihen-1-polzahl-je-reihe-36-1580960-1-st-1580960.html) |
+| Terminal Block | 1 piece | to solder on PCB, power supply |  |
 | Wire set |  |  | [conrad.de](https://www.conrad.de/de/p/quadrios-22cw002-litzensortiment-1-x-0-25-mm-weiss-blau-braun-orange-gruen-gelb-grau-violett-schwarz-rot-1-set-2620404.html) |
 | Shrinktube |  |  | [conrad.de](https://www.conrad.de/de/p/dsg-canusa-8640015953-schrumpfschlauch-ohne-kleber-schwarz-1-60-mm-0-80-mm-schrumpfrate-3-1-10-m-708870.html) |
 

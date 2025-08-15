@@ -1,7 +1,7 @@
 # Treadwall
 
 <p align="center">
-  <img src="./images/Aufbau.png" width="800">
+  <img src="./images/" width="800">
 </p>
 
 ### Components
@@ -12,7 +12,7 @@
 
 ### Wiring Overview
 <p align="center">
-  <img src="./images/Treadwall_Connections_Overview.png" width="800">
+  <img src="./images/Treadwall_Connections_Overview_V2.3.png" width="800">
 </p>
 
 ## Lasercutting
@@ -34,4 +34,13 @@ Red lines -> cut; black lines -> engrave; blue lines -> not assigned
 ## 3D Printing
 
 ## Bpod System
-Control of the system is done with the Bpod System. We use an 'analog output module' ([sanworks.io](https://sanworks.io/shop/viewproduct?productID=1038)) to adjust the position of the walls. It only runs with a 'state machine' ([sanworks.io](https://sanworks.io/shop/viewproduct?productID=1036)). For further modules see [sanworks.io/products](https://sanworks.io/shop/products.php).
+Control of the system is done with the Bpod System. All used modules are controlled by a 'state machine' ([sanworks.io](https://sanworks.io/shop/viewproduct?productID=1036)).
+
+Modules used for scrambled and predictable experiments:
+| Module | Link | Functionality |
+| :---: | :---: | :---: |
+| Analog Output Module | [sanworks.io](https://sanworks.io/shop/viewproduct?productID=1038) | loaded with Waveplayer Firmware, can play certain analog signals, controls lateral movement of walls |
+| Analog Input Module | [sanworks.io](https://sanworks.io/shop/viewproduct?productID=1037) | reads analog signals, used for zone transition in predictable paradigm |
+| Rotary Encoder Module V2 | [sanworks.io](https://sanworks.io/shop/viewproduct?productID=1034) | connected directly to the rotary encoder, provides power and sends speed information to analog input module, loaded with modified firmware ([github.com](https://github.com/0815Phine/Bpod_RotaryEncoder_Firmware)) |
+
+For further modules see [sanworks.io/products](https://sanworks.io/shop/products.php).
