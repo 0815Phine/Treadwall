@@ -1,4 +1,6 @@
 function Treadwall_scrambled
+%
+
 global BpodSystem
 
 %% ---------- Define task parameters --------------------------------------
@@ -7,27 +9,25 @@ start_path = BpodSystem.Path.DataFolder; % 'C:\Users\TomBombadil\Desktop\Animals
 % initialize parameters
 S = struct(); %BpodSystem.ProtocolSettings;
 
+% load correct parameters for location
 location = questdlg('Where do you perform your experiments?',...
     'Locations',...
     'BN','ISR','ISR');
-
 params_file = fullfile([BpodSystem.Path.ProtocolFolder '\treadwall_scrambled_parameters_', location, '.m']);
 run(params_file)
-
 fprintf('Parameters loaded for: %s \n', location);
 
 if isempty(fieldnames(S))
     freshGUI = 1;        %flag to indicate that prameters have not been loaded from previous session.
+    
     S.GUI.SubjectID = BpodSystem.GUIData.SubjectName;
     S.GUI.SessionID = BpodSystem.GUIData.SessionID;
-    session_dir = ([start_path '\' S.GUI.SubjectID '\' S.GUI.SessionID]);
-    
-    % Timings
     S.GUI.ITIDur = ITIDur; %in seconds
     S.GUI.stimDur = stimDur; %in seconds
     S.GUI.ScalingFactor = 1;
-
     %S.GUI.ExpInfoPath = start_path;
+
+    session_dir = ([start_path '\' S.GUI.SubjectID '\' S.GUI.SessionID]);
 else
     freshGUI  = 0;        %flag to indicate that prameters have been loaded from previous session.
 end
@@ -59,10 +59,6 @@ scalingValue = S.GUI.ScalingFactor;
 writeline(arduino, strcat(num2str(scalingValue), '\n'));
 lastScalingFactor = scalingValue;
 
-%% ---------- Rotary Encoder Module ---------------------------------------
-R = RotaryEncoderModule('COM8'); %check which COM is paired with rotary encoder module
-%R.streamUI()
-
 %% ---------- Analog Output Module ----------------------------------------
 W = BpodWavePlayer('COM3'); %check which COM is paired with analog output module
 
@@ -70,10 +66,8 @@ W.SamplingRate = 100;%in kHz
 W.OutputRange = '0V:5V';
 W.TriggerMode = 'Normal';
 
-% Waveforms for offset distances
-% the following waveforms are calibrated for my guiding plate, they might have to be adapted
+% Waveforms for distances (waveforms are loaded with the parameter file)
 lengthWave = S.GUI.stimDur*W.SamplingRate;
-%waveforms = {1.5, 2.1, 2.6, 3.2, 3.8, 4.2, 5};
 for i = 1:length(waveforms)
     W.loadWaveform(i, waveforms{i}*ones(1,lengthWave));
 end
@@ -135,7 +129,8 @@ for currentTrial = 1:S.GUI.MaxTrialNumber
     % construct state machine
     sma = NewStateMachine(); %Assemble new state machine description
 
-    if currentTrial == 1 %first trial
+    % first trial: with start buffer
+    if currentTrial == 1
         sma = AddState(sma, 'Name', 'StartBuffer', ...
             'Timer', S.GUI.ITIDur,...
             'StateChangeConditions', {'Tup', 'stimulus'},...
@@ -151,7 +146,8 @@ for currentTrial = 1:S.GUI.MaxTrialNumber
             'StateChangeConditions', {'Tup', 'exit'},...
             'OutputActions', {'WavePlayer1', ['!' 3 0 0]});
 
-    elseif currentTrial == S.GUI.MaxTrialNumber %last trial
+    % last trial: with end buffer and stopping camera
+    elseif currentTrial == S.GUI.MaxTrialNumber
         sma = AddState(sma, 'Name', 'stimulus', ...
             'Timer', S.GUI.stimDur,...
             'StateChangeConditions', {'Tup', 'EndBuffer'},...
