@@ -28,11 +28,11 @@
 | Wire set |  |  | [conrad.de](https://www.conrad.de/de/p/quadrios-22cw002-litzensortiment-1-x-0-25-mm-weiss-blau-braun-orange-gruen-gelb-grau-violett-schwarz-rot-1-set-2620404.html) |
 | Shrinktube |  |  | [conrad.de](https://www.conrad.de/de/p/dsg-canusa-8640015953-schrumpfschlauch-ohne-kleber-schwarz-1-60-mm-0-80-mm-schrumpfrate-3-1-10-m-708870.html) |
 
-Alternatively to soldering the PCB yourself, a custom PCB design will be provided soon that can be ordered via commercial suppliers.
-
 ### Wiring Diagram
 <p align="center">
-  <img src="./images/Wall_Synchronizer_Electronics.png" width="800">
+  <img src="./images/Wall_Synchronizer_Electronics_V2.3.png" width="800">
 </p>
 
-**Caution:** If using the Bpod-Rotary-Encoder-Module the connection to the Arduino 5V Pin has to be removed. The Rotary Encoder will get power from the Bpod-Module.
+### PCB
+
+**Caution:** The Rotary Encoder will get power from the Bpod-Rotary-Encoder-Module. Power has to be provided differently if not using the Bpod-System.
