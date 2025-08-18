@@ -49,11 +49,11 @@ lastScalingFactor = scalingValue;
 
 %% ---------- Rotary Encoder Module ---------------------------------------
 R = RotaryEncoderModule('COM8'); %check which COM is paired with rotary encoder module
-R.thresholds = [-2,2];
+R.thresholds = [-5,5];
 R.sendThresholdEvents = 'On';
 R.enableThresholds([1,1])
 
-%R.streamUI() % for live streaming position, good for troubleshooting
+R.streamUI() % for live streaming position, good for troubleshooting
 
 %% ---------- Analog Output Module ----------------------------------------
 W = BpodWavePlayer('COM3'); %check which COM is paired with analog output module
@@ -154,12 +154,12 @@ for currentTrial = 1:S.GUI.MaxTrialNumber
         sma = AddState(sma, 'Name', 'StartBuffer', ...
             'Timer', S.GUI.ITIDur,...
             'StateChangeConditions', {'Tup', 'readDirection'},...
-            'OutputActions', {'WavePlayer1', ['!' 3 0 0], 'RotaryEncoder1', 'Z', 'RotaryEncoder1', 'E'});
+            'OutputActions', {'WavePlayer1', ['!' 3 0 0]});
 
         sma = AddState(sma, 'Name', 'readDirection', ...
             'Timer', 0,...
             'StateChangeConditions', {'RotaryEncoder1_2', 'z1f', 'RotaryEncoder1_1', 'z1b'},...
-            'OutputActions', {'WavePlayer1', ['!' 3 0 0]});
+            'OutputActions', {'WavePlayer1', ['!' 3 0 0],'RotaryEncoder1', 'ZE'});
 
         % zone 1
         sma = AddState(sma, 'Name', 'z1f',...
@@ -232,7 +232,7 @@ for currentTrial = 1:S.GUI.MaxTrialNumber
             'OutputActions', {'WavePlayer1', ['!' 3 0 0]});
 
         sma = AddState(sma, 'Name', 'StopCamera', ...
-            'Timer', 0,...
+            'Timer', 1,...
             'StateChangeConditions', {'Tup', 'exit'},...
             'OutputActions', {'BNC1',1});
 
@@ -309,7 +309,7 @@ for currentTrial = 1:S.GUI.MaxTrialNumber
             'OutputActions', {'WavePlayer1', ['!' 3 0 0]});
 
         sma = AddState(sma, 'Name', 'StopCamera', ...
-            'Timer', 0,...
+            'Timer', 1,...
             'StateChangeConditions', {'Tup', 'exit'},...
             'OutputActions', {'BNC1',1});
 
@@ -385,7 +385,7 @@ for currentTrial = 1:S.GUI.MaxTrialNumber
             'OutputActions', {'WavePlayer1', ['!' 3 0 0]});
 
         sma = AddState(sma, 'Name', 'StopCamera', ...
-            'Timer', 0,...
+            'Timer', 1,...
             'StateChangeConditions', {'Tup', 'exit'},...
             'OutputActions', {'BNC1',1});
     end
@@ -403,7 +403,8 @@ for currentTrial = 1:S.GUI.MaxTrialNumber
     end
 
     if strcmp(t.Running, 'off')
-        return
+        fprintf('timer stopped\n')
+        break
     end
 
     if BpodSystem.Status.BeingUsed == 0
