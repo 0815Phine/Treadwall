@@ -31,3 +31,6 @@
 </p>
 
 ### PCB
+<p align="center">
+  <img src="./images/Mover_PCB.png" width="800">
+</p>
