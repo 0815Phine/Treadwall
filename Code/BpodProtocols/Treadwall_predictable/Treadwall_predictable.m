@@ -101,7 +101,9 @@ system(command);
 %% ---------- Restart Timer -----------------------------------------------
 BpodSystem.SerialPort.write('*', 'uint8');
 Confirmed = BpodSystem.SerialPort.read(1,'uint8');
-if Confirmed ~= 1, error('Faulty clock reset'); end
+if Confirmed ~= 1
+    error('Faulty clock reset')
+end
 
 %% ---------- Synching with WaveSurfer ------------------------------------
 sma = NewStateMachine();
@@ -121,13 +123,13 @@ end
 disp('Synced with Wavesurfer.');
 
 %% ---------- Main Loop ---------------------------------------------------
-% start timer in Matlab
+% start timer in Matlab, session ends if timer is up
 t = timer;
-t.StartDelay = 90;
-t.TimerFcn = @(~,~) SendBpodSoftCode(1);
+t.StartDelay = 1800;
+t.TimerFcn = "SendBpodSoftCode(1)";
+t.StartFcn = "fprintf('timer started\n')";
 
 start(t)
-
 for currentTrial = 1:S.GUI.MaxTrialNumber
     disp(' ');
     disp('- - - - - - - - - - - - - - - ');
@@ -152,7 +154,7 @@ for currentTrial = 1:S.GUI.MaxTrialNumber
         sma = AddState(sma, 'Name', 'StartBuffer', ...
             'Timer', S.GUI.ITIDur,...
             'StateChangeConditions', {'Tup', 'readDirection'},...
-            'OutputActions', {'WavePlayer1', ['!' 3 0 0], 'RotaryEncoder1', 'Z'});
+            'OutputActions', {'WavePlayer1', ['!' 3 0 0], 'RotaryEncoder1', 'Z', 'RotaryEncoder1', 'E'});
 
         sma = AddState(sma, 'Name', 'readDirection', ...
             'Timer', 0,...
@@ -400,7 +402,13 @@ for currentTrial = 1:S.GUI.MaxTrialNumber
         %SaveProtocolSettings;
     end
 
-    if BpodSystem.Status.BeingUsed == 0; return; end
+    if strcmp(t.Running, 'off')
+        return
+    end
+
+    if BpodSystem.Status.BeingUsed == 0
+        return
+    end
 end
 
 clear arduino
