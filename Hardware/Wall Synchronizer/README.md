@@ -34,5 +34,8 @@
 </p>
 
 ### PCB
+<p align="center">
+  <img src="./images/Synchronizer_PCB.png" width="800">
+</p>
 
 **Caution:** The Rotary Encoder will get power from the Bpod-Rotary-Encoder-Module. Power has to be provided differently if not using the Bpod-System.
