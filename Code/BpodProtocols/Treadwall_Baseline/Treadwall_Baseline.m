@@ -10,10 +10,6 @@ start_path = BpodSystem.Path.DataFolder; % 'C:\Users\TomBombadil\Desktop\Animals
 % initialize parameters
 S = struct(); %BpodSystem.ProtocolSettings;
 
-% load parameters
-params_file = fullfile([BpodSystem.Path.ProtocolFolder '\treadwall_habituation1_parameters.m']);
-run(params_file)
-
 if isempty(fieldnames(S))
     freshGUI = 1;        %flag to indicate that prameters have not been loaded from previous session.
     
@@ -66,7 +62,7 @@ disp('Synced with Wavesurfer.');
 
 %% ---------- Main Loop ---------------------------------------------------
 sma = NewStateMachine();
-sma = AddState(sma, 'Name', 'Experiment Running', ...
+sma = AddState(sma, 'Name', 'ExperimentRunning', ...
     'Timer',1800,...
     'StateChangeConditions', {'Tup', 'StopCamera'},...
     'OutputActions', {});
@@ -82,7 +78,11 @@ if ~isempty(fieldnames(RawEvents)) %If trial data was returned
     BpodSystem.Data = AddTrialEvents(BpodSystem.Data,RawEvents); %Computes trial events from raw data
     BpodSystem.Data.TrialSettings(1) = S;
     SaveBpodSessionData; %Saves the field BpodSystem.Data to the current data file
-    %SaveProtocolSettings;
+    SaveBpodProtocolSettings;
+end
+
+if BpodSystem.Status.BeingUsed == 0
+    return
 end
 
 disp('Experiment end');
