@@ -117,7 +117,7 @@ ffmpeg_cmd = [
     '-vcodec', 'rawvideo',
     '-pix_fmt', 'gray',
     '-s', '1440x1080',
-    '-r', '200',
+    #'-r', '200',
     '-i', '-',
 
     '-vcodec', 'h264_nvenc',
@@ -128,7 +128,7 @@ ffmpeg_cmd = [
     '-an',
     '-vf', 'format=gray',
     '-pix_fmt', 'yuv420p',
-    '-r', '200',
+    #'-r', '200',
     '-f', 'mp4',
     op_name]
 ffmpeg_process = subprocess.Popen(
