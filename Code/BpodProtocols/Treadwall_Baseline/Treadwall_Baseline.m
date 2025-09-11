@@ -1,6 +1,6 @@
 function Treadwall_Baseline
 % just starts camera and 2P, no lateral wall movement
-% runs for 30min and stops
+% runs for 20min and stops
 
 global BpodSystem
 
@@ -15,6 +15,8 @@ if isempty(fieldnames(S))
     
     S.GUI.SubjectID = BpodSystem.GUIData.SubjectName;
     S.GUI.SessionID = BpodSystem.GUIData.SessionID;
+    S.GUI.EmergencyStop = 'SendBpodSoftCode(2)';
+    S.GUIMeta.EmergencyStop.Style = 'pushbutton';
     %S.GUI.ScalingFactor = 1;
     %S.GUI.ExpInfoPath = start_path;
 
@@ -25,6 +27,12 @@ end
 
 BpodParameterGUI('init', S);
 BpodSystem.ProtocolSettings = S;
+
+%% ---------- Rotary Encoder Module ---------------------------------------
+R = RotaryEncoderModule('COM8'); %check which COM is paired with rotary encoder module
+R.startUSBStream()
+
+%R.streamUI() % for live streaming position, good for troubleshooting
 
 %% ---------- Setup Camera ------------------------------------------------
 disp('Starting Python video acquisition script...');
@@ -64,7 +72,7 @@ disp('Synced with Wavesurfer.');
 sma = NewStateMachine();
 sma = AddState(sma, 'Name', 'ExperimentRunning', ...
     'Timer',1200,...
-    'StateChangeConditions', {'Tup', 'StopCamera'},...
+    'StateChangeConditions', {'Tup', 'StopCamera', 'SoftCode2', 'StopCamera'},...
     'OutputActions', {});
 sma = AddState(sma, 'Name', 'StopCamera', ...
     'Timer', 1,...
@@ -79,6 +87,7 @@ if ~isempty(fieldnames(RawEvents)) %If trial data was returned
     BpodSystem.Data.TrialSettings(1) = S;
     SaveBpodSessionData; %Saves the field BpodSystem.Data to the current data file
     SaveBpodProtocolSettings;
+    RotData = R.readUSBStream();
 end
 
 if BpodSystem.Status.BeingUsed == 0
@@ -86,5 +95,6 @@ if BpodSystem.Status.BeingUsed == 0
 end
 
 disp('Experiment end');
+save([session_dir '\RotData'],'RotData')
 disp('Stop wavesurfer. Stop Bpod');
 end
