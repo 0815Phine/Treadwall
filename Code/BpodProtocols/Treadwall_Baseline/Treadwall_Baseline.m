@@ -96,5 +96,6 @@ end
 
 disp('Experiment end');
 save([session_dir '\RotData'],'RotData')
+R.stopUSBStream()
 disp('Stop wavesurfer. Stop Bpod');
 end
