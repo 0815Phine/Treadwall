@@ -22,6 +22,8 @@ if isempty(fieldnames(S))
     S.GUI.stimDur = stimDur; %in seconds
     S.GUI.ITIDur = ITIDur; %in seconds
     S.GUI.ScalingFactor = 1;
+    S.GUI.EmergencyStop = 'SendBpodSoftCode(2)';
+    S.GUIMeta.EmergencyStop.Style = 'pushbutton';
     %S.GUI.ExpInfoPath = start_path;
 
     session_dir = ([start_path '\' S.GUI.SubjectID '\' S.GUI.SessionID]);
@@ -39,6 +41,12 @@ arduino = serialport('COM7', 115385);
 scalingValue = S.GUI.ScalingFactor;
 writeline(arduino, strcat(num2str(scalingValue), '\n'));
 lastScalingFactor = scalingValue;
+
+%% ---------- Rotary Encoder Module ---------------------------------------
+R = RotaryEncoderModule('COM8'); %check which COM is paired with rotary encoder module
+R.startUSBStream()
+
+%R.streamUI() % for live streaming position, good for troubleshooting
 
 %% ---------- Analog Output Module ----------------------------------------
 W = BpodWavePlayer('COM3'); %check which COM is paired with analog output module
@@ -111,24 +119,29 @@ for currentTrial = 1:length(waveforms)
     if currentTrial == 1
         sma = AddState(sma, 'Name', 'Baseline', ...
             'Timer', S.GUI.stimDur,...
-            'StateChangeConditions', {'Tup', 'stimulus'},...
+            'StateChangeConditions', {'Tup', 'stimulus', 'SoftCode2', 'StopCamera'},...
             'OutputActions', {'WavePlayer1', ['!' 3 0 0]});
 
         sma = AddState(sma, 'Name', 'stimulus', ...
             'Timer', S.GUI.stimDur,...
-            'StateChangeConditions', {'Tup', 'exit'},...
+            'StateChangeConditions', {'Tup', 'exit', 'SoftCode2', 'StopCamera'},...
             'OutputActions', {'WavePlayer1', ['>' currentTrial-1 currentTrial-1 255 255]});
 
-    % last trial
+        sma = AddState(sma, 'Name', 'StopCamera', ...
+            'Timer', 1,...
+            'StateChangeConditions', {'Tup', 'exit'},...
+            'OutputActions', {'BNC1',1});
+
+        % last trial
     elseif currentTrial == length(waveforms)
         sma = AddState(sma, 'Name', 'stimulus', ...
             'Timer', S.GUI.stimDur,...
-            'StateChangeConditions', {'Tup', 'EndBuffer'},...
+            'StateChangeConditions', {'Tup', 'EndBuffer', 'SoftCode2', 'StopCamera'},...
             'OutputActions', {'WavePlayer1', ['>' currentTrial-1 currentTrial-1 255 255]});
 
         sma = AddState(sma, 'Name', 'EndBuffer', ...
             'Timer', S.GUI.ITIDur,...
-            'StateChangeConditions', {'Tup', 'StopCamera'},...
+            'StateChangeConditions', {'Tup', 'StopCamera', 'SoftCode2', 'StopCamera'},...
             'OutputActions', {'WavePlayer1', ['!' 3 0 0]});
 
         sma = AddState(sma, 'Name', 'StopCamera', ...
@@ -139,8 +152,13 @@ for currentTrial = 1:length(waveforms)
     else
         sma = AddState(sma, 'Name', 'stimulus', ...
             'Timer', S.GUI.stimDur,...
-            'StateChangeConditions', {'Tup', 'exit'},...
+            'StateChangeConditions', {'Tup', 'exit', 'SoftCode2', 'StopCamera'},...
             'OutputActions', {'WavePlayer1', ['>' currentTrial-1 currentTrial-1 255 255]});
+
+        sma = AddState(sma, 'Name', 'StopCamera', ...
+            'Timer', 1,...
+            'StateChangeConditions', {'Tup', 'exit'},...
+            'OutputActions', {'BNC1',1});
     end
 
     % run state machine
@@ -151,13 +169,23 @@ for currentTrial = 1:length(waveforms)
         BpodSystem.Data.TrialSettings(currentTrial) = S;
         %BpodSystem.Data.TrialTypes(currentTrial) = triallist(currentTrial);
         SaveBpodSessionData; %Saves the field BpodSystem.Data to the current data file
-        %SaveProtocolSettings;
+        SaveBpodProtocolSettings;
     end
 
-    if BpodSystem.Status.BeingUsed == 0; return; end
+    if BpodSystem.Status.BeingUsed == 0
+        disp('Session ended via Bpod Console. Current trial data has not been saved')
+        W.setFixedVoltage([1 2], 0)
+        break
+    end
 end
 
 clear arduino
 disp('Loop end');
+
+disp('Saving Rotary Encoder Data...')
+RotData = R.readUSBStream();
+save([session_dir '\RotData'],'RotData')
+R.stopUSBStream()
+
 disp('Stop wavesurfer. Stop Bpod');
 end
