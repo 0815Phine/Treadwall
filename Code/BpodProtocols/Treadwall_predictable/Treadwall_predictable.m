@@ -94,7 +94,7 @@ A = BpodAnalogIn('COM10'); %check which COM is paired with analog input module
 A.SamplingRate = 100;%in kHz
 A.nActiveChannels = 3;
 A.InputRange = {'0V:10V', '0V:10V', '0V:10V', '0V:10V', '0V:10V', '0V:10V', '0V:10V', '0V:10V'};
-A.Thresholds(1,1:3) = [4, 1.75, 1.45];
+A.Thresholds(1,1:3) = [4, 2.5, 1.5];
 A.ResetVoltages(1,1:3) = [3.5, 1.65, 1.65];
 A.SMeventsEnabled(1,1:3) = [1, 1, 1];
 A.startReportingEvents()
