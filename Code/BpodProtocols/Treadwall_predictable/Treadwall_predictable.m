@@ -2,6 +2,7 @@ function Treadwall_predictable
 %
 
 global BpodSystem
+delete(timerfind)
 
 %% ---------- Define task parameters --------------------------------------
 start_path = BpodSystem.Path.DataFolder; % 'C:\Users\TomBombadil\Desktop\Animals' - Folder of current cohort selected in GUI;
@@ -419,6 +420,7 @@ for currentTrial = 1:S.GUI.MaxTrialNumber
 
     if strcmp(t.Running, 'off')
         fprintf('timer stopped\n')
+        W.setFixedVoltage([1 2], 0)
         break
     end
 
