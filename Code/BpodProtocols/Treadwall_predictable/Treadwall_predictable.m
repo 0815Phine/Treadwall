@@ -1,8 +1,10 @@
 function Treadwall_predictable
 %
+if exist('tpredict','var')
+    delete(tpredict)
+end
 
 global BpodSystem
-delete(timerfind)
 
 %% ---------- Define task parameters --------------------------------------
 start_path = BpodSystem.Path.DataFolder; % 'C:\Users\TomBombadil\Desktop\Animals' - Folder of current cohort selected in GUI;
@@ -140,12 +142,12 @@ disp('Synced with Wavesurfer.');
 
 %% ---------- Main Loop ---------------------------------------------------
 % start timer in Matlab, session ends if timer is up or 100 laps have been run
-t = timer;
-t.StartDelay = 1200;
-t.TimerFcn = "SendBpodSoftCode(1)";
-t.StartFcn = "fprintf('timer started\n')";
+tpredict = timer;
+tpredict.StartDelay = 1200;
+tpredict.TimerFcn = "SendBpodSoftCode(1)";
+tpredict.StartFcn = "fprintf('timer started\n')";
 
-start(t)
+start(tpredict)
 for currentTrial = 1:S.GUI.MaxTrialNumber
     disp(' ');
     disp('- - - - - - - - - - - - - - - ');
@@ -418,7 +420,7 @@ for currentTrial = 1:S.GUI.MaxTrialNumber
         SaveBpodProtocolSettings;
     end
 
-    if strcmp(t.Running, 'off')
+    if strcmp(tpredict.Running, 'off')
         fprintf('timer stopped\n')
         W.setFixedVoltage([1 2], 0)
         break
