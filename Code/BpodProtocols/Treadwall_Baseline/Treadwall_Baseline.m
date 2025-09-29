@@ -91,11 +91,15 @@ if ~isempty(fieldnames(RawEvents)) %If trial data was returned
 end
 
 if BpodSystem.Status.BeingUsed == 0
+    disp('Session ended via Bpod Console. Current trial data has not been saved')
     return
 end
 
 disp('Experiment end');
+
+disp('Saving Rotary Encoder Data...')
 save([session_dir '\RotData'],'RotData')
 R.stopUSBStream()
+
 disp('Stop wavesurfer. Stop Bpod');
 end
