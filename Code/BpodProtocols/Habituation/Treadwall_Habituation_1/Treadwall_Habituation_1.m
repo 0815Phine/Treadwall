@@ -49,7 +49,7 @@ R.startUSBStream()
 %R.streamUI() % for live streaming position, good for troubleshooting
 
 %% ---------- Analog Output Module ----------------------------------------
-W = BpodWavePlayer('COM3'); %check which COM is paired with analog output module
+W = BpodWavePlayer('COM6'); %check which COM is paired with analog output module
 
 W.SamplingRate = 100;%in kHz
 W.OutputRange = '0V:5V';

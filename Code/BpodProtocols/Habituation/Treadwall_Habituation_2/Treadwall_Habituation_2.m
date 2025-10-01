@@ -44,12 +44,12 @@ lastScalingFactor = scalingValue;
 
 %% ---------- Rotary Encoder Module ---------------------------------------
 R = RotaryEncoderModule('COM8'); %check which COM is paired with rotary encoder module
-R.startUSBStream()
+%R.startUSBStream()
 
 %R.streamUI() % for live streaming position, good for troubleshooting
 
 %% ---------- Analog Output Module ----------------------------------------
-W = BpodWavePlayer('COM3'); %check which COM is paired with analog output module
+W = BpodWavePlayer('COM6'); %check which COM is paired with analog output module
 
 W.SamplingRate = 100;%in kHz
 W.OutputRange = '0V:5V';
@@ -77,6 +77,8 @@ system(command);
 BpodSystem.SerialPort.write('*', 'uint8');
 Confirmed = BpodSystem.SerialPort.read(1,'uint8');
 if Confirmed ~= 1, error('Faulty clock reset'); end
+
+R.startUSBStream()
 
 %% ---------- Synching with WaveSurfer ------------------------------------
 sma = NewStateMachine();
