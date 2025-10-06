@@ -30,7 +30,7 @@ BpodSystem.ProtocolSettings = S;
 
 %% ---------- Rotary Encoder Module ---------------------------------------
 R = RotaryEncoderModule('COM8'); %check which COM is paired with rotary encoder module
-R.startUSBStream()
+%R.startUSBStream() -> moved to after restarteíng timer
 
 %R.streamUI() % for live streaming position, good for troubleshooting
 
@@ -50,6 +50,8 @@ system(command);
 BpodSystem.SerialPort.write('*', 'uint8');
 Confirmed = BpodSystem.SerialPort.read(1,'uint8');
 if Confirmed ~= 1, error('Faulty clock reset'); end
+
+R.startUSBStream()
 
 %% ---------- Synching with WaveSurfer ------------------------------------
 sma = NewStateMachine();

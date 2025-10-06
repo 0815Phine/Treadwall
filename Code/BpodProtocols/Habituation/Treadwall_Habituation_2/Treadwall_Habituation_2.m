@@ -44,7 +44,7 @@ lastScalingFactor = scalingValue;
 
 %% ---------- Rotary Encoder Module ---------------------------------------
 R = RotaryEncoderModule('COM8'); %check which COM is paired with rotary encoder module
-%R.startUSBStream()
+%R.startUSBStream() -> moved to after restarteíng timer
 
 %R.streamUI() % for live streaming position, good for troubleshooting
 
