@@ -53,10 +53,10 @@ W = BpodWavePlayer('COM6'); %check which COM is paired with analog output module
 
 W.SamplingRate = 100;%in kHz
 W.OutputRange = '0V:5V';
-W.TriggerMode = 'Normal';
+W.TriggerMode = 'Master';
 
 % load waveforms (part of parameter file)
-lengthWave = S.GUI.stimDur*W.SamplingRate;
+lengthWave = (S.GUI.stimDur+5)*W.SamplingRate; % add 5 second buffer
 for i = 1:length(waveforms)
     W.loadWaveform(i, waveforms{i}*ones(1,lengthWave));
 end
