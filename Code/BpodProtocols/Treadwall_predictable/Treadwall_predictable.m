@@ -61,7 +61,12 @@ for i = 1:length(zones)
 end
 
 %% ---------- Arduino Synchronizer ----------------------------------------
-arduino = serialport('COM7', 115385);
+COM = 'COM9';
+try
+    arduino = serialport(COM, 115385);
+catch
+    error('The Arduino is not connected to %s, select the correct COM!', COM)
+end
 
 % Send initial scaling value to Arduino
 scalingValue = S.GUI.ScalingFactor;
@@ -69,17 +74,27 @@ writeline(arduino, strcat(num2str(scalingValue), '\n'));
 lastScalingFactor = scalingValue;
 
 %% ---------- Rotary Encoder Module ---------------------------------------
-R = RotaryEncoderModule('COM8'); %check which COM is paired with rotary encoder module
+try
+    R = RotaryEncoderModule(BpodSystem.ModuleUSB.RotaryEncoder1);
+catch
+    error(['The Rotary Encoder Module is not coupled to the correct COM, ' ...
+        'check the Bpod Console!'])
+end
+
 R.thresholds = [-5,5];
 R.sendThresholdEvents = 'On';
 R.enableThresholds([1,1])
 
-%R.startUSBStream() -> moved to after restarteíng timer
-
+%R.startUSBStream() -> moved to after restarting timer for proper alignment
 %R.streamUI() % for live streaming position, good for troubleshooting
 
 %% ---------- Analog Output Module ----------------------------------------
-W = BpodWavePlayer('COM6'); %check which COM is paired with analog output module
+try
+    W = BpodWavePlayer(BpodSystem.ModuleUSB.WavePlayer1);
+catch
+    error(['The Analog Output Module is not coupled to the correct COM, ' ...
+        'check the Bpod Console!'])
+end
 
 W.SamplingRate = 100;%in kHz
 W.OutputRange = '0V:5V';
@@ -92,7 +107,12 @@ for i = 1:length(waveforms)
 end
 
 %% ---------- Analog Input Module ----------------------------------------
-A = BpodAnalogIn('COM10'); %check which COM is paired with analog input module
+try
+    A = BpodAnalogIn(BpodSystem.ModuleUSB.AnalogIn1);
+catch
+    error(['The Analog Input Module is not coupled to the correct COM, ' ...
+        'check the Bpod Console!'])
+end
 
 A.SamplingRate = 100;%in kHz
 A.nActiveChannels = 3;

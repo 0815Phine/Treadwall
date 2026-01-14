@@ -5,7 +5,8 @@ function Treadwall_Habituation_2
 global BpodSystem
 
 %% ---------- Define task parameters --------------------------------------
-start_path = BpodSystem.Path.DataFolder; % 'C:\Users\TomBombadil\Desktop\Animals' - Folder of current cohort selected in GUI;
+start_path = BpodSystem.Path.DataFolder;
+% 'D:\Animals\<current Cohort>' -> Folder of current cohort selected in GUI;
 
 % initialize parameters
 S = struct(); %BpodSystem.ProtocolSettings;
@@ -15,7 +16,7 @@ params_file = fullfile([BpodSystem.Path.ProtocolFolder '\treadwall_habituation2_
 run(params_file)
 
 if isempty(fieldnames(S))
-    freshGUI = 1;        %flag to indicate that prameters have not been loaded from previous session.
+    freshGUI = 1;        % flag to indicate that prameters have not been loaded from previous session.
 
     S.GUI.SubjectID = BpodSystem.GUIData.SubjectName;
     S.GUI.SessionID = BpodSystem.GUIData.SessionID;
@@ -28,14 +29,19 @@ if isempty(fieldnames(S))
 
     session_dir = ([start_path '\' S.GUI.SubjectID '\' S.GUI.SessionID]);
 else
-    freshGUI  = 0;        %flag to indicate that prameters have been loaded from previous session.
+    freshGUI  = 0;        % flag to indicate that prameters have been loaded from previous session.
 end
 
 BpodParameterGUI('init', S);
 BpodSystem.ProtocolSettings = S;
 
 %% ---------- Arduino Synchronizer ----------------------------------------
-arduino = serialport('COM7', 115385);
+COM = 'COM9';
+try
+    arduino = serialport(COM, 115385);
+catch
+    error('The Arduino is not connected to %s, select the correct COM!', COM)
+end
 
 % Send initial value to Arduino
 scalingValue = S.GUI.ScalingFactor;
@@ -43,19 +49,29 @@ writeline(arduino, strcat(num2str(scalingValue), '\n'));
 lastScalingFactor = scalingValue;
 
 %% ---------- Rotary Encoder Module ---------------------------------------
-R = RotaryEncoderModule('COM8'); %check which COM is paired with rotary encoder module
-%R.startUSBStream() -> moved to after restarteíng timer
+try
+    R = RotaryEncoderModule(BpodSystem.ModuleUSB.RotaryEncoder1);
+catch
+    error(['The Rotary Encoder Module is not coupled to the correct COM, ' ...
+        'check the Bpod Console!'])
+end
 
+%R.startUSBStream() -> moved to after restarting timer for proper alignment
 %R.streamUI() % for live streaming position, good for troubleshooting
 
 %% ---------- Analog Output Module ----------------------------------------
-W = BpodWavePlayer('COM6'); %check which COM is paired with analog output module
+try
+    W = BpodWavePlayer(BpodSystem.ModuleUSB.WavePlayer1);
+catch
+    error(['The Analog Output Module is not coupled to the correct COM, ' ...
+        'check the Bpod Console!'])
+end
 
-W.SamplingRate = 100;%in kHz
+W.SamplingRate = 100; % in kHz
 W.OutputRange = '0V:5V';
 W.TriggerMode = 'Master';
 
-% load waveforms (part of parameter file)
+% load waveforms (from parameter file)
 lengthWave = (S.GUI.stimDur+5)*W.SamplingRate; % add 5 second buffer
 for i = 1:length(waveforms)
     W.loadWaveform(i, waveforms{i}*ones(1,lengthWave));

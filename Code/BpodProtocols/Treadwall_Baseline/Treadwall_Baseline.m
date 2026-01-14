@@ -29,9 +29,14 @@ BpodParameterGUI('init', S);
 BpodSystem.ProtocolSettings = S;
 
 %% ---------- Rotary Encoder Module ---------------------------------------
-R = RotaryEncoderModule('COM8'); %check which COM is paired with rotary encoder module
-%R.startUSBStream() -> moved to after restarteíng timer
+try
+    R = RotaryEncoderModule(BpodSystem.ModuleUSB.RotaryEncoder1);
+catch
+    error(['The Rotary Encoder Module is not coupled to the correct COM, ' ...
+        'check the Bpod Console!'])
+end
 
+%R.startUSBStream() -> moved to after restarting timer for proper alignment
 %R.streamUI() % for live streaming position, good for troubleshooting
 
 %% ---------- Setup Camera ------------------------------------------------
