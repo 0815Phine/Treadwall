@@ -13,13 +13,12 @@
 #define Pump 3 //
 CapacitiveSensor cs_7_8 = CapacitiveSensor(7,8); //10M Resistor between pins 7 and 8 -> connect antenna on pin 8
 //
-#define FW 1 //forwards
-#define BW -1 //backwards
+#define RunningTimeout 5000
 #define minDist 150 //minimum distance to deliver reward in mm
-#define minProb 50 //minimum probabiliyt to deliver reward
+#define minProb 0 //minimum probabiliyt to deliver reward
 //    Hardware measurements:
 #define nSteps 1024 //Rotary Encoder: number of steps per rotation
-#define wheelRadius (53*1000) //wheel radius in microns (1mm is 1000 microns)
+#define wheelRadius 53 //wheel radius in microns in mm
 #define wheelCircumference ((float)wheelRadius*2*PI)
 #define DistancePerStep ((float)wheelCircumference/nSteps) 
 
@@ -28,10 +27,11 @@ CapacitiveSensor cs_7_8 = CapacitiveSensor(7,8); //10M Resistor between pins 7 a
 volatile uint32_t SampleStartTime = 0; 
 volatile uint32_t SampleStopTime = 0;
 volatile uint32_t ElapsedTime = 0;
+uint32_t TimeNoChange = 0;
+uint32_t ElapsedTimeNoChange = 0;
 //
 unsigned long csSum; // This variable stores accumulates capacitive values till reaching a threshold
 volatile bool DetectChange = false;
-volatile int Direction = 0;
 volatile static float TotalDistanceInMM = 0.00;
 int prob = 0;
 
@@ -40,7 +40,7 @@ void CapacitiveSensorRead() {
   long cs = cs_7_8.capacitiveSensor(80); // Sensor resolution is set to 80; will store the capacitance as an arbitrary value
 	if (cs > 100) { //Arbitrary number; lower threshold
 		csSum += cs; // Same as csSum = csSum + cs ; cumulative value for reachiung threshold
-		Serial.println(cs); 
+		//Serial.println(cs); 
 		if (csSum >= 3800) //Testing if csSum reached threshold, a High value means it takes longer to trigger
 		{
 			Serial.print("Trigger: ");
@@ -66,11 +66,10 @@ void TTLout() {
 void MeasureRotations() {
   DetectChange = true;
   if (digitalRead(encAPin) == digitalRead(encBPin)) {
-  Direction = FW;
+  TotalDistanceInMM += DistancePerStep;
   } else {
-  Direction = BW;
+  TotalDistanceInMM -= DistancePerStep;
   }
-  TotalDistanceInMM += DistancePerStep/1000;
   SampleStopTime = micros(); //in ms
   ElapsedTime = SampleStopTime-SampleStartTime;
   SampleStartTime = SampleStopTime;
@@ -79,14 +78,24 @@ void MeasureRotations() {
 // Start pump
 void DeliverReward() {
   if (TotalDistanceInMM >= minDist) {
+    Serial.println("Distance reached");
     prob = random(0,100); //probability of reward delivery
+    Serial.print("Set probability:");
+    Serial.println(prob);
     if (DetectChange == true) {
       if (prob >= minProb) {
+        Serial.println("Deliver Reward");
         digitalWrite(Pump, HIGH);
         TotalDistanceInMM = 0; //reset distance count
       }
+    } else if (DetectChange == false) {
+      TimeNoChange = micros();
+      ElapsedTimeNoChange = TimeNoChange-SampleStartTime;
+      if (ElapsedTimeNoChange > RunningTimeout && TimeNoChange > SampleStopTime) {
+        DetectChange=true;
+      }
     }
-    }
+  }
 }
 
 
