@@ -93,7 +93,7 @@ void DeliverReward() {
       if (prob >= minProb) {
         Serial.println("Deliver Reward");
         digitalWrite(Pump, HIGH);
-        delay(10);
+        delay(100);
         digitalWrite(Pump, LOW);
         TotalDistanceInMM = 0; //reset distance count
       }
@@ -104,13 +104,6 @@ void DeliverReward() {
 void ResetChange() {
   if (DetectChange == true) {
   DetectChange = false;
-
-  } else if (DetectChange == false) {
-    TimeNoChange = micros();
-    ElapsedTimeNoChange = TimeNoChange-SampleStartTime;
-    if (ElapsedTimeNoChange > RunningTimeout && TimeNoChange > SampleStopTime) {
-      DetectChange = true;
-    }
   }
 }
 
