@@ -35,12 +35,21 @@ uint32_t ElapsedTimeNoChange = 0;
 unsigned long csSum; // This variable stores accumulates capacitive values till reaching a threshold
 volatile bool DetectChange = false;
 volatile static float TotalDistanceInMM = 0.00;
+volatile bool DistanceFlag = false;
 volatile int Direction = 0;
 int prob = 0;
 
 // Read capacitive sensor
 void CapacitiveSensorRead() {
   long cs = cs_7_8.capacitiveSensor(80); // Sensor resolution is set to 80; will store the capacitance as an arbitrary value
+  //Serial.println(TotalDistanceInMM);
+
+  if (DistanceFlag == false) {
+    if (TotalDistanceInMM >= minDist) {
+      Serial.println("Distance reached");
+      DistanceFlag = true;
+    }
+  }
 
   ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	if (cs > 1000) { //Changed by AXEL from 100 to 1000
@@ -90,17 +99,17 @@ void MeasureRotations() {
 void DeliverReward() {
   if (DetectChange == true && Direction == FW) {
     if (TotalDistanceInMM >= minDist) {
-      Serial.println("Distance reached");
-      
       prob = random(0,100); //probability of reward delivery
       Serial.print("Set probability:");
       Serial.println(prob);
       if (prob >= minProb) {
         Serial.println("Deliver Reward");
         digitalWrite(Pump, HIGH);
-        delay(100);
+        delay(10000);
         digitalWrite(Pump, LOW);
+
         TotalDistanceInMM = 0; //reset distance count
+        DistanceFlag = false;
       }
     }
   }
@@ -125,6 +134,5 @@ void setup() {
 
 void loop() {
   CapacitiveSensorRead();
-  Serial.println(TotalDistanceInMM);  
   //delay(5);
 }
