@@ -11,6 +11,7 @@
 #define encAPin 2 //Encoder A - Arduino pin 2 to Black
 #define encBPin 4 //Encoder B - Arduino pin 4 to White
 #define Pump 3 //
+#define Clean 13
 CapacitiveSensor cs_7_8 = CapacitiveSensor(7,8); //10M Resistor between pins 7 and 8 -> connect antenna on pin 8
 //
 #define RunningTimeout 1000
@@ -121,12 +122,20 @@ void ResetChange() {
   }
 }
 
+void CleanPump() {
+  while (digitalRead(Clean) == LOW) {
+    digitalWrite(Pump, HIGH);
+  }
+  digitalWrite(Pump, LOW);
+}
+
 void setup() {
   Serial.begin(9600);
   pinMode(lickOut, OUTPUT);
   pinMode(Pump, OUTPUT);
   pinMode(encAPin, INPUT_PULLUP);
   pinMode(encBPin, INPUT_PULLUP);
+  pinMode(Clean, INPUT_PULLUP);
 
   attachInterrupt(digitalPinToInterrupt(encAPin), MeasureRotations, RISING);
   SampleStartTime = micros();
@@ -134,5 +143,8 @@ void setup() {
 
 void loop() {
   CapacitiveSensorRead();
+  if (digitalRead(Clean) == LOW) {
+    CleanPump();
+  }
   //delay(5);
 }
