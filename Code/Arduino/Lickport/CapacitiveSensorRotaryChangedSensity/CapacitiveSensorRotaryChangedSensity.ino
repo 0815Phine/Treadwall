@@ -76,7 +76,7 @@ void CapacitiveSensorRead() {
 // Send lick events
 void TTLout() {
   digitalWrite(lickOut, HIGH);
-  delay(10);
+  delay(1);
   digitalWrite(lickOut, LOW);
 }
 
@@ -105,7 +105,7 @@ void DeliverReward() {
       if (prob >= minProb) {
         Serial.println("Deliver Reward");
         digitalWrite(Pump, HIGH);
-        delay(10000);
+        delay(3);
         digitalWrite(Pump, LOW);
 
         TotalDistanceInMM = 0; //reset distance count
