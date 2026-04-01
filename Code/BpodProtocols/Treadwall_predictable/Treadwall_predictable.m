@@ -117,8 +117,8 @@ end
 A.SamplingRate = 100;%in kHz
 A.nActiveChannels = 3;
 A.InputRange = {'0V:10V', '0V:10V', '0V:10V', '0V:10V', '0V:10V', '0V:10V', '0V:10V', '0V:10V'};
-A.Thresholds(1,1:3) = [4.5, 2.5, 1.5];
-A.ResetVoltages(1,1:3) = [3.6, 1.65, 1.65];
+A.Thresholds(1,1:3) = [4.0, 2.5, 1.5];
+A.ResetVoltages(1,1:3) = [3.0, 1.65, 1.65]; % TO DO: check reset voltage for first trigger
 A.SMeventsEnabled(1,1:3) = [1, 1, 1];
 A.startReportingEvents()
 
