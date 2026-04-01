@@ -127,11 +127,12 @@ void SynchWalls() {
 }
 
 void StreamData() {
-  pwmOutput = mapfloat(CurrentSpeed, MinRunningSpeed, MaxRunningSpeed, 0, MaxPWMValue);
-  pwmOutput = constrain(pwmOutput, 0, MaxPWMValue);
-  analogWrite(SpeedPin, pwmOutput);
+  //pwmOutput = mapfloat(CurrentSpeed, MinRunningSpeed, MaxRunningSpeed, 0, MaxPWMValue);
+  //pwmOutput = constrain(pwmOutput, 0, MaxPWMValue);
+  //analogWrite(SpeedPin, pwmOutput);
 
-  //Serial.println(CurrentSpeed);
+  Serial.println(CurrentSpeed);
+  Serial.println(targetVelocity);
   //Serial.print(",");
   //Serial.print(pwmOutput);
   //Serial.print(",");
@@ -148,7 +149,7 @@ void setup() {
 
   pinMode(encAPin, INPUT_PULLUP);
   pinMode(encBPin, INPUT_PULLUP);
-  pinMode(SpeedPin, OUTPUT);
+  //pinMode(SpeedPin, OUTPUT);
   //pinMode(AnalogDataStreamPin, OUTPUT);
 
   // Give the Tic some time to start up.
@@ -163,6 +164,6 @@ void setup() {
 
 void loop() {
   SynchWalls();
-  StreamData();
+  //StreamData();
   resetCommandTimeout();
 }
