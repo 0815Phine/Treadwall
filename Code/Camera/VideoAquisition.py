@@ -5,46 +5,62 @@ import os
 import sys
 import threading
 import queue
-import subprocess
 import numpy as np
 import shutil
 
 # ------ Set up Output Directory ------
+# writing fast disk path
+NVME_base_path = r"C:\Users\TomBombadil\Data"
+
 # get animal and session information
 session_folder = sys.argv[1]
 animal_name = sys.argv[2]
 session_name = sys.argv[3]
 
-# create timestamp and video file
-video_filename = f"{animal_name}_{session_name}.mp4"
-timestamp_filename = os.path.join(session_folder, f"{animal_name}_{session_name}_video_timestamps.txt")
-op_name = os.path.join(session_folder, video_filename)
-# prevent overwriting an existing video file
-if os.path.exists(op_name):
-    print(f"WARNING: Video file '{video_filename}' already exists.")
-    user_input = input("Do you want to overwrite it? (y/n): ").strip().lower()
-    if user_input != 'y':
-        # Generate a new filename by appending a number
-        counter = 1
-        while os.path.exists(op_name):
-            new_video_filename = f"{animal_name}_{session_name}_{counter}.mp4"
-            timestamp_filename = os.path.join(session_folder, f"{animal_name}_{session_name}_{counter}_vi_timestamps.txt")
-            op_name = os.path.join(session_folder, new_video_filename)
-            counter += 1
-        print(f"Saving as new file: {new_video_filename}")
+# create output folder for frames
+folder_name = f"{animal_name}_{session_name}_frames"
+frames_folder = os.path.join(NVME_base_path, folder_name)
 
-# create a stop flag file
-#STOP_FILE = os.path.join(session_folder, "stop_signal.txt")
-# remove existing stop file at startup
-#if os.path.exists(STOP_FILE):
-#    os.remove(STOP_FILE)
-#    print("Existing stop file found and removed.")
+# create timestamp file
+timestamp_filename = os.path.join(
+    NVME_base_path,
+    f"{animal_name}_{session_name}_video_timestamps.txt"
+)
+
+# prevent overwrite
+if os.path.exists(frames_folder):
+    print(f"WARNING: Frame folder '{frames_folder}' already exists.")
+
+    user_input = input("Do you want to overwrite it? (y/n): ").strip().lower()
+
+    if user_input == 'y':
+        shutil.rmtree(frames_folder)
+        if os.path.exists(timestamp_filename):
+            os.remove(timestamp_filename)
+    else: # generate new folder with appending number
+        counter = 1
+        while os.path.exists(frames_folder):
+            frames_folder = os.path.join(
+                NVME_base_path,
+                f"{animal_name}_{session_name}_frames_{counter}"
+            )
+            timestamp_filename = os.path.join(
+                NVME_base_path,
+                f"{animal_name}_{session_name}_{counter}_vi_timestamps.txt"
+            )
+            counter += 1
+
+        print(f"Saving in new directory: {frames_folder}")
+
+# create folder
+os.makedirs(frames_folder)
 
 # ------ Set up Camera ------
 tlf = py.TlFactory.GetInstance()
 devices = tlf.EnumerateDevices() # list of pylon Device 
 if not devices:
     raise RuntimeError("No cameras found!")
+
 # choose camera
 cam = py.InstantCamera(tlf.CreateDevice(devices[0]))
 cam.Open()
@@ -52,12 +68,14 @@ cam.Open()
 # cam settings
 cam.Width.Value = 1440
 cam.Height.Value = 1080
-cam.ExposureTime.Value = 3500 #check lowest possible exposure time with animal!!
+cam.ExposureTime.Value = 3500
 cam.ExposureAuto.Value = "Off"
 cam.Gain.Value = 12
 cam.DeviceLinkThroughputLimitMode.Value = "Off"
 cam.AcquisitionFrameRateEnable.Value = False
 cam.AcquisitionMode.Value = "Continuous"
+
+# internal buffer
 
 # hardware trigger
 cam.TriggerMode.Value = "On"  
@@ -75,86 +93,68 @@ cam.LineMode.Value = "Output"
 cam.LineSource.Value = "ExposureActive" #"FrameTriggerWait"
 
 # ------ Live Stream ------
-frame_queue = queue.Queue(maxsize=10)
-#stop_event = threading.Event() 
+latest_frame = None
+latest_frame_lock = threading.Lock()
+
 def live_stream():
     """ Continuously display frames from the queue """
-    while cam.IsGrabbing() or not frame_queue.empty():
-        if not frame_queue.empty():
-            frame = frame_queue.get()
 
-            if frame is None or frame.size == 0:
-                continue  # Skip empty frames
+    while cam.IsGrabbing():
+        frame = None
 
-            # Resize the frame for display
-            display_frame = cv2.resize(frame, (960, 720))
+        with latest_frame_lock:
+            if latest_frame is not None:
+                frame = latest_frame.copy()
 
+        if frame is not None:
+            display_frame = cv2.resize(frame, (640, 480))
             cv2.imshow("Live Stream", display_frame)
             cv2.waitKey(1)
-        
-        time.sleep(1 / 30) # live streaming fps = 30
 
-        #if cv2.waitKey(1) & 0xFF == ord('q'):
-        #    print("Live stream stopped by user.")
-        #    stop_event.set()
-        #    break
+        time.sleep(1 / 30)
+
     print("Closing live stream...")
     cv2.destroyAllWindows()
 
-# ------ Video-Writer ------
-# set up OpenCV
-#fourcc = cv2.VideoWriter_fourcc(*'XVID')
-#video_writer = cv2.VideoWriter(op_name, fourcc, fps=200, frameSize=(1440, 1080), isColor=False)
+# ------ Image-Writer ------
+num_writers = 2
+save_queue = queue.Queue(maxsize=1000)  # Larger buffer for writing
 
-# set up ffmpeg
-ffmpeg_path = shutil.which("ffmpeg")
-if ffmpeg_path is None:
-    raise RuntimeError("FFmpeg was not found. Make sure it's in your system PATH.")
-ffmpeg_cmd = [
-    ffmpeg_path,  # use absolute path found by shutil
-    '-y',
-    '-f', 'rawvideo',
-    '-vcodec', 'rawvideo',
-    '-pix_fmt', 'gray',
-    '-s', '1440x1080',
-    #'-r', '200',
-    '-i', '-',
+frame_counter = 0
+frame_lock = threading.Lock()
 
-    '-vcodec', 'h264_nvenc',
-    '-gpu', '0',
-    '-profile:v', 'high',
-    '-preset', 'slow',
-    '-crf', '17',
-    '-an',
-    '-vf', 'format=gray',
-    '-pix_fmt', 'yuv420p',
-    #'-r', '200',
-    '-f', 'mp4',
-    op_name]
-ffmpeg_process = subprocess.Popen(
-    ffmpeg_cmd,
-    stdin=subprocess.PIPE,
-    stdout=subprocess.DEVNULL,
-    stderr=subprocess.DEVNULL)
+timestamps = []
+timestamp_lock = threading.Lock()
 
-frame_write_count = 0
-video_queue = queue.Queue(maxsize=100)  # Larger buffer for writing
-def video_writer_thread():
-    """ Writes frames from the queue """
-    global frame_write_count
-    while cam.IsGrabbing() or not video_queue.empty():
+def writer_thread():
+    """ Saves frames from the queue """
+
+    global frame_counter
+
+    while cam.IsGrabbing() or not save_queue.empty():
         try:
-            frame = video_queue.get(timeout=0.1)
-            ffmpeg_process.stdin.write(frame.tobytes())
-            frame_write_count += 1
-            video_queue.task_done()
+            frame, timestamp = save_queue.get(timeout=0.1)
+
+            with frame_lock:
+                frame_idx = frame_counter
+                frame_counter += 1
+
+            filename = os.path.join(
+                frames_folder,
+                f"frame_{frame_idx:06d}.bin"
+            )
+            frame.tofile(filename) # save as binary
+
+            with timestamp_lock:
+                timestamps.append((frame_idx, timestamp))
+
+            save_queue.task_done()
         except queue.Empty:
             continue
 
 # ------ Video Aquisition ------
 fcount = 0
 f_failed = 0
-timestamps = []
 trigger_lost = None
 trigger_started = False
 trigger_stopped = False
@@ -163,8 +163,12 @@ trigger_stopped = False
 cam.StartGrabbing(py.GrabStrategy_OneByOne)
 live_thread = threading.Thread(target=live_stream, daemon=True)
 live_thread.start()
-writer_thread = threading.Thread(target=video_writer_thread, daemon=True)
-writer_thread.start()
+
+writer_threads = []
+for _ in range(num_writers):
+    t = threading.Thread(target=writer_thread, daemon=True)
+    t.start()
+    writer_threads.append(t)
 
 print("Waiting for trigger...")
 while not cam.LineStatus.Value: # this most likely reads line 3
@@ -178,22 +182,20 @@ while cam.IsGrabbing():
     try:
         res = cam.RetrieveResult(1000, py.TimeoutHandling_ThrowException)
         if res.GrabSucceeded():
+            # get frame and timestamp
             image = res.Array
+            timestamp = res.TimeStamp
 
-            # video writer
-            #ffmpeg_process.stdin.write(image.tobytes())
             try:
-                video_queue.put_nowait(image)
+                # save frame and timestamp
+                save_queue.put_nowait((image.copy(), timestamp))
             except queue.Full:
+                f_failed += 1
                 print("Video queue full. Dropping frame.")
                 
-            # timestamps
-            timestamp = res.TimeStamp #time.time() #cam.TimestampLatch.Execute()
-            timestamps.append(timestamp)
-                
             # live stream
-            if not frame_queue.full():
-                frame_queue.put(image)
+            with latest_frame_lock:
+                latest_frame = image
 
             fcount += 1
         else:
@@ -215,31 +217,18 @@ while cam.IsGrabbing():
             elif time.time() - trigger_lost > 0.01: # second round
                 print("Trigger stopped. Ending acquisition...")
                 trigger_stopped = True
-                #stop_event.set()
                 break
         else: # not sure if this works properly
             trigger_lost = None  # Trigger is back, reset
-    
-    # check for stop signal from MATLAB
-    #if os.path.exists(STOP_FILE):
-    #    etime = time.time()
-    #    print("Stop signal received. Exiting...")
-    #    stop_event.set()
-    #    break
 
 # ------ Cleanup ------       
 # release resources
 cam.StopGrabbing()
 cam.Close()
-video_queue.join()       # Wait for all frames to be written
-writer_thread.join()     # Wait for writer thread to finish
+save_queue.join() # Wait for all frames to be written
+for t in writer_threads:
+    t.join() # Wait for writer thread to finish
 live_thread.join()
-ffmpeg_process.stdin.close()
-ffmpeg_process.wait()
-
-# remove stop file
-#f os.path.exists(STOP_FILE):
-#    os.remove(STOP_FILE)
 
 # estimate fps
 elapsed_time = etime - stime
