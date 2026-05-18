@@ -5,6 +5,7 @@ import os
 import sys
 import threading
 import queue
+import json
 import numpy as np
 import shutil
 
@@ -14,20 +15,18 @@ H, W = 1080, 1440       # frame dimensions (must match camera settings below)
 NVME_BASE = r"C:\Users\TomBombadil\Data"
 
 # ------ Set up Output Directory ------
-# get animal and session information
-session_folder = sys.argv[1]
+session_folder = sys.argv[1]   # full LTS path, e.g. D:\Animals\Cohort01_Training\OPI2714\S1_B1
 animal_name = sys.argv[2]
 session_name = sys.argv[3]
 
-# name new data folder and files
-folder_name = f"{animal_name}_{session_name}_frames"
-frames_folder = os.path.join(NVME_BASE, folder_name)
-timestamp_filename = os.path.join(
-    NVME_BASE,
-    f"{animal_name}_{session_name}_video_timestamps.txt"
-)
+# Mirror the cohort/animal/session hierarchy on the NVMe fast disc
+cohort_name = os.path.basename(os.path.dirname(os.path.dirname(session_folder)))
+nvme_session_path = os.path.join(NVME_BASE, cohort_name, animal_name, session_name)
+os.makedirs(nvme_session_path, exist_ok=True)
 
-# prevent overwrite
+frames_folder = os.path.join(nvme_session_path, f"{animal_name}_{session_name}_frames")
+timestamp_filename = os.path.join(nvme_session_path, f"{animal_name}_{session_name}_video_timestamps.txt")
+
 if os.path.exists(frames_folder):
     print(f"WARNING: Frame folder '{frames_folder}' already exists.")
     user_input = input("Do you want to overwrite it? (y/n): ").strip().lower()
@@ -39,17 +38,16 @@ if os.path.exists(frames_folder):
         counter = 1
         while os.path.exists(frames_folder):
             frames_folder = os.path.join(
-                NVME_BASE,
+                nvme_session_path,
                 f"{animal_name}_{session_name}_frames_{counter}"
             )
             timestamp_filename = os.path.join(
-                NVME_BASE,
+                nvme_session_path,
                 f"{animal_name}_{session_name}_{counter}_video_timestamps.txt"
             )
             counter += 1
         print(f"Saving in new directory: {frames_folder}")
 
-# create folder
 os.makedirs(frames_folder)
 
 # ------ Pre-allocate Double Buffer ------
@@ -247,3 +245,17 @@ with open(timestamp_filename, 'w') as f:
         f.write(f"{ts}\n")
 
 print(f"Timestamps saved: {len(combined_ts)} entries → {timestamp_filename}")
+
+# Write session metadata for DailyDataManager
+metadata = {
+    "animal": animal_name,
+    "session": session_name,
+    "cohort": cohort_name,
+    "session_dir_lts": session_folder,
+    "total_frames": fcount,
+    "fps_estimated": round(estimated_fps, 2),
+}
+meta_path = os.path.join(nvme_session_path, "session_metadata.json")
+with open(meta_path, 'w') as f:
+    json.dump(metadata, f, indent=2)
+print(f"Metadata saved → {meta_path}")

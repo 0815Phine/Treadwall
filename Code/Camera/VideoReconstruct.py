@@ -112,6 +112,7 @@ def run_reconstruction(chunks_dir, output_video_path, fps, output_dir=None, log_
     frames_written = 0
     t0 = time.perf_counter()
 
+    stderr_bytes = b""
     try:
         for chunk_file in chunk_files:
             data = np.load(chunk_file)
@@ -121,15 +122,17 @@ def run_reconstruction(chunks_dir, output_video_path, fps, output_dir=None, log_
             log_fn(f"  {frames_written}/{total_frames} frames ({pct:.1f}%)")
 
         proc.stdin.close()
-        proc.wait()
+        # communicate() drains the stderr pipe while waiting for ffmpeg to exit.
+        # Using proc.wait() here deadlocks once the ~64 KB stderr buffer fills.
+        _, stderr_bytes = proc.communicate()
 
     except BrokenPipeError:
-        stderr = proc.stderr.read().decode("utf-8", errors="replace")
-        raise RuntimeError(f"ffmpeg terminated early:\n{stderr}")
+        proc.communicate()  # drain stderr to unblock ffmpeg before reading
+        raise RuntimeError("ffmpeg terminated early")
 
+    stderr_str = (stderr_bytes or b"").decode("utf-8", errors="replace")
     if proc.returncode != 0:
-        stderr = proc.stderr.read().decode("utf-8", errors="replace")
-        raise RuntimeError(f"ffmpeg error (code {proc.returncode}):\n{stderr}")
+        raise RuntimeError(f"ffmpeg error (code {proc.returncode}):\n{stderr_str}")
 
     elapsed = time.perf_counter() - t0
     log_fn(f"Reconstruction complete: {frames_written} frames in {elapsed:.1f}s")
