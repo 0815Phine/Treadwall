@@ -11,8 +11,8 @@ import shutil
 
 # ------ Configuration ------
 CHUNK_SIZE = 200        # frames per .npy chunk (200 frames = 1 s at 200 Hz)
-H, W = 1080, 1440       # frame dimensions (must match camera settings below)
-NVME_BASE = r"C:\Users\TomBombadil\Data"
+H, W = 540, 720         # frame dimensions after 2×2 binning (must match camera settings below)
+NVME_BASE = r"C:\Users\TomBombadil\Documents\Data"
 
 # Fill in Basler serial numbers before first use.
 # Run the script with no cameras configured to print detected serials.
@@ -73,6 +73,10 @@ cam_top   = _open_camera(SERIAL_TOPCAM)
 cam_front = _open_camera(SERIAL_FRONTCAM)
 
 # ------ Top Camera Settings (hardware-triggered, 200 Hz) ------
+cam_top.BinningHorizontal.Value     = 2
+cam_top.BinningVertical.Value       = 2
+cam_top.BinningHorizontalMode.Value = "Average"
+cam_top.BinningVerticalMode.Value   = "Average"
 cam_top.Width.Value  = W
 cam_top.Height.Value = H
 cam_top.PixelFormat.Value = "Mono8"          # explicit — Pylon Viewer can leave Mono12
@@ -97,12 +101,14 @@ cam_top.LineMode.Value     = "Output"
 cam_top.LineSource.Value   = "ExposureActive"
 
 # ------ Front Camera Settings (free-running) ------
-# Bandwidth budget on one USB 3.0 controller (~380 MB/s practical):
-#   topcam  200 Hz × 1440×1080 = 311 MB/s
-#   frontcam 50 Hz × 1440×1080 =  78 MB/s  → total 389 MB/s (safe)
-# Increase FRONTCAM_FPS only if cameras are on separate USB host controllers.
+# With 2×2 binning, bandwidth per camera is ~78 MB/s (200 Hz × 720×540).
+# Total for both cameras: ~156 MB/s — well within USB 3.0 limits on a shared controller.
 FRONTCAM_FPS = 200.0
 
+cam_front.BinningHorizontal.Value     = 2
+cam_front.BinningVertical.Value       = 2
+cam_front.BinningHorizontalMode.Value = "Average"
+cam_front.BinningVerticalMode.Value   = "Average"
 cam_front.Width.Value  = W
 cam_front.Height.Value = H
 cam_front.PixelFormat.Value = "Mono8"
