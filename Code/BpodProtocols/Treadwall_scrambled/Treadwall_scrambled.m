@@ -30,6 +30,13 @@ if isempty(fieldnames(S))
     %S.GUI.ExpInfoPath = start_path;
 
     session_dir = ([start_path '\' S.GUI.SubjectID '\' S.GUI.SessionID]);
+    % Use datetime from StartSession.ps1 if available, so all file names match
+    if isfield(BpodSystem.GUIData, 'DatetimeStr') && ~isempty(BpodSystem.GUIData.DatetimeStr)
+        datetime_str = BpodSystem.GUIData.DatetimeStr;
+    else
+        datetime_str = datestr(now, 'yyyymmdd_HHMM');
+    end
+    base_name = sprintf('%s_%s_%s', S.GUI.SubjectID, datetime_str, S.GUI.SessionID);
 else
     freshGUI  = 0;        %flag to indicate that prameters have been loaded from previous session.
 end
@@ -39,12 +46,16 @@ BpodSystem.ProtocolSettings = S;
 
 %% ---------- Create Triallist and load Trials ----------------------------
 % create triallist (adjust function according to trials needed)
-create_triallist_adaptable(session_dir); % not all offsets used, for all use "create_triallist_all"
+create_triallist_adaptable(session_dir, base_name); % not all offsets used, for all use "create_triallist_all"
 
 % read triallist
-trialList_Info = dir([session_dir '\triallist.csv']);
+trialList_Info = dir(fullfile(session_dir, [base_name '_triallist.csv']));
 if isempty(trialList_Info)
-    [~,triallist_dir] = uigetfile(fullfile(start_path,'*.csv'));
+    [triallist_file, triallist_path] = uigetfile(fullfile(start_path,'*.csv'));
+    if isequal(triallist_file, 0)
+        error('No triallist selected. Aborting.');
+    end
+    triallist_dir = fullfile(triallist_path, triallist_file);
 else
     triallist_dir = fullfile(trialList_Info.folder, trialList_Info.name);
 end
@@ -94,18 +105,6 @@ lengthWave = S.GUI.stimDur*W.SamplingRate;
 for i = 1:length(waveforms)
     W.loadWaveform(i, waveforms{i}*ones(1,lengthWave));
 end
-
-%% ---------- Setup Camera ------------------------------------------------
-disp('Starting Python video acquisition script...');
-
-pythonExe = 'C:\Users\TomBombadil\anaconda3\python.exe';
-pyenv('Version', pythonExe);
-
-scriptPath = "C:\Users\TomBombadil\Documents\GitHub\Treadwall\Code\Camera\VideoAquisition.py";
-
-% Run in background
-command = sprintf('"%s" "%s" "%s" "%s" "%s" &', pythonExe, scriptPath, session_dir, S.GUI.SubjectID, S.GUI.SessionID);
-system(command);
 
 %% ---------- Restart Timer -----------------------------------------------
 BpodSystem.SerialPort.write('*', 'uint8');
@@ -218,7 +217,7 @@ for currentTrial = 1:S.GUI.MaxTrialNumber
         BpodSystem.Data.TrialSettings(currentTrial) = S;
         BpodSystem.Data.TrialTypes(currentTrial) = triallist(currentTrial);
         SaveBpodSessionData; %Saves the field BpodSystem.Data to the current data file
-        SaveBpodProtocolSettings;
+        %SaveBpodProtocolSettings;
     end
 
     if BpodSystem.Status.BeingUsed == 0
@@ -233,7 +232,8 @@ disp('Loop end');
 
 disp('Saving Rotary Encoder Data...')
 RotData = R.readUSBStream();
-save([session_dir '\RotData'],'RotData')
+rotary_src = fullfile(session_dir, [base_name '_rotdata.mat']);
+save(rotary_src, 'RotData')
 R.stopUSBStream()
 
 disp('Stop wavesurfer. Stop Bpod');

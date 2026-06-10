@@ -23,16 +23,18 @@ SERIAL_FRONTCAM = "40442087"   # e.g. "87654321"
 session_folder = sys.argv[1]   # full LTS path, e.g. D:\Animals\Cohort01_Training\OPI2714\S1_B1
 animal_name = sys.argv[2]
 session_name = sys.argv[3]
+date_time    = sys.argv[4]     # e.g. 20260609_1030, generated once by MATLAB at session start
 
-# Mirror the cohort/animal/session hierarchy on the NVMe fast disc
-cohort_name = os.path.basename(os.path.dirname(os.path.dirname(session_folder)))
-nvme_session_path = os.path.join(NVME_BASE, cohort_name, animal_name, session_name)
+base_name = f"{animal_name}_{date_time}_{session_name}"
+
+# Mirror the animal/session hierarchy on the NVMe fast disc
+nvme_session_path = os.path.join(NVME_BASE, animal_name, session_name)
 os.makedirs(nvme_session_path, exist_ok=True)
 
-folder_top   = os.path.join(nvme_session_path, f"{animal_name}_{session_name}_topcam_frames")
-folder_front = os.path.join(nvme_session_path, f"{animal_name}_{session_name}_frontcam_frames")
-ts_file_top   = os.path.join(nvme_session_path, f"{animal_name}_{session_name}_topcam_video_timestamps.txt")
-ts_file_front = os.path.join(nvme_session_path, f"{animal_name}_{session_name}_frontcam_video_timestamps.txt")
+folder_top   = os.path.join(nvme_session_path, f"{base_name}_topcam_frames")
+folder_front = os.path.join(nvme_session_path, f"{base_name}_frontcam_frames")
+ts_file_top   = os.path.join(nvme_session_path, f"{base_name}_topcam_video_timestamps.txt")
+ts_file_front = os.path.join(nvme_session_path, f"{base_name}_frontcam_video_timestamps.txt")
 
 for folder in (folder_top, folder_front):
     if os.path.exists(folder):
@@ -433,8 +435,9 @@ _save_timestamps(folder_front, ts_file_front, counter_front)
 # ------ Save Session Metadata ------
 metadata = {
     "animal":          animal_name,
+    "date_time":       date_time,
     "session":         session_name,
-    "cohort":          cohort_name,
+    "base_name":       base_name,
     "session_dir_lts": session_folder,
     "topcam": {
         "serial":        SERIAL_TOPCAM,
