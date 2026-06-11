@@ -72,7 +72,7 @@ def _open_camera(serial):
 cam_top   = _open_camera(SERIAL_TOPCAM)
 cam_front = _open_camera(SERIAL_FRONTCAM)
 
-# ------ Top Camera Settings (hardware-triggered, 200 Hz) ------
+# ------ Top Camera Settings (hardware-triggered, 30 Hz) ------
 cam_top.BinningHorizontal.Value     = 2
 cam_top.BinningVertical.Value       = 2
 cam_top.BinningHorizontalMode.Value = "Average"
