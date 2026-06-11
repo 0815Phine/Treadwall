@@ -93,7 +93,7 @@ if ~isempty(fieldnames(RawEvents)) %If trial data was returned
     BpodSystem.Data = AddTrialEvents(BpodSystem.Data,RawEvents); %Computes trial events from raw data
     BpodSystem.Data.TrialSettings(1) = S;
     SaveBpodSessionData; %Saves the field BpodSystem.Data to the current data file
-    SaveBpodProtocolSettings;
+    %SaveBpodProtocolSettings;
     RotData = R.readUSBStream();
 end
 
@@ -105,7 +105,7 @@ end
 disp('Experiment end');
 
 disp('Saving Rotary Encoder Data...')
-save([session_dir '\RotData'],'RotData')
+save([session_dir '\rotdata'],'RotData')
 R.stopUSBStream()
 
 disp('Stop wavesurfer. Stop Bpod');

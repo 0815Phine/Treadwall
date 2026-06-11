@@ -183,9 +183,8 @@ for currentTrial = 1:floor(length(waveforms)/2)
     if ~isempty(fieldnames(RawEvents)) %If trial data was returned
         BpodSystem.Data = AddTrialEvents(BpodSystem.Data,RawEvents); %Computes trial events from raw data
         BpodSystem.Data.TrialSettings(currentTrial) = S;
-        %BpodSystem.Data.TrialTypes(currentTrial) = triallist(currentTrial);
         SaveBpodSessionData; %Saves the field BpodSystem.Data to the current data file
-        SaveBpodProtocolSettings;
+        %SaveBpodProtocolSettings;
     end
 
     if BpodSystem.Status.BeingUsed == 0
@@ -200,7 +199,7 @@ disp('Loop end');
 
 disp('Saving Rotary Encoder Data...')
 RotData = R.readUSBStream();
-save([session_dir '\RotData'],'RotData')
+save([session_dir '\rotDdata'],'RotData')
 R.stopUSBStream()
 
 disp('Stop wavesurfer. Stop Bpod');
