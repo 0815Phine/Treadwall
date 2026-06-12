@@ -3,6 +3,14 @@ function Treadwall_scrambled
 
 global BpodSystem
 
+%% ---------- IPC setup ---------------------------------------------------
+ipc_dir = 'C:\Users\TomBombadil\Data\ipc';
+if ~exist(ipc_dir, 'dir'), mkdir(ipc_dir); end
+% Clear any stale emergency-stop flag left over from a previous session so it
+% cannot immediately abort this one.
+estop_flag = fullfile(ipc_dir, 'emergency_stop.flag');
+if exist(estop_flag, 'file'), delete(estop_flag); end
+
 %% ---------- Define task parameters --------------------------------------
 start_path = BpodSystem.Path.DataFolder; % 'C:\Users\TomBombadil\Desktop\Animals' - Folder of current cohort selected in GUI;
 
@@ -22,8 +30,8 @@ if isempty(fieldnames(S))
     
     S.GUI.SubjectID = BpodSystem.GUIData.SubjectName;
     S.GUI.SessionID = BpodSystem.GUIData.SessionID;
-    S.GUI.ITIDur = ITIDur; %in seconds
-    S.GUI.stimDur = stimDur; %in seconds
+    S.GUI.ITIDur = 1; %ITIDur; %in seconds
+    S.GUI.stimDur = 1; %stimDur; %in seconds
     S.GUI.ScalingFactor = 1;
     S.GUI.EmergencyStop = 'SendBpodSoftCode(2)';
     S.GUIMeta.EmergencyStop.Style = 'pushbutton';
@@ -43,6 +51,7 @@ end
 
 BpodParameterGUI('init', S);
 BpodSystem.ProtocolSettings = S;
+try, close(BpodSystem.ProtocolFigures.ParameterGUI); catch, end
 
 %% ---------- Create Triallist and load Trials ----------------------------
 % create triallist (adjust function according to trials needed)
@@ -107,17 +116,30 @@ for i = 1:length(waveforms)
 end
 
 %% ---------- Restart Timer -----------------------------------------------
+% Discard any stale bytes left in the Bpod serial buffer (e.g. after an
+% emergency stop) so the clock-reset confirmation byte is read correctly.
+nStale = BpodSystem.SerialPort.bytesAvailable;
+if nStale > 0, BpodSystem.SerialPort.read(nStale, 'uint8'); end
 BpodSystem.SerialPort.write('*', 'uint8');
 Confirmed = BpodSystem.SerialPort.read(1,'uint8');
 if Confirmed ~= 1, error('Faulty clock reset'); end
 
 R.startUSBStream()
 
+%% ---------- Emergency-stop watcher --------------------------------------
+% Poll for the GUI emergency-stop flag from here on, so the button works even
+% while waiting for WaveSurfer. onCleanup guarantees the timer is removed on
+% every exit path (normal end, early return, or error).
+t_estop = timer('Period', 0.5, 'ExecutionMode', 'fixedRate', ...
+    'TimerFcn', @(~,~) check_estop(ipc_dir));
+estopCleanup = onCleanup(@() stop_estop_timer(t_estop)); %#ok<NASGU>
+start(t_estop);
+
 %% ---------- Synching with WaveSurfer ------------------------------------
 sma = NewStateMachine();
 sma = AddState(sma, 'Name', 'WaitForWaveSurfer', ...
     'Timer',0,...
-    'StateChangeConditions', {'BNC1High', 'exit'},...
+    'StateChangeConditions', {'BNC1High', 'exit', 'SoftCode2', 'exit'},...
     'OutputActions', {});
 SendStateMachine(sma);
 disp('Waiting for Wavesurfer...');
@@ -128,15 +150,38 @@ if ~isempty(fieldnames(RawEvents)) % If trial data was returned
     SaveBpodSessionData; % Saves the field BpodSystem.Data to the current data file
 end
 
+% Clean exit if user stopped Bpod while waiting for WaveSurfer.
+% Without this check the code enters the main loop and crashes on destroyed GUI handles.
+if BpodSystem.Status.BeingUsed == 0
+    disp('Session stopped while waiting for WaveSurfer. Exiting cleanly.');
+    W.setFixedVoltage([1 2], 0);
+    R.stopUSBStream();
+    % Tell WaveSurfer to stop/rename (in case recording had already started)
+    % and the GUI that the session is done. onCleanup removes the estop timer.
+    fclose(fopen(fullfile(ipc_dir, 'stop_wavesurfer.flag'), 'w'));
+    fclose(fopen(fullfile(ipc_dir, 'session_done.flag'), 'w'));
+    return
+end
+
 disp('Synced with Wavesurfer.');
 
 %% ---------- Main Loop ---------------------------------------------------
+try
 for currentTrial = 1:S.GUI.MaxTrialNumber
     disp(' ');
     disp('- - - - - - - - - - - - - - - ');
     disp(['Trial: ' num2str(currentTrial) ' - ' datestr(now,'HH:MM:SS') ' - ' 'Type: ' triallist{currentTrial}]);
 
-    S = BpodParameterGUI('sync', S); %Sync parameters with BpodParameterGUI plugin
+    % Read parameter updates from Python GUI
+    params_file = fullfile(ipc_dir, 'protocol_params.json');
+    if exist(params_file, 'file')
+        try
+            p = jsondecode(fileread(params_file));
+            if isfield(p, 'ITIDur'),        S.GUI.ITIDur        = p.ITIDur;        end
+            if isfield(p, 'stimDur'),       S.GUI.stimDur       = p.stimDur;       end
+            if isfield(p, 'ScalingFactor'), S.GUI.ScalingFactor = p.ScalingFactor; end
+        catch, end
+    end
 
     % Get current Scaling value
     scalingValue = S.GUI.ScalingFactor;
@@ -221,20 +266,53 @@ for currentTrial = 1:S.GUI.MaxTrialNumber
     end
 
     if BpodSystem.Status.BeingUsed == 0
-        disp('Session ended via Bpod Console. Current trial data has not been saved')
+        disp('Session stopped (emergency stop or Bpod Console). Partial trial data saved.')
         W.setFixedVoltage([1 2], 0)
         break
     end
 end
+catch e
+    fprintf('Protocol error on trial %d: %s\n', currentTrial, e.message);
+end
+
+stop_estop_timer(t_estop);
+BpodSystem.Status.BeingUsed = 0;
+try, close(BpodSystem.ProtocolFigures.ParameterGUI); catch, end
 
 clear arduino
 disp('Loop end');
 
 disp('Saving Rotary Encoder Data...')
 RotData = R.readUSBStream();
-rotary_src = fullfile(session_dir, [base_name '_rotdata.mat']);
+rotary_src = fullfile(session_dir, [base_name '_bpod_rotdata.mat']);
 save(rotary_src, 'RotData')
 R.stopUSBStream()
 
-disp('Stop wavesurfer. Stop Bpod');
+% Signal the GUI: session complete, stop WaveSurfer
+if ~exist(ipc_dir, 'dir'), mkdir(ipc_dir); end
+fclose(fopen(fullfile(ipc_dir, 'stop_wavesurfer.flag'), 'w'));
+fclose(fopen(fullfile(ipc_dir, 'session_done.flag'), 'w'));
+disp('Session complete. WaveSurfer stopping automatically.');
+end
+
+function check_estop(ipc_dir)
+f = fullfile(ipc_dir, 'emergency_stop.flag');
+if exist(f, 'file')
+    delete(f);
+    global BpodSystem
+    BpodSystem.Status.BeingUsed = 0;
+    SendBpodSoftCode(2);
+end
+end
+
+function stop_estop_timer(t)
+% Safely stop and delete the emergency-stop timer on any exit path
+% (idempotent — guards against an already-deleted timer).
+try
+    if isvalid(t)
+        stop(t);
+        delete(t);
+    end
+catch
+end
 end

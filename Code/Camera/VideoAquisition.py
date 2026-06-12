@@ -11,8 +11,8 @@ import shutil
 
 # ------ Configuration ------
 CHUNK_SIZE = 200        # frames per .npy chunk (200 frames = 1 s at 200 Hz)
-H, W = 1080, 1440       # frame dimensions (must match camera settings below)
-NVME_BASE = r"C:\Users\TomBombadil\Data"
+H, W = 540, 720       # frame dimensions (must match camera settings below)
+NVME_BASE = r"C:\Users\TomBombadil\Documents\Data"
 
 # Fill in Basler serial numbers before first use.
 # Run the script with no cameras configured to print detected serials.
@@ -25,6 +25,27 @@ animal_name = sys.argv[2]
 session_name = sys.argv[3]
 date_time    = sys.argv[4]     # e.g. 20260609_1030, generated once by MATLAB at session start
 
+# Optional flags (may follow the 4 required positional args)
+#   --preview-dir <path>  write downsampled frames for the GUI live view
+#   --no-display          skip cv2.imshow (GUI shows the preview instead)
+#   --overwrite           overwrite existing frame folders without prompting
+preview_dir  = None
+show_display = True
+overwrite    = False
+_i = 5
+while _i < len(sys.argv):
+    if sys.argv[_i] == '--preview-dir' and _i + 1 < len(sys.argv):
+        preview_dir = sys.argv[_i + 1]
+        _i += 2
+    elif sys.argv[_i] == '--no-display':
+        show_display = False
+        _i += 1
+    elif sys.argv[_i] == '--overwrite':
+        overwrite = True
+        _i += 1
+    else:
+        _i += 1
+
 base_name = f"{animal_name}_{date_time}_{session_name}"
 
 # Mirror the animal/session hierarchy on the NVMe fast disc
@@ -33,17 +54,15 @@ os.makedirs(nvme_session_path, exist_ok=True)
 
 folder_top   = os.path.join(nvme_session_path, f"{base_name}_topcam_frames")
 folder_front = os.path.join(nvme_session_path, f"{base_name}_frontcam_frames")
-ts_file_top   = os.path.join(nvme_session_path, f"{base_name}_topcam_video_timestamps.txt")
-ts_file_front = os.path.join(nvme_session_path, f"{base_name}_frontcam_video_timestamps.txt")
+ts_file_top   = os.path.join(nvme_session_path, f"{base_name}_topcam_timestamps.txt")
+ts_file_front = os.path.join(nvme_session_path, f"{base_name}_frontcam_timestamps.txt")
 
 for folder in (folder_top, folder_front):
     if os.path.exists(folder):
-        print(f"WARNING: Frame folder '{folder}' already exists.")
-        user_input = input("Do you want to overwrite it? (y/n): ").strip().lower()
-        if user_input == 'y':
+        if overwrite:
             shutil.rmtree(folder)
         else:
-            print("Aborting. Remove or rename existing frame folders before starting.")
+            print(f"ERROR: Frame folder '{folder}' already exists. Pass --overwrite to replace it.")
             sys.exit(1)
     os.makedirs(folder)
 
@@ -74,13 +93,17 @@ def _open_camera(serial):
 cam_top   = _open_camera(SERIAL_TOPCAM)
 cam_front = _open_camera(SERIAL_FRONTCAM)
 
-# ------ Top Camera Settings (hardware-triggered, 200 Hz) ------
+# ------ Top Camera Settings (hardware-triggered, 30 Hz) ------
+cam_top.BinningHorizontal.Value     = 2
+cam_top.BinningVertical.Value       = 2
+cam_top.BinningHorizontalMode.Value = "Average"
+cam_top.BinningVerticalMode.Value   = "Average"
 cam_top.Width.Value  = W
 cam_top.Height.Value = H
 cam_top.PixelFormat.Value = "Mono8"          # explicit — Pylon Viewer can leave Mono12
-cam_top.ExposureTime.Value = 3500
+cam_top.ExposureTime.Value = 6000
 cam_top.ExposureAuto.Value = "Off"
-cam_top.Gain.Value = 12
+cam_top.Gain.Value = 5
 cam_top.DeviceLinkThroughputLimitMode.Value = "Off"
 cam_top.AcquisitionFrameRateEnable.Value = False
 cam_top.AcquisitionMode.Value = "Continuous"
@@ -99,18 +122,18 @@ cam_top.LineMode.Value     = "Output"
 cam_top.LineSource.Value   = "ExposureActive"
 
 # ------ Front Camera Settings (free-running) ------
-# Bandwidth budget on one USB 3.0 controller (~380 MB/s practical):
-#   topcam  200 Hz × 1440×1080 = 311 MB/s
-#   frontcam 50 Hz × 1440×1080 =  78 MB/s  → total 389 MB/s (safe)
-# Increase FRONTCAM_FPS only if cameras are on separate USB host controllers.
 FRONTCAM_FPS = 200.0
 
+cam_front.BinningHorizontal.Value     = 2
+cam_front.BinningVertical.Value       = 2
+cam_front.BinningHorizontalMode.Value = "Average"
+cam_front.BinningVerticalMode.Value   = "Average"
 cam_front.Width.Value  = W
 cam_front.Height.Value = H
 cam_front.PixelFormat.Value = "Mono8"
-cam_front.ExposureTime.Value = 5000
+cam_front.ExposureTime.Value = 4900
 cam_front.ExposureAuto.Value = "Off"
-cam_front.Gain.Value = 0
+cam_front.Gain.Value = 10
 cam_front.AcquisitionMode.Value = "Continuous"
 cam_front.AcquisitionFrameRateEnable.Value = True
 cam_front.AcquisitionFrameRate.Value = FRONTCAM_FPS
@@ -141,7 +164,7 @@ start_event = threading.Event()  # set when topcam receives its first hardware t
 latest_top   = None
 latest_front = None
 display_lock = threading.Lock()
-_DIVIDER     = np.zeros((480, 4), dtype=np.uint8)  # 4-pixel separator between views
+_DIVIDER     = np.zeros((240, 4), dtype=np.uint8)  # 4-pixel separator between views
 
 # ------ Writer Threads ------
 write_queue_top   = queue.Queue()
@@ -211,7 +234,7 @@ def acquire_topcam():
                         fcount_top += 1
 
                         with display_lock:
-                            latest_top = cv2.resize(image, (640, 480))
+                            latest_top = cv2.resize(image, (320, 240))
 
                         if fill == CHUNK_SIZE:
                             write_queue_top.put((slot, CHUNK_SIZE, counter))
@@ -305,7 +328,7 @@ def acquire_frontcam():
                         fcount_front += 1
 
                         with display_lock:
-                            latest_front = cv2.resize(image, (640, 480))
+                            latest_front = cv2.resize(image, (320, 240))
 
                         if fill == CHUNK_SIZE:
                             write_queue_front.put((slot, CHUNK_SIZE, counter))
@@ -380,27 +403,48 @@ wt_front.start()
 acq_top_thread.start()
 acq_front_thread.start()
 
-# Main thread runs the live display.
-# cv2.imshow must be called from the main thread on Windows — never from a secondary thread.
+# Main thread: live display and/or preview-file writing.
+# cv2.imshow must be called from the main thread on Windows.
+_preview_tick  = 0
+_PREVIEW_EVERY = 2   # write preview frame every 2 iterations ≈ 15 fps at 33 ms loop
+
 while acq_top_thread.is_alive() or acq_front_thread.is_alive():
     with display_lock:
         top_frame   = latest_top
         front_frame = latest_front
 
-    if top_frame is not None and front_frame is not None:
-        combined = np.hstack([top_frame, _DIVIDER, front_frame])
-    elif top_frame is not None:
-        combined = top_frame
-    elif front_frame is not None:
-        combined = front_frame
+    if show_display:
+        if top_frame is not None and front_frame is not None:
+            combined = np.hstack([top_frame, _DIVIDER, front_frame])
+        elif top_frame is not None:
+            combined = top_frame
+        elif front_frame is not None:
+            combined = front_frame
+        else:
+            combined = None
+        if combined is not None:
+            cv2.imshow("Live Stream  [top | front]", combined)
+        cv2.waitKey(33)
     else:
-        combined = None
+        time.sleep(0.033)
 
-    if combined is not None:
-        cv2.imshow("Live Stream  [top | front]", combined)
-    cv2.waitKey(33)
+    if preview_dir is not None and top_frame is not None:
+        _preview_tick += 1
+        if _preview_tick >= _PREVIEW_EVERY:
+            _preview_tick = 0
+            try:
+                _tmp = os.path.join(preview_dir, 'preview_top.tmp.npy')
+                np.save(_tmp, top_frame)
+                os.replace(_tmp, os.path.join(preview_dir, 'preview_top.npy'))
+                if front_frame is not None:
+                    _tmp = os.path.join(preview_dir, 'preview_front.tmp.npy')
+                    np.save(_tmp, front_frame)
+                    os.replace(_tmp, os.path.join(preview_dir, 'preview_front.npy'))
+            except Exception:
+                pass
 
-cv2.destroyAllWindows()
+if show_display:
+    cv2.destroyAllWindows()
 
 # Acquisition threads are done; wait for pending writes to flush
 acq_top_thread.join()
@@ -424,7 +468,7 @@ def _save_timestamps(folder, ts_file, n_chunks):
     with open(ts_file, 'w') as f:
         for ts in combined:
             f.write(f"{ts}\n")
-    print(f"Timestamps saved: {len(combined)} entries → {ts_file}")
+    print(f"Timestamps saved: {len(combined)} entries -> {ts_file}")
 
 
 print("Saving timestamps...")
@@ -450,7 +494,7 @@ metadata = {
         "fps_estimated": round(fps_front, 2),
     },
 }
-meta_path = os.path.join(nvme_session_path, "session_metadata.json")
+meta_path = os.path.join(nvme_session_path, f"{base_name}_cam_metadata.json")
 with open(meta_path, 'w') as f:
     json.dump(metadata, f, indent=2)
-print(f"Metadata saved → {meta_path}")
+print(f"Metadata saved -> {meta_path}")
