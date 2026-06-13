@@ -218,7 +218,7 @@ for currentTrial = 1:S.GUI.MaxTrialNumber
         BpodSystem.Data.TrialSettings(currentTrial) = S;
         BpodSystem.Data.TrialTypes(currentTrial) = triallist(currentTrial);
         SaveBpodSessionData; %Saves the field BpodSystem.Data to the current data file
-        SaveBpodProtocolSettings;
+        %SaveBpodProtocolSettings;
     end
 
     if BpodSystem.Status.BeingUsed == 0
