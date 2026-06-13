@@ -30,8 +30,8 @@ if isempty(fieldnames(S))
     
     S.GUI.SubjectID = BpodSystem.GUIData.SubjectName;
     S.GUI.SessionID = BpodSystem.GUIData.SessionID;
-    S.GUI.ITIDur = 1; %ITIDur; %in seconds
-    S.GUI.stimDur = 1; %stimDur; %in seconds
+    S.GUI.ITIDur = ITIDur; %in seconds
+    S.GUI.stimDur = stimDur; %in seconds
     S.GUI.ScalingFactor = 1;
     S.GUI.EmergencyStop = 'SendBpodSoftCode(2)';
     S.GUIMeta.EmergencyStop.Style = 'pushbutton';
@@ -131,7 +131,7 @@ R.startUSBStream()
 % while waiting for WaveSurfer. onCleanup guarantees the timer is removed on
 % every exit path (normal end, early return, or error).
 t_estop = timer('Period', 0.5, 'ExecutionMode', 'fixedRate', ...
-    'TimerFcn', @(~,~) check_estop(ipc_dir));
+    'TimerFcn', @(~,~) report_and_check(ipc_dir));
 estopCleanup = onCleanup(@() stop_estop_timer(t_estop)); %#ok<NASGU>
 start(t_estop);
 
@@ -160,6 +160,9 @@ if BpodSystem.Status.BeingUsed == 0
     % and the GUI that the session is done. onCleanup removes the estop timer.
     fclose(fopen(fullfile(ipc_dir, 'stop_wavesurfer.flag'), 'w'));
     fclose(fopen(fullfile(ipc_dir, 'session_done.flag'), 'w'));
+    if exist(fullfile(ipc_dir, 'bpod_state.txt'), 'file')
+        delete(fullfile(ipc_dir, 'bpod_state.txt'));
+    end
     return
 end
 
@@ -277,6 +280,10 @@ end
 
 stop_estop_timer(t_estop);
 BpodSystem.Status.BeingUsed = 0;
+% Clear the live-state report so the GUI shows idle between sessions.
+if exist(fullfile(ipc_dir, 'bpod_state.txt'), 'file')
+    delete(fullfile(ipc_dir, 'bpod_state.txt'));
+end
 try, close(BpodSystem.ProtocolFigures.ParameterGUI); catch, end
 
 clear arduino
@@ -295,11 +302,36 @@ fclose(fopen(fullfile(ipc_dir, 'session_done.flag'), 'w'));
 disp('Session complete. WaveSurfer stopping automatically.');
 end
 
-function check_estop(ipc_dir)
+function report_and_check(ipc_dir)
+% Runs every 0.5 s during a session (incl. inside RunStateMachine). Reports the
+% live Bpod state to the GUI and handles the emergency-stop flag.
+global BpodSystem
+
+% ── Report current state for the GUI ─────────────────────────────────────────
+try
+    sname = '';
+    if isfield(BpodSystem.Status, 'CurrentStateName') && ~isempty(BpodSystem.Status.CurrentStateName)
+        sname = BpodSystem.Status.CurrentStateName;
+    elseif isfield(BpodSystem.Status, 'CurrentStateCode')
+        % Fallback: map the live state code to a name via the running matrix.
+        code = BpodSystem.Status.CurrentStateCode;
+        if isprop(BpodSystem, 'StateMatrix') || isfield(BpodSystem, 'StateMatrix')
+            names = BpodSystem.StateMatrix.StateNames;
+            if code >= 1 && code <= numel(names), sname = names{code}; end
+        end
+    end
+    if ~isempty(sname)
+        fid = fopen(fullfile(ipc_dir, 'bpod_state.txt'), 'w');
+        fprintf(fid, '%s', sname);
+        fclose(fid);
+    end
+catch
+end
+
+% ── Emergency stop ───────────────────────────────────────────────────────────
 f = fullfile(ipc_dir, 'emergency_stop.flag');
 if exist(f, 'file')
     delete(f);
-    global BpodSystem
     BpodSystem.Status.BeingUsed = 0;
     SendBpodSoftCode(2);
 end

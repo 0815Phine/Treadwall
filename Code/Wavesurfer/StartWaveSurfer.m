@@ -6,6 +6,16 @@ function StartWaveSurfer(wsp_file, session_dir, base_name)
 %   stop_wavesurfer.flag  →  stop recording, rename _00001.h5 → base_name.h5
 
 IPC_DIR = 'C:\Users\TomBombadil\Data\ipc';
+if ~exist(IPC_DIR, 'dir'), mkdir(IPC_DIR); end
+
+% Mirror the MATLAB command window to a file the GUI tails (fresh per launch).
+% StartWaveSurfer runs first in each MATLAB launch, so the diary captures
+% WaveSurfer + Bpod startup and every subsequent session.
+log_file = fullfile(IPC_DIR, 'matlab_log.txt');
+try, diary off; catch, end
+if exist(log_file, 'file'), delete(log_file); end
+diary(log_file);
+diary on;
 
 fprintf('\n=== Opening WaveSurfer ===\n');
 

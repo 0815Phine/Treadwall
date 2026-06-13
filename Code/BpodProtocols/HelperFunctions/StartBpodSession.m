@@ -57,13 +57,18 @@ end
 % The GUI writes IPC_DIR/pending_session.json to trigger the next session.
 % Close MATLAB (or press Ctrl+C) to quit at the end of the day.
 if ~exist(IPC_DIR, 'dir'), mkdir(IPC_DIR); end
-pending_file = fullfile(IPC_DIR, 'pending_bpod.json');
+pending_file  = fullfile(IPC_DIR, 'pending_bpod.json');
+shutdown_file = fullfile(IPC_DIR, 'shutdown.flag');
 
 fprintf('\nProtocol finished. Waiting for next session (close MATLAB to quit).\n');
 fclose(fopen(fullfile(IPC_DIR, 'matlab_alive.flag'), 'w'));
 while true
     pause(0.5);
     fclose(fopen(fullfile(IPC_DIR, 'matlab_alive.flag'), 'w'));
+    if exist(shutdown_file, 'file')
+        delete(shutdown_file);
+        break
+    end
     if exist(pending_file, 'file')
         try
             info = jsondecode(fileread(pending_file));
@@ -93,6 +98,18 @@ while true
         end
     end
 end
+
+% ── Clean disconnect (triggered by the GUI "Disconnect Bpod" button) ───────
+fprintf('\nDisconnecting Bpod...\n');
+try, delete(timerfindall); catch, end           % stop WaveSurfer IPC timer (+ any leftover)
+try, BpodSystem.Status.BeingUsed = 0; catch, end % avoid "running protocol" dialog in EndBpod
+try
+    EndBpod;
+catch e
+    fprintf('EndBpod error: %s\n', e.message);
+end
+try, fclose(fopen(fullfile(IPC_DIR, 'bpod_disconnected.flag'), 'w')); catch, end
+fprintf('Bpod disconnected. You can now close MATLAB.\n');
 
 end
 

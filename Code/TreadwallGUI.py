@@ -12,6 +12,7 @@ Features:
   - Auto-detects when Bpod session ends; prompts for notes upload + WaveSurfer stop
 """
 
+import html
 import json
 import os
 import subprocess
@@ -25,7 +26,7 @@ from PyQt5.QtCore import Qt, QThread, QTimer, pyqtSignal
 from PyQt5.QtGui import QFont, QImage, QPixmap
 from PyQt5.QtWidgets import (
     QApplication, QComboBox, QDoubleSpinBox, QGroupBox, QHBoxLayout, QLabel,
-    QLineEdit, QMainWindow, QMessageBox, QPushButton, QSplitter,
+    QLineEdit, QMainWindow, QMessageBox, QPushButton, QScrollArea, QSplitter,
     QTextEdit, QVBoxLayout, QWidget,
 )
 
@@ -138,6 +139,59 @@ class CameraReaperThread(QThread):
         self.finished_reaping.emit()
 
 
+class MatlabLogThread(QThread):
+    """Tails the MATLAB diary file (mirror of the MATLAB command window) and the
+    current-Bpod-state file, both written by the MATLAB side over IPC. Emits new
+    log lines and the latest state for the whole GUI lifetime."""
+    line_ready  = pyqtSignal(str)
+    state_ready = pyqtSignal(str)
+
+    def __init__(self, log_path: str, state_path: str):
+        super().__init__()
+        self._log_path   = Path(log_path)
+        self._state_path = Path(state_path)
+        self._active     = True
+        self._pos        = 0
+        self._last_state = None
+
+    def run(self):
+        while self._active:
+            # ── Tail the MATLAB log ──────────────────────────────────────────
+            try:
+                if self._log_path.exists():
+                    size = self._log_path.stat().st_size
+                    if size < self._pos:
+                        self._pos = 0          # file recreated on a fresh launch
+                    if size > self._pos:
+                        with open(self._log_path, "r", errors="replace") as f:
+                            f.seek(self._pos)
+                            data = f.read()
+                            self._pos = f.tell()
+                        for line in data.splitlines():
+                            self.line_ready.emit(line)
+                else:
+                    self._pos = 0
+            except Exception:
+                pass
+
+            # ── Poll the current Bpod state ──────────────────────────────────
+            try:
+                if self._state_path.exists():
+                    state = self._state_path.read_text(errors="replace").strip()
+                else:
+                    state = ""
+                if state != self._last_state:
+                    self._last_state = state
+                    self.state_ready.emit(state)
+            except Exception:
+                pass
+
+            self.msleep(500)
+
+    def stop(self):
+        self._active = False
+
+
 class TreadwallWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -157,6 +211,7 @@ class TreadwallWindow(QMainWindow):
         self._preview_thr  = None   # CameraPreviewThread
         self._cam_log_thr  = None   # CameraLogThread
         self._cam_reaper   = None   # CameraReaperThread (graceful camera shutdown)
+        self._matlab_log_thr = None # MatlabLogThread (MATLAB log mirror + Bpod state)
 
         try:
             self._rs = rspace.default_client()
@@ -167,13 +222,23 @@ class TreadwallWindow(QMainWindow):
         self._build_ui()
         self._populate_notebooks()
 
-        # Drop stale completion/error signals from a previous run so we don't
-        # react to them on launch.
-        for fname in ("session_done.flag", "session_error.json"):
+        # Drop stale completion/error/disconnect signals from a previous run so
+        # we don't react to them on launch.
+        for fname in ("session_done.flag", "session_error.json",
+                      "bpod_disconnected.flag"):
             try:
                 (Path(IPC_DIR) / fname).unlink(missing_ok=True)
             except Exception:
                 pass
+
+        # Tail the MATLAB log mirror + Bpod-state file for the whole GUI lifetime.
+        self._matlab_log_thr = MatlabLogThread(
+            str(Path(IPC_DIR) / "matlab_log.txt"),
+            str(Path(IPC_DIR) / "bpod_state.txt"),
+        )
+        self._matlab_log_thr.line_ready.connect(self._on_matlab_log_line)
+        self._matlab_log_thr.state_ready.connect(self._on_bpod_state)
+        self._matlab_log_thr.start()
 
         # Poll IPC dir every 2 s for session_done.flag / session_error.json from Bpod
         self._ipc_timer = QTimer(self)
@@ -208,13 +273,23 @@ class TreadwallWindow(QMainWindow):
         self._cam_log = QTextEdit()
         self._cam_log.setReadOnly(True)
         self._cam_log.setFont(QFont("Consolas", 8))
-        self._cam_log.setMinimumHeight(150)
+        self._cam_log.setMinimumHeight(120)
         self._cam_log.document().setMaximumBlockCount(200)
         ll.addWidget(self._cam_log)
+
+        mlog_box = QGroupBox("MATLAB Log")
+        ml = QVBoxLayout(mlog_box)
+        self._matlab_log = QTextEdit()
+        self._matlab_log.setReadOnly(True)
+        self._matlab_log.setFont(QFont("Consolas", 8))
+        self._matlab_log.setMinimumHeight(150)
+        self._matlab_log.document().setMaximumBlockCount(500)
+        ml.addWidget(self._matlab_log)
 
         lv.addWidget(top_box)
         lv.addWidget(front_box)
         lv.addWidget(log_box)
+        lv.addWidget(mlog_box)
 
         # ── Right panel: session setup + notes ──────────────────────────
         right = QWidget()
@@ -266,6 +341,23 @@ class TreadwallWindow(QMainWindow):
         self._status_lbl.setWordWrap(True)
         sv.addWidget(self._status_lbl)
 
+        # Live Bpod state (mirrors the Bpod console), fed from bpod_state.txt.
+        self._state_lbl = QLabel("Bpod state: —")
+        self._state_lbl.setStyleSheet("font-weight:bold;font-size:12px;color:#ddd;")
+        sv.addWidget(self._state_lbl)
+
+        # Clean disconnect of Bpod when done with all sessions (enabled only when
+        # MATLAB is alive and no session is running).
+        self._disconnect_btn = QPushButton("Disconnect Bpod")
+        self._disconnect_btn.setStyleSheet(
+            "QPushButton{background:#444;color:#ddd;padding:6px}"
+            "QPushButton:hover{background:#666}"
+            "QPushButton:disabled{background:#2a2a2a;color:#666}"
+        )
+        self._disconnect_btn.setEnabled(False)
+        self._disconnect_btn.clicked.connect(self._on_disconnect)
+        sv.addWidget(self._disconnect_btn)
+
         # Notes group
         notes_box = QGroupBox("Session Notes")
         nv = QVBoxLayout(notes_box)
@@ -307,7 +399,13 @@ class TreadwallWindow(QMainWindow):
         rv.addWidget(params_box)
         rv.addWidget(notes_box, 1)
 
-        splitter.addWidget(left)
+        # Scroll the left column so the extra MATLAB Log box never overflows the
+        # fixed-size camera labels.
+        left_scroll = QScrollArea()
+        left_scroll.setWidgetResizable(True)
+        left_scroll.setWidget(left)
+
+        splitter.addWidget(left_scroll)
         splitter.addWidget(right)
         splitter.setSizes([540, 440])
         outer.addWidget(splitter)
@@ -401,7 +499,8 @@ class TreadwallWindow(QMainWindow):
         # Clear stale IPC flags from a previous session so a leftover flag can't
         # immediately stop/mis-report this one.
         for fname in ("emergency_stop.flag", "stop_wavesurfer.flag",
-                      "session_done.flag", "session_error.json"):
+                      "session_done.flag", "session_error.json",
+                      "shutdown.flag", "bpod_disconnected.flag", "bpod_state.txt"):
             try:
                 (ipc / fname).unlink(missing_ok=True)
             except Exception:
@@ -448,6 +547,7 @@ class TreadwallWindow(QMainWindow):
 
         self._start_btn.setText("NEW SESSION")
         self._estop_btn.setEnabled(True)
+        self._disconnect_btn.setEnabled(False)   # a session is running now
         self.setWindowTitle(f"Treadwall — {self._base_name}")
         self._set_status(
             f"Session ready: {self._base_name}\n"
@@ -578,8 +678,19 @@ class TreadwallWindow(QMainWindow):
     # ── IPC polling ────────────────────────────────────────────────────────────
 
     def _poll_ipc(self):
-        """Called every 2 s; checks for session_error.json and session_done.flag from Bpod."""
+        """Called every 2 s; checks for session_error.json, session_done.flag and
+        bpod_disconnected.flag from MATLAB."""
         ipc = Path(IPC_DIR)
+
+        # Bpod cleanly disconnected — the rig is safe to close.
+        disc_file = ipc / "bpod_disconnected.flag"
+        if disc_file.exists():
+            disc_file.unlink(missing_ok=True)
+            self._estop_btn.setEnabled(False)
+            self._disconnect_btn.setEnabled(False)
+            self._start_btn.setEnabled(False)
+            self._set_status("Bpod disconnected — safe to close MATLAB and WaveSurfer.")
+            return
 
         # Session failed to start/run — surface it and reset controls so the GUI
         # doesn't appear stuck "running".
@@ -591,6 +702,7 @@ class TreadwallWindow(QMainWindow):
                 msg = "unknown error"
             err_file.unlink(missing_ok=True)
             self._estop_btn.setEnabled(False)
+            self._disconnect_btn.setEnabled(True)   # idle now — disconnect allowed
             # Startup error → the camera never got its trigger and recorded
             # nothing, so stop it immediately rather than waiting it out.
             self._stop_camera()
@@ -607,6 +719,7 @@ class TreadwallWindow(QMainWindow):
             return
         flag.unlink(missing_ok=True)
         self._estop_btn.setEnabled(False)
+        self._disconnect_btn.setEnabled(True)   # idle now — disconnect allowed
         # Let the camera self-stop (via the BNC trigger) and finish writing its
         # frames/timestamps/metadata; don't kill it mid-save.
         self._finish_camera()
@@ -645,7 +758,9 @@ class TreadwallWindow(QMainWindow):
 
         animal     = self._animal_combo.currentText().strip()
         session    = self._session_edit.text().strip()
-        content    = "\n".join(self._notes)
+        # RSpace 'text' fields hold HTML, so newlines collapse — wrap each note
+        # in its own paragraph (escaped) so it renders on a separate line.
+        content    = "".join(f"<p>{html.escape(n)}</p>" for n in self._notes)
         entry_name = f"{self._datetime_str}_treadwall_{session}"
         tags       = [f"id_{animal}", RSPACE_METHOD_TAG]
 
@@ -659,6 +774,14 @@ class TreadwallWindow(QMainWindow):
 
     def _on_cam_log_line(self, line: str):
         self._cam_log.append(line)
+
+    # ── MATLAB log + Bpod state ──────────────────────────────────────────────────
+
+    def _on_matlab_log_line(self, line: str):
+        self._matlab_log.append(line)
+
+    def _on_bpod_state(self, state: str):
+        self._state_lbl.setText(f"Bpod state: {state}" if state else "Bpod state: —")
 
     # ── Protocol parameters ─────────────────────────────────────────────────────
 
@@ -686,6 +809,27 @@ class TreadwallWindow(QMainWindow):
         except Exception as e:
             self._set_status(f"Emergency stop failed: {e}")
 
+    def _on_disconnect(self):
+        """Ask MATLAB to cleanly EndBpod when done for the day."""
+        if not self._matlab_is_alive():
+            self._set_status("No running MATLAB session to disconnect.")
+            self._disconnect_btn.setEnabled(False)
+            return
+        ans = QMessageBox.question(
+            self, "Disconnect Bpod",
+            "Cleanly disconnect Bpod from MATLAB?\n\n"
+            "MATLAB and WaveSurfer stay open so you can close them yourself.",
+            QMessageBox.Yes | QMessageBox.No,
+        )
+        if ans != QMessageBox.Yes:
+            return
+        try:
+            (Path(IPC_DIR) / "shutdown.flag").touch()
+            self._disconnect_btn.setEnabled(False)
+            self._set_status("Disconnecting Bpod…")
+        except Exception as e:
+            self._set_status(f"Disconnect failed: {e}")
+
     # ── Helpers ────────────────────────────────────────────────────────────────
 
     def _set_status(self, msg: str):
@@ -696,6 +840,10 @@ class TreadwallWindow(QMainWindow):
         if self._cam_reaper is not None:
             self._cam_reaper.wait(3000)
             self._cam_reaper = None
+        if self._matlab_log_thr is not None:
+            self._matlab_log_thr.stop()
+            self._matlab_log_thr.wait(2000)
+            self._matlab_log_thr = None
         self._ipc_timer.stop()
         event.accept()
 
