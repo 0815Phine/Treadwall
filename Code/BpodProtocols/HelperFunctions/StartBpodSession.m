@@ -60,7 +60,7 @@ if ~exist(IPC_DIR, 'dir'), mkdir(IPC_DIR); end
 pending_file  = fullfile(IPC_DIR, 'pending_bpod.json');
 shutdown_file = fullfile(IPC_DIR, 'shutdown.flag');
 
-fprintf('\nProtocol finished. Waiting for next session (close MATLAB to quit).\n');
+print_ready_message();
 fclose(fopen(fullfile(IPC_DIR, 'matlab_alive.flag'), 'w'));
 while true
     pause(0.5);
@@ -91,7 +91,7 @@ while true
 
             fprintf('Starting new session: %s\n\n', new_base_name);
             feval(protocol_name)
-            fprintf('\nSession done. Waiting for next session...\n');
+            print_ready_message();
         catch e
             fprintf('Error starting new session: %s\n', e.message);
             write_session_error(IPC_DIR, e.message);
@@ -101,16 +101,32 @@ end
 
 % ── Clean disconnect (triggered by the GUI "Disconnect Bpod" button) ───────
 fprintf('\nDisconnecting Bpod...\n');
-try, delete(timerfindall); catch, end           % stop WaveSurfer IPC timer (+ any leftover)
 try, BpodSystem.Status.BeingUsed = 0; catch, end % avoid "running protocol" dialog in EndBpod
 try
-    EndBpod;
+    EndBpod;   % gracefully stops+deletes Bpod's own AnalogTimer/PortRelayTimer
 catch e
     fprintf('EndBpod error: %s\n', e.message);
 end
+% Mop up any leftover non-Bpod timers (protocol / IPC) AFTER Bpod is down. Doing
+% this before EndBpod deleted Bpod's own AnalogTimer out from under it, so EndBpod
+% then errored on stop(AnalogTimer) and left Bpod half-disconnected (bpod could
+% not be reopened). Bpod's timers are already gone by here, so this is a no-op
+% in the normal (idle) disconnect case.
+try, delete(timerfindall); catch, end
 try, fclose(fopen(fullfile(IPC_DIR, 'bpod_disconnected.flag'), 'w')); catch, end
 fprintf('Bpod disconnected. You can now close MATLAB.\n');
 
+end
+
+function print_ready_message()
+% Same message after every session so the operator always sees the same two
+% options in the console: start another session, or disconnect + close.
+fprintf('\n');
+fprintf('============================================================\n');
+fprintf(' Session finished. In the Treadwall GUI you can now:\n');
+fprintf('   - start a NEW SESSION, or\n');
+fprintf('   - click "Disconnect Bpod", then close the GUI.\n');
+fprintf('============================================================\n');
 end
 
 function write_session_error(ipc_dir, msg)

@@ -12,7 +12,6 @@ import subprocess
 # ------ Configuration ------
 CHUNK_SIZE = 200        # frames per chunk piped to the encoder (200 = 1 s at 200 Hz)
 H, W = 540, 720       # frame dimensions (must match camera settings below)
-NVME_BASE = r"C:\Users\TomBombadil\Documents\Data"
 
 # Encoder settings — frames are encoded live to visually-lossless H.264 .mp4
 # instead of being dumped as uncompressed .npy (which was ~93 GB/session).
@@ -114,18 +113,21 @@ while _i < len(sys.argv):
 
 base_name = f"{animal_name}_{date_time}_{session_name}"
 
-# Mirror the animal/session hierarchy on the NVMe fast disc
-nvme_session_path = os.path.join(NVME_BASE, animal_name, session_name)
-os.makedirs(nvme_session_path, exist_ok=True)
+# Write straight into the session's data folder (the LTS path the GUI passes as
+# argv[1]) so the videos + timestamps land next to the Bpod/WaveSurfer data with
+# no separate move step. Live H.264 encoding keeps the output small enough that
+# NVMe staging is no longer needed.
+session_out = session_folder
+os.makedirs(session_out, exist_ok=True)
 
-video_top   = os.path.join(nvme_session_path, f"{base_name}_topcam.mp4")
-video_front = os.path.join(nvme_session_path, f"{base_name}_frontcam.mp4")
-ts_file_top   = os.path.join(nvme_session_path, f"{base_name}_topcam_timestamps.txt")
-ts_file_front = os.path.join(nvme_session_path, f"{base_name}_frontcam_timestamps.txt")
+video_top   = os.path.join(session_out, f"{base_name}_topcam.mp4")
+video_front = os.path.join(session_out, f"{base_name}_frontcam.mp4")
+ts_file_top   = os.path.join(session_out, f"{base_name}_topcam_timestamps.txt")
+ts_file_front = os.path.join(session_out, f"{base_name}_frontcam_timestamps.txt")
 # PC (perf_counter_ns) timestamps kept as a sidecar — previously saved as
 # per-chunk _pc_ts.npy, which no longer exists now that frames are encoded live.
-pc_ts_file_top   = os.path.join(nvme_session_path, f"{base_name}_topcam_pc_timestamps.txt")
-pc_ts_file_front = os.path.join(nvme_session_path, f"{base_name}_frontcam_pc_timestamps.txt")
+pc_ts_file_top   = os.path.join(session_out, f"{base_name}_topcam_pc_timestamps.txt")
+pc_ts_file_front = os.path.join(session_out, f"{base_name}_frontcam_pc_timestamps.txt")
 
 for vpath in (video_top, video_front):
     if os.path.exists(vpath):
@@ -617,7 +619,7 @@ metadata = {
         "video_file":    os.path.basename(video_front),
     },
 }
-meta_path = os.path.join(nvme_session_path, f"{base_name}_cam_metadata.json")
+meta_path = os.path.join(session_out, f"{base_name}_cam_metadata.json")
 with open(meta_path, 'w') as f:
     json.dump(metadata, f, indent=2)
 print(f"Metadata saved -> {meta_path}")

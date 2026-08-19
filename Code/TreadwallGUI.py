@@ -722,7 +722,10 @@ class TreadwallWindow(QMainWindow):
             self._estop_btn.setEnabled(False)
             self._disconnect_btn.setEnabled(False)
             self._start_btn.setEnabled(False)
-            self._set_status("Bpod disconnected — safe to close MATLAB and WaveSurfer.")
+            self._set_status(
+                "Bpod disconnected — safe to close this window "
+                "(and MATLAB / WaveSurfer)."
+            )
             return
 
         # Session failed to start/run — surface it and reset controls so the GUI
@@ -765,6 +768,13 @@ class TreadwallWindow(QMainWindow):
         )
         if ans == QMessageBox.Yes:
             self._upload_notes()
+        # Consistent end-of-session state (identical after every session): the
+        # operator can start another session or shut down via Disconnect Bpod.
+        self._set_status(
+            "Session complete.\n"
+            "→ Start a NEW SESSION, or click \"Disconnect Bpod\" "
+            "and then close this window."
+        )
 
     # ── Notes ──────────────────────────────────────────────────────────────────
 
