@@ -6,7 +6,7 @@
 
 % ── Configuration (edit once) ─────────────────────────────────────────────
 DATA_BASE = 'D:\';
-IPC_DIR   = 'C:\Users\TomBombadil\Data\ipc';
+IPC_DIR   = 'C:\Users\TomBombadil\Documents\TreadwallGUI\ipc';
 % ──────────────────────────────────────────────────────────────────────────
 
 % Signal to GUI that MATLAB is alive (heartbeat, also updated in wait loop below)

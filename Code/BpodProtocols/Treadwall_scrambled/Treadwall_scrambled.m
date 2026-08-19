@@ -4,7 +4,7 @@ function Treadwall_scrambled
 global BpodSystem
 
 %% ---------- IPC setup ---------------------------------------------------
-ipc_dir = 'C:\Users\TomBombadil\Data\ipc';
+ipc_dir = 'C:\Users\TomBombadil\Documents\TreadwallGUI\ipc';
 if ~exist(ipc_dir, 'dir'), mkdir(ipc_dir); end
 % Clear any stale emergency-stop flag left over from a previous session so it
 % cannot immediately abort this one.
@@ -52,6 +52,18 @@ end
 BpodParameterGUI('init', S);
 BpodSystem.ProtocolSettings = S;
 try, close(BpodSystem.ProtocolFigures.ParameterGUI); catch, end
+
+% Publish the protocol-loaded parameters so the GUI shows them as the initial
+% values. The GUI must NOT pre-seed protocol_params.json; it ingests this file
+% instead, and only writes protocol_params.json back when the user edits a value.
+try
+    lp = struct('ITIDur', S.GUI.ITIDur, 'stimDur', S.GUI.stimDur, ...
+        'ScalingFactor', S.GUI.ScalingFactor);
+    fid = fopen(fullfile(ipc_dir, 'loaded_params.json'), 'w');
+    fprintf(fid, '%s', jsonencode(lp));
+    fclose(fid);
+catch
+end
 
 %% ---------- Create Triallist and load Trials ----------------------------
 % create triallist (adjust function according to trials needed)

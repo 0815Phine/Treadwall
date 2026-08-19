@@ -7,12 +7,78 @@ import threading
 import queue
 import json
 import numpy as np
-import shutil
+import subprocess
 
 # ------ Configuration ------
-CHUNK_SIZE = 200        # frames per .npy chunk (200 frames = 1 s at 200 Hz)
+CHUNK_SIZE = 200        # frames per chunk piped to the encoder (200 = 1 s at 200 Hz)
 H, W = 540, 720       # frame dimensions (must match camera settings below)
 NVME_BASE = r"C:\Users\TomBombadil\Documents\Data"
+
+# Encoder settings — frames are encoded live to visually-lossless H.264 .mp4
+# instead of being dumped as uncompressed .npy (which was ~93 GB/session).
+TOPCAM_FPS_NOMINAL = 30.0   # top cam is hardware-triggered; .mp4 -r is nominal,
+                            # true timing lives in the timestamp .txt files
+ENCODE_QP = 18              # constant quality (h264_nvenc -qp / libx264 -crf);
+                            # lower = higher quality + larger file (15 ≈ near-lossless)
+
+
+def _has_nvenc():
+    """True if this ffmpeg build exposes the NVIDIA hardware H.264 encoder."""
+    try:
+        result = subprocess.run(
+            ["ffmpeg", "-hide_banner", "-encoders"],
+            capture_output=True, text=True, timeout=10
+        )
+        return "h264_nvenc" in result.stdout
+    except Exception:
+        return False
+
+
+def _start_encoder(out_path, fps, use_nvenc):
+    """Launch an ffmpeg subprocess that reads raw Mono8 frames on stdin and
+    encodes them straight to a visually-lossless H.264 .mp4.
+
+    Feed it with proc.stdin.write(frame_bytes) and close stdin when done.
+    """
+    cmd = [
+        "ffmpeg", "-y",
+        "-f", "rawvideo",
+        "-vcodec", "rawvideo",
+        "-pix_fmt", "gray",
+        "-s", f"{W}x{H}",
+        "-r", str(fps),
+        "-i", "pipe:0",
+    ]
+    if use_nvenc:
+        # NVENC has huge headroom at 720x540@200 fps, so use a slower preset
+        # (better compression) with constant-QP rate control.
+        cmd += [
+            "-c:v", "h264_nvenc",
+            "-preset", "p5",
+            "-rc", "constqp",
+            "-qp", str(ENCODE_QP),
+        ]
+    else:
+        # CPU fallback — 'veryfast' keeps libx264 above 200 fps at this size.
+        cmd += [
+            "-c:v", "libx264",
+            "-preset", "veryfast",
+            "-crf", str(ENCODE_QP),
+        ]
+    # Fragmented mp4: if the process is killed mid-session (emergency stop /
+    # crash) the file is still playable instead of a headerless stub.
+    cmd += [
+        "-pix_fmt", "yuv420p",
+        "-an",
+        "-movflags", "+frag_keyframe+empty_moov+default_base_moof",
+        out_path,
+    ]
+    return subprocess.Popen(
+        cmd,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.PIPE,
+    )
 
 # Fill in Basler serial numbers before first use.
 # Run the script with no cameras configured to print detected serials.
@@ -52,19 +118,22 @@ base_name = f"{animal_name}_{date_time}_{session_name}"
 nvme_session_path = os.path.join(NVME_BASE, animal_name, session_name)
 os.makedirs(nvme_session_path, exist_ok=True)
 
-folder_top   = os.path.join(nvme_session_path, f"{base_name}_topcam_frames")
-folder_front = os.path.join(nvme_session_path, f"{base_name}_frontcam_frames")
+video_top   = os.path.join(nvme_session_path, f"{base_name}_topcam.mp4")
+video_front = os.path.join(nvme_session_path, f"{base_name}_frontcam.mp4")
 ts_file_top   = os.path.join(nvme_session_path, f"{base_name}_topcam_timestamps.txt")
 ts_file_front = os.path.join(nvme_session_path, f"{base_name}_frontcam_timestamps.txt")
+# PC (perf_counter_ns) timestamps kept as a sidecar — previously saved as
+# per-chunk _pc_ts.npy, which no longer exists now that frames are encoded live.
+pc_ts_file_top   = os.path.join(nvme_session_path, f"{base_name}_topcam_pc_timestamps.txt")
+pc_ts_file_front = os.path.join(nvme_session_path, f"{base_name}_frontcam_pc_timestamps.txt")
 
-for folder in (folder_top, folder_front):
-    if os.path.exists(folder):
+for vpath in (video_top, video_front):
+    if os.path.exists(vpath):
         if overwrite:
-            shutil.rmtree(folder)
+            os.remove(vpath)
         else:
-            print(f"ERROR: Frame folder '{folder}' already exists. Pass --overwrite to replace it.")
+            print(f"ERROR: Video file '{vpath}' already exists. Pass --overwrite to replace it.")
             sys.exit(1)
-    os.makedirs(folder)
 
 # ------ Camera Discovery ------
 tlf = py.TlFactory.GetInstance()
@@ -171,7 +240,14 @@ write_queue_top   = queue.Queue()
 write_queue_front = queue.Queue()
 
 
-def _writer(write_queue, frame_buffers, cam_ts_buffers, pc_ts_buffers, folder):
+def _writer(write_queue, frame_buffers, cam_ts_buffers, pc_ts_buffers, proc, ts_accum, label):
+    """Pipe each completed chunk's raw bytes to its ffmpeg encoder and keep the
+    chunk's timestamps in memory (.copy(), since the buffer slot is reused).
+
+    If the encoder pipe breaks, the encoder has died — there is no raw .npy
+    fallback, so stop the whole acquisition immediately and surface the error
+    rather than silently losing the rest of the session.
+    """
     while True:
         item = write_queue.get()
         if item is None:
@@ -179,14 +255,12 @@ def _writer(write_queue, frame_buffers, cam_ts_buffers, pc_ts_buffers, folder):
             break
         slot, n, chunk_idx = item
         try:
-            np.save(os.path.join(folder, f"chunk_{chunk_idx:06d}.npy"),
-                    frame_buffers[slot][:n])
-            np.save(os.path.join(folder, f"chunk_{chunk_idx:06d}_cam_ts.npy"),
-                    cam_ts_buffers[slot][:n])
-            np.save(os.path.join(folder, f"chunk_{chunk_idx:06d}_pc_ts.npy"),
-                    pc_ts_buffers[slot][:n])
-        except Exception as e:
-            print(f"ERROR writing chunk {chunk_idx} to {folder}: {e}")
+            proc.stdin.write(frame_buffers[slot][:n].tobytes())
+            ts_accum['cam'].append(cam_ts_buffers[slot][:n].copy())
+            ts_accum['pc'].append(pc_ts_buffers[slot][:n].copy())
+        except (BrokenPipeError, OSError, ValueError) as e:
+            print(f"ERROR: {label} encoder pipe broke at chunk {chunk_idx}: {e}")
+            stop_event.set()
         write_queue.task_done()
 
 
@@ -387,12 +461,26 @@ def _run_frontcam():
         stop_event.set()
 
 
+# ------ Launch Encoders ------
+# One ffmpeg process per camera, started before acquisition. Frames are piped
+# to stdin by the writer threads and finalized after acquisition ends.
+use_nvenc = _has_nvenc()
+print(f"Encoder: {'h264_nvenc (GPU)' if use_nvenc else 'libx264 (CPU)'}, qp/crf={ENCODE_QP}")
+enc_top   = _start_encoder(video_top,   TOPCAM_FPS_NOMINAL, use_nvenc)
+enc_front = _start_encoder(video_front, FRONTCAM_FPS,       use_nvenc)
+
+# Per-camera in-memory timestamp accumulators (filled by the writer threads).
+ts_accum_top   = {'cam': [], 'pc': []}
+ts_accum_front = {'cam': [], 'pc': []}
+
 # ------ Start All Threads ------
 wt_top   = threading.Thread(target=_writer,
-                            args=(write_queue_top, chunk_top, cam_ts_top, pc_ts_top, folder_top),
+                            args=(write_queue_top, chunk_top, cam_ts_top, pc_ts_top,
+                                  enc_top, ts_accum_top, "Topcam"),
                             daemon=False)
 wt_front = threading.Thread(target=_writer,
-                            args=(write_queue_front, chunk_front, cam_ts_front, pc_ts_front, folder_front),
+                            args=(write_queue_front, chunk_front, cam_ts_front, pc_ts_front,
+                                  enc_front, ts_accum_front, "Frontcam"),
                             daemon=False)
 
 acq_top_thread   = threading.Thread(target=_run_topcam,   daemon=False)
@@ -458,13 +546,37 @@ counter_top,   fps_top   = top_results
 counter_front, fps_front = front_results
 
 
+# ------ Finalize Encoders ------
+# Close stdin so ffmpeg writes the trailer/index, then drain stderr while it
+# exits (proc.wait() alone can deadlock on a full stderr pipe). Must always run
+# so the .mp4 is finalized even on emergency stop / early exit.
+def _finalize_encoder(proc, label):
+    try:
+        if proc.stdin and not proc.stdin.closed:
+            proc.stdin.close()
+    except Exception:
+        pass
+    try:
+        _, err = proc.communicate(timeout=120)
+    except Exception as e:
+        print(f"{label} encoder: finalize error ({e}); killing.")
+        proc.kill()
+        _, err = proc.communicate()
+    if proc.returncode:
+        msg = (err or b"").decode("utf-8", errors="replace")
+        print(f"{label} encoder exited with code {proc.returncode}:\n{msg}")
+    else:
+        print(f"{label} encoder finalized OK.")
+
+
+print("Finalizing encoders...")
+_finalize_encoder(enc_top,   "Topcam")
+_finalize_encoder(enc_front, "Frontcam")
+
+
 # ------ Save Timestamps ------
-def _save_timestamps(folder, ts_file, n_chunks):
-    all_ts = []
-    for idx in range(n_chunks):
-        p = os.path.join(folder, f"chunk_{idx:06d}_cam_ts.npy")
-        all_ts.append(np.load(p))
-    combined = np.concatenate(all_ts) if all_ts else np.array([], dtype=np.int64)
+def _save_timestamps(ts_chunks, ts_file):
+    combined = np.concatenate(ts_chunks) if ts_chunks else np.array([], dtype=np.int64)
     with open(ts_file, 'w') as f:
         for ts in combined:
             f.write(f"{ts}\n")
@@ -472,8 +584,10 @@ def _save_timestamps(folder, ts_file, n_chunks):
 
 
 print("Saving timestamps...")
-_save_timestamps(folder_top,   ts_file_top,   counter_top)
-_save_timestamps(folder_front, ts_file_front, counter_front)
+_save_timestamps(ts_accum_top['cam'],    ts_file_top)
+_save_timestamps(ts_accum_top['pc'],     pc_ts_file_top)
+_save_timestamps(ts_accum_front['cam'],  ts_file_front)
+_save_timestamps(ts_accum_front['pc'],   pc_ts_file_front)
 
 
 # ------ Save Session Metadata ------
@@ -483,15 +597,24 @@ metadata = {
     "session":         session_name,
     "base_name":       base_name,
     "session_dir_lts": session_folder,
+    "video": {
+        "format":     "mp4",
+        "codec":      "h264_nvenc" if use_nvenc else "libx264",
+        "qp_or_crf":  ENCODE_QP,
+        "pix_fmt_in": "gray",
+        "resolution": f"{W}x{H}",
+    },
     "topcam": {
         "serial":        SERIAL_TOPCAM,
         "total_frames":  fcount_top,
         "fps_estimated": round(fps_top, 2),
+        "video_file":    os.path.basename(video_top),
     },
     "frontcam": {
         "serial":        SERIAL_FRONTCAM,
         "total_frames":  fcount_front,
         "fps_estimated": round(fps_front, 2),
+        "video_file":    os.path.basename(video_front),
     },
 }
 meta_path = os.path.join(nvme_session_path, f"{base_name}_cam_metadata.json")

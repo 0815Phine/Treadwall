@@ -37,8 +37,8 @@ import rspace
 MATLAB_EXE        = r"C:\Program Files\MATLAB\R2024a\bin\matlab.exe"
 PYTHON_EXE        = r"C:\Users\TomBombadil\anaconda3\python.exe"
 DATA_BASE         = r"D:\\"
-IPC_DIR           = r"C:\Users\TomBombadil\Data\ipc"
-PREVIEW_DIR       = r"C:\Users\TomBombadil\Data\preview"
+IPC_DIR           = r"C:\Users\TomBombadil\Documents\TreadwallGUI\ipc"
+PREVIEW_DIR       = r"C:\Users\TomBombadil\Documents\TreadwallGUI\preview"
 RSPACE_METHOD_TAG = "m_invivo_imaging"
 PROTOCOLS = [
     "Treadwall_Baseline",
@@ -151,7 +151,14 @@ class MatlabLogThread(QThread):
         self._log_path   = Path(log_path)
         self._state_path = Path(state_path)
         self._active     = True
-        self._pos        = 0
+        # Start at the current end of the log so stale content from a previous
+        # MATLAB run isn't dumped into the panel on launch. A fresh MATLAB launch
+        # deletes + recreates the diary (size < pos), which run() detects and
+        # resets to 0, so new content is still read in full.
+        try:
+            self._pos = self._log_path.stat().st_size if self._log_path.exists() else 0
+        except Exception:
+            self._pos = 0
         self._last_state = None
 
     def run(self):
@@ -193,6 +200,16 @@ class MatlabLogThread(QThread):
 
 
 class TreadwallWindow(QMainWindow):
+    # Bpod-state status chip styling (toggled in _on_bpod_state).
+    _STATE_STYLE_IDLE = (
+        "font-weight:bold;font-size:18px;color:#888;"
+        "background:#222;border:1px solid #333;border-radius:4px;padding:8px;"
+    )
+    _STATE_STYLE_ACTIVE = (
+        "font-weight:bold;font-size:18px;color:white;"
+        "background:#2a7a4a;border:1px solid #35a060;border-radius:4px;padding:8px;"
+    )
+
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Treadwall Session Manager")
@@ -225,7 +242,7 @@ class TreadwallWindow(QMainWindow):
         # Drop stale completion/error/disconnect signals from a previous run so
         # we don't react to them on launch.
         for fname in ("session_done.flag", "session_error.json",
-                      "bpod_disconnected.flag"):
+                      "bpod_disconnected.flag", "loaded_params.json"):
             try:
                 (Path(IPC_DIR) / fname).unlink(missing_ok=True)
             except Exception:
@@ -342,8 +359,11 @@ class TreadwallWindow(QMainWindow):
         sv.addWidget(self._status_lbl)
 
         # Live Bpod state (mirrors the Bpod console), fed from bpod_state.txt.
+        # Styled as a prominent status chip; colour switches with state in
+        # _on_bpod_state (green = running, dim = idle).
         self._state_lbl = QLabel("Bpod state: —")
-        self._state_lbl.setStyleSheet("font-weight:bold;font-size:12px;color:#ddd;")
+        self._state_lbl.setAlignment(Qt.AlignCenter)
+        self._state_lbl.setStyleSheet(self._STATE_STYLE_IDLE)
         sv.addWidget(self._state_lbl)
 
         # Clean disconnect of Bpod when done with all sessions (enabled only when
@@ -385,8 +405,8 @@ class TreadwallWindow(QMainWindow):
         params_box = QGroupBox("Protocol Parameters")
         pv = QVBoxLayout(params_box)
 
-        self._iti_spin   = self._make_spinbox(1.0, 0.1, 60.0)
-        self._stim_spin  = self._make_spinbox(1.0, 0.1, 60.0)
+        self._iti_spin   = self._make_spinbox(1.0, 0.1, 600.0)
+        self._stim_spin  = self._make_spinbox(1.0, 0.1, 600.0)
         self._scale_spin = self._make_spinbox(1.0, 0.01, 10.0)
         pv.addLayout(self._row("ITI (s):",        self._iti_spin))
         pv.addLayout(self._row("Stim dur (s):",   self._stim_spin))
@@ -500,7 +520,8 @@ class TreadwallWindow(QMainWindow):
         # immediately stop/mis-report this one.
         for fname in ("emergency_stop.flag", "stop_wavesurfer.flag",
                       "session_done.flag", "session_error.json",
-                      "shutdown.flag", "bpod_disconnected.flag", "bpod_state.txt"):
+                      "shutdown.flag", "bpod_disconnected.flag", "bpod_state.txt",
+                      "protocol_params.json", "loaded_params.json"):
             try:
                 (ipc / fname).unlink(missing_ok=True)
             except Exception:
@@ -525,8 +546,10 @@ class TreadwallWindow(QMainWindow):
             self._launch_matlab(animal, session, protocol)
             self._set_status(f"Launching: {self._base_name}")
 
-        # Write initial protocol params IPC file
-        self._write_params()
+        # Do NOT pre-seed protocol_params.json here — the protocol publishes its
+        # own loaded values to loaded_params.json, which _poll_ipc ingests into
+        # the spinboxes. protocol_params.json is only written when the user edits
+        # a value afterwards (so live changes still propagate per-trial).
 
         # Always restart camera; clear stale preview files first
         self._stop_camera()
@@ -682,6 +705,16 @@ class TreadwallWindow(QMainWindow):
         bpod_disconnected.flag from MATLAB."""
         ipc = Path(IPC_DIR)
 
+        # Protocol published its loaded parameters — show them as the initial
+        # values in the spinboxes (these override whatever was selected before).
+        lp_file = ipc / "loaded_params.json"
+        if lp_file.exists():
+            try:
+                self._apply_loaded_params(json.loads(lp_file.read_text()))
+            except Exception:
+                pass
+            lp_file.unlink(missing_ok=True)
+
         # Bpod cleanly disconnected — the rig is safe to close.
         disc_file = ipc / "bpod_disconnected.flag"
         if disc_file.exists():
@@ -749,12 +782,6 @@ class TreadwallWindow(QMainWindow):
         if not self._notes:
             QMessageBox.information(self, "No notes", "No notes to upload.")
             return
-        if not self._notebook_id:
-            QMessageBox.warning(self, "No notebook", "Select an RSpace notebook first.")
-            return
-        if not self._rs:
-            QMessageBox.warning(self, "No RSpace", "RSpace is not connected.")
-            return
 
         animal     = self._animal_combo.currentText().strip()
         session    = self._session_edit.text().strip()
@@ -764,11 +791,44 @@ class TreadwallWindow(QMainWindow):
         entry_name = f"{self._datetime_str}_treadwall_{session}"
         tags       = [f"id_{animal}", RSPACE_METHOD_TAG]
 
+        # Try the live upload; if it can't happen (no client, no notebook, or the
+        # call fails), fall back to a local draft so the notes are never lost.
+        if self._rs and self._notebook_id:
+            try:
+                rspace.create_entry(self._notebook_id, tags, entry_name, content)
+                QMessageBox.information(self, "Uploaded", f"RSpace entry created: {entry_name}")
+                return
+            except Exception as e:
+                reason = str(e)
+        elif not self._rs:
+            reason = "RSpace is not connected"
+        else:
+            reason = "no RSpace notebook selected"
+
+        self._save_notes_backup(entry_name, tags, content, reason)
+
+    def _save_notes_backup(self, entry_name: str, tags: list, content: str, reason: str):
+        """RSpace upload failed — save a local draft (same convention as
+        SessionNotes.py) that can be uploaded later from the IEECRSpace GUI."""
+        draft_id = self._base_name or entry_name
         try:
-            rspace.create_entry(self._notebook_id, tags, entry_name, content)
-            QMessageBox.information(self, "Uploaded", f"RSpace entry created: {entry_name}")
+            draft_path = rspace.save_draft(draft_id, {
+                "name":    entry_name,
+                "tags":    tags,
+                "content": content,
+            })
+            QMessageBox.warning(
+                self, "Upload failed — saved locally",
+                f"Could not upload to RSpace ({reason}).\n\n"
+                f"Notes saved as a local draft:\n{draft_path}\n\n"
+                "Upload it later from the IEECRSpace GUI.",
+            )
         except Exception as e:
-            QMessageBox.critical(self, "Upload failed", str(e))
+            QMessageBox.critical(
+                self, "Upload and backup both failed",
+                f"Could not upload to RSpace ({reason}) and could not save a "
+                f"local draft either:\n\n{e}",
+            )
 
     # ── Camera log ─────────────────────────────────────────────────────────────
 
@@ -781,9 +841,28 @@ class TreadwallWindow(QMainWindow):
         self._matlab_log.append(line)
 
     def _on_bpod_state(self, state: str):
-        self._state_lbl.setText(f"Bpod state: {state}" if state else "Bpod state: —")
+        if state:
+            self._state_lbl.setText(f"Bpod: {state}")
+            self._state_lbl.setStyleSheet(self._STATE_STYLE_ACTIVE)
+        else:
+            self._state_lbl.setText("Bpod state: —")
+            self._state_lbl.setStyleSheet(self._STATE_STYLE_IDLE)
 
     # ── Protocol parameters ─────────────────────────────────────────────────────
+
+    def _apply_loaded_params(self, params: dict):
+        """Set the spinboxes to the protocol's loaded values. Signals are blocked
+        so applying them does not immediately re-write protocol_params.json (that
+        only happens when the user edits a value)."""
+        for key, spin in (("ITIDur",        self._iti_spin),
+                          ("stimDur",       self._stim_spin),
+                          ("ScalingFactor", self._scale_spin)):
+            if key in params:
+                spin.blockSignals(True)
+                try:
+                    spin.setValue(float(params[key]))
+                finally:
+                    spin.blockSignals(False)
 
     def _write_params(self):
         params = {
