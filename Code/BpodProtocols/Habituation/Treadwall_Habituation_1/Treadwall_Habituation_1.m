@@ -4,6 +4,10 @@ function Treadwall_Habituation_1
 
 global BpodSystem
 
+%% ---------- IPC setup ---------------------------------------------------
+ipc_dir = gui_ipc_dir();
+gui_session_init(ipc_dir);
+
 %% ---------- Define task parameters --------------------------------------
 start_path = BpodSystem.Path.DataFolder; % 'C:\Users\TomBombadil\Desktop\Animals' - Folder of current cohort selected in GUI;
 
@@ -33,6 +37,11 @@ end
 
 BpodParameterGUI('init', S);
 BpodSystem.ProtocolSettings = S;
+try, close(BpodSystem.ProtocolFigures.ParameterGUI); catch, end
+
+% Publish the protocol-loaded parameters so the GUI shows them as its initial
+% spinbox values.
+gui_publish_loaded_params(ipc_dir, S);
 
 %% ---------- Arduino Synchronizer ----------------------------------------
 COM = 'COM9';
@@ -76,30 +85,29 @@ for i = 1:length(waveforms)
     W.loadWaveform(i, waveforms{i}*ones(1,lengthWave));
 end
 
-%% ---------- Setup Camera ------------------------------------------------
-disp('Starting Python video acquisition script...');
-
-pythonExe = 'C:\Users\TomBombadil\anaconda3\python.exe';
-pyenv('Version', pythonExe);
-
-scriptPath = "C:\Users\TomBombadil\Documents\GitHub\Treadwall\Code\Camera\VideoAquisition.py";
-
-% Run in background
-command = sprintf('"%s" "%s" "%s" "%s" "%s" &', pythonExe, scriptPath, session_dir, S.GUI.SubjectID, S.GUI.SessionID);
-system(command);
-
 %% ---------- Restart Timer -----------------------------------------------
+% Discard any stale bytes left in the Bpod serial buffer (e.g. after an
+% emergency stop) so the clock-reset confirmation byte is read correctly.
+nStale = BpodSystem.SerialPort.bytesAvailable;
+if nStale > 0, BpodSystem.SerialPort.read(nStale, 'uint8'); end
 BpodSystem.SerialPort.write('*', 'uint8');
 Confirmed = BpodSystem.SerialPort.read(1,'uint8');
 if Confirmed ~= 1, error('Faulty clock reset'); end
 
 R.startUSBStream()
 
+%% ---------- Emergency-stop watcher --------------------------------------
+% Poll for the GUI emergency-stop flag from here on, so the button works even
+% while waiting for WaveSurfer. onCleanup guarantees the timer is removed on
+% every exit path (normal end, early return, or error).
+t_estop = gui_start_estop_timer(ipc_dir);
+estopCleanup = onCleanup(@() stop_estop_timer(t_estop)); %#ok<NASGU>
+
 %% ---------- Synching with WaveSurfer ------------------------------------
 sma = NewStateMachine();
 sma = AddState(sma, 'Name', 'WaitForWaveSurfer', ...
     'Timer',0,...
-    'StateChangeConditions', {'BNC1High', 'exit'},...
+    'StateChangeConditions', {'BNC1High', 'exit', 'SoftCode2', 'exit'},...
     'OutputActions', {});
 SendStateMachine(sma);
 disp('Waiting for Wavesurfer...');
@@ -110,6 +118,15 @@ if ~isempty(fieldnames(RawEvents)) % If trial data was returned
     SaveBpodSessionData; % Saves the field BpodSystem.Data to the current data file
 end
 
+% Clean exit if user stopped Bpod while waiting for WaveSurfer.
+if BpodSystem.Status.BeingUsed == 0
+    disp('Session stopped while waiting for WaveSurfer. Exiting cleanly.');
+    W.setFixedVoltage([1 2], 0);
+    R.stopUSBStream();
+    gui_signal_done(ipc_dir);
+    return
+end
+
 disp('Synced with Wavesurfer.');
 
 %% ---------- Main Loop ---------------------------------------------------
@@ -118,7 +135,8 @@ for currentTrial = 1:floor(length(waveforms)/2)
     disp('- - - - - - - - - - - - - - - ');
     disp(['Trial: ' num2str(currentTrial) ' - ' datestr(now,'HH:MM:SS')]);
 
-    S = BpodParameterGUI('sync', S); %Sync parameters with BpodParameterGUI plugin
+    % Read live parameter edits from the GUI
+    S = gui_read_params(S, ipc_dir);
 
     % Get current Scaling value
     scalingValue = S.GUI.ScalingFactor;
@@ -189,7 +207,7 @@ for currentTrial = 1:floor(length(waveforms)/2)
     end
 
     if BpodSystem.Status.BeingUsed == 0
-        disp('Session ended via Bpod Console. Current trial data has not been saved')
+        disp('Session stopped (emergency stop or Bpod Console). Partial trial data saved.')
         W.setFixedVoltage([1 2], 0)
         break
     end
@@ -203,5 +221,10 @@ RotData = R.readUSBStream();
 save([session_dir '\RotData'],'RotData')
 R.stopUSBStream()
 
-disp('Stop wavesurfer. Stop Bpod');
+BpodSystem.Status.BeingUsed = 0;
+try, close(BpodSystem.ProtocolFigures.ParameterGUI); catch, end
+
+% Signal the GUI: session complete, stop WaveSurfer
+gui_signal_done(ipc_dir);
+disp('Session complete. WaveSurfer stopping automatically.');
 end

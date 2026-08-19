@@ -4,12 +4,8 @@ function Treadwall_scrambled
 global BpodSystem
 
 %% ---------- IPC setup ---------------------------------------------------
-ipc_dir = 'C:\Users\TomBombadil\Documents\TreadwallGUI\ipc';
-if ~exist(ipc_dir, 'dir'), mkdir(ipc_dir); end
-% Clear any stale emergency-stop flag left over from a previous session so it
-% cannot immediately abort this one.
-estop_flag = fullfile(ipc_dir, 'emergency_stop.flag');
-if exist(estop_flag, 'file'), delete(estop_flag); end
+ipc_dir = gui_ipc_dir();
+gui_session_init(ipc_dir);
 
 %% ---------- Define task parameters --------------------------------------
 start_path = BpodSystem.Path.DataFolder; % 'C:\Users\TomBombadil\Desktop\Animals' - Folder of current cohort selected in GUI;
@@ -53,17 +49,9 @@ BpodParameterGUI('init', S);
 BpodSystem.ProtocolSettings = S;
 try, close(BpodSystem.ProtocolFigures.ParameterGUI); catch, end
 
-% Publish the protocol-loaded parameters so the GUI shows them as the initial
-% values. The GUI must NOT pre-seed protocol_params.json; it ingests this file
-% instead, and only writes protocol_params.json back when the user edits a value.
-try
-    lp = struct('ITIDur', S.GUI.ITIDur, 'stimDur', S.GUI.stimDur, ...
-        'ScalingFactor', S.GUI.ScalingFactor);
-    fid = fopen(fullfile(ipc_dir, 'loaded_params.json'), 'w');
-    fprintf(fid, '%s', jsonencode(lp));
-    fclose(fid);
-catch
-end
+% Publish the protocol-loaded parameters so the GUI shows them as its initial
+% spinbox values.
+gui_publish_loaded_params(ipc_dir, S);
 
 %% ---------- Create Triallist and load Trials ----------------------------
 % create triallist (adjust function according to trials needed)
@@ -142,10 +130,8 @@ R.startUSBStream()
 % Poll for the GUI emergency-stop flag from here on, so the button works even
 % while waiting for WaveSurfer. onCleanup guarantees the timer is removed on
 % every exit path (normal end, early return, or error).
-t_estop = timer('Period', 0.5, 'ExecutionMode', 'fixedRate', ...
-    'TimerFcn', @(~,~) report_and_check(ipc_dir));
+t_estop = gui_start_estop_timer(ipc_dir);
 estopCleanup = onCleanup(@() stop_estop_timer(t_estop)); %#ok<NASGU>
-start(t_estop);
 
 %% ---------- Synching with WaveSurfer ------------------------------------
 sma = NewStateMachine();
@@ -170,11 +156,7 @@ if BpodSystem.Status.BeingUsed == 0
     R.stopUSBStream();
     % Tell WaveSurfer to stop/rename (in case recording had already started)
     % and the GUI that the session is done. onCleanup removes the estop timer.
-    fclose(fopen(fullfile(ipc_dir, 'stop_wavesurfer.flag'), 'w'));
-    fclose(fopen(fullfile(ipc_dir, 'session_done.flag'), 'w'));
-    if exist(fullfile(ipc_dir, 'bpod_state.txt'), 'file')
-        delete(fullfile(ipc_dir, 'bpod_state.txt'));
-    end
+    gui_signal_done(ipc_dir);
     return
 end
 
@@ -187,16 +169,8 @@ for currentTrial = 1:S.GUI.MaxTrialNumber
     disp('- - - - - - - - - - - - - - - ');
     disp(['Trial: ' num2str(currentTrial) ' - ' datestr(now,'HH:MM:SS') ' - ' 'Type: ' triallist{currentTrial}]);
 
-    % Read parameter updates from Python GUI
-    params_file = fullfile(ipc_dir, 'protocol_params.json');
-    if exist(params_file, 'file')
-        try
-            p = jsondecode(fileread(params_file));
-            if isfield(p, 'ITIDur'),        S.GUI.ITIDur        = p.ITIDur;        end
-            if isfield(p, 'stimDur'),       S.GUI.stimDur       = p.stimDur;       end
-            if isfield(p, 'ScalingFactor'), S.GUI.ScalingFactor = p.ScalingFactor; end
-        catch, end
-    end
+    % Read live parameter edits from the GUI
+    S = gui_read_params(S, ipc_dir);
 
     % Get current Scaling value
     scalingValue = S.GUI.ScalingFactor;
@@ -292,10 +266,6 @@ end
 
 stop_estop_timer(t_estop);
 BpodSystem.Status.BeingUsed = 0;
-% Clear the live-state report so the GUI shows idle between sessions.
-if exist(fullfile(ipc_dir, 'bpod_state.txt'), 'file')
-    delete(fullfile(ipc_dir, 'bpod_state.txt'));
-end
 try, close(BpodSystem.ProtocolFigures.ParameterGUI); catch, end
 
 clear arduino
@@ -308,55 +278,6 @@ save(rotary_src, 'RotData')
 R.stopUSBStream()
 
 % Signal the GUI: session complete, stop WaveSurfer
-if ~exist(ipc_dir, 'dir'), mkdir(ipc_dir); end
-fclose(fopen(fullfile(ipc_dir, 'stop_wavesurfer.flag'), 'w'));
-fclose(fopen(fullfile(ipc_dir, 'session_done.flag'), 'w'));
+gui_signal_done(ipc_dir);
 disp('Session complete. WaveSurfer stopping automatically.');
-end
-
-function report_and_check(ipc_dir)
-% Runs every 0.5 s during a session (incl. inside RunStateMachine). Reports the
-% live Bpod state to the GUI and handles the emergency-stop flag.
-global BpodSystem
-
-% ── Report current state for the GUI ─────────────────────────────────────────
-try
-    sname = '';
-    if isfield(BpodSystem.Status, 'CurrentStateName') && ~isempty(BpodSystem.Status.CurrentStateName)
-        sname = BpodSystem.Status.CurrentStateName;
-    elseif isfield(BpodSystem.Status, 'CurrentStateCode')
-        % Fallback: map the live state code to a name via the running matrix.
-        code = BpodSystem.Status.CurrentStateCode;
-        if isprop(BpodSystem, 'StateMatrix') || isfield(BpodSystem, 'StateMatrix')
-            names = BpodSystem.StateMatrix.StateNames;
-            if code >= 1 && code <= numel(names), sname = names{code}; end
-        end
-    end
-    if ~isempty(sname)
-        fid = fopen(fullfile(ipc_dir, 'bpod_state.txt'), 'w');
-        fprintf(fid, '%s', sname);
-        fclose(fid);
-    end
-catch
-end
-
-% ── Emergency stop ───────────────────────────────────────────────────────────
-f = fullfile(ipc_dir, 'emergency_stop.flag');
-if exist(f, 'file')
-    delete(f);
-    BpodSystem.Status.BeingUsed = 0;
-    SendBpodSoftCode(2);
-end
-end
-
-function stop_estop_timer(t)
-% Safely stop and delete the emergency-stop timer on any exit path
-% (idempotent — guards against an already-deleted timer).
-try
-    if isvalid(t)
-        stop(t);
-        delete(t);
-    end
-catch
-end
 end

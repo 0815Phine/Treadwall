@@ -30,7 +30,7 @@ sys.path.insert(0, r'C:\Users\TomBombadil\CodingTools\IEECRSpace\src')
 import rspace
 
 # ── Configuration ────────────────────────────────────────────────────────────
-CURRENT_SESSION_FILE = r"C:\Users\TomBombadil\Data\current_session.json"
+CURRENT_SESSION_FILE = r"C:\Users\TomBombadil\Documents\TreadwallGUI\ipc\current_session.json"
 RSPACE_FOLDER_ID = None   # Set to your RSpace folder ID (integer), e.g. 12345
 RSPACE_METHOD_TAG = "m_invivo_imaging"  # Method tag added to every RSpace entry
 # ─────────────────────────────────────────────────────────────────────────────
