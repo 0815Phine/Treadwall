@@ -1,11 +1,11 @@
-function zones_path = create_zones(animal_dir)
+function zones_path = create_zones(animal_dir, base_name)
 % Ensure directories exist
 if ~exist(animal_dir, 'dir')
     mkdir(animal_dir);
 end
 
 % Path for the output file
-zones_path = fullfile(animal_dir, 'zones.csv');
+zones_path = fullfile(animal_dir, [base_name '_zones.csv']);
 
 % Define trial types
 offset = {'C', 'L', 'R'}; % Centre, Left, Right

@@ -9,32 +9,25 @@ ipc_dir = gui_ipc_dir();
 gui_session_init(ipc_dir);
 
 %% ---------- Define task parameters --------------------------------------
-start_path = BpodSystem.Path.DataFolder; % 'C:\Users\TomBombadil\Desktop\Animals' - Folder of current cohort selected in GUI;
+start_path = BpodSystem.Path.DataFolder; % folder selected in GUI;
 
 % initialize parameters
-S = struct(); %BpodSystem.ProtocolSettings;
+S = struct();
 
-if isempty(fieldnames(S))
-    freshGUI = 1;        %flag to indicate that prameters have not been loaded from previous session.
-    
-    S.GUI.SubjectID = BpodSystem.GUIData.SubjectName;
-    S.GUI.SessionID = BpodSystem.GUIData.SessionID;
-    S.GUI.EmergencyStop = 'SendBpodSoftCode(2)';
-    S.GUIMeta.EmergencyStop.Style = 'pushbutton';
-    %S.GUI.ScalingFactor = 1;
-    %S.GUI.ExpInfoPath = start_path;
+% ------ GUI parameters
+S.GUI.SubjectID = BpodSystem.GUIData.SubjectName;
+S.GUI.SessionID = BpodSystem.GUIData.SessionID;
+S.GUI.EmergencyStop = 'SendBpodSoftCode(2)';
+S.GUIMeta.EmergencyStop.Style = 'pushbutton';
+S.GUI.ScalingFactor = 1; % can not be updated during session (sesison is one trial)
 
-    session_dir = ([start_path '\' S.GUI.SubjectID '\' S.GUI.SessionID]);
-else
-    freshGUI  = 0;        %flag to indicate that prameters have been loaded from previous session.
-end
+session_dir = ([start_path '\' S.GUI.SubjectID '\' S.GUI.SessionID]);
 
 BpodParameterGUI('init', S);
 BpodSystem.ProtocolSettings = S;
-try, close(BpodSystem.ProtocolFigures.ParameterGUI); catch, end
+try close(BpodSystem.ProtocolFigures.ParameterGUI); catch, end
 
-% Publish the protocol-loaded parameters so the GUI shows them as its initial
-% spinbox values (Baseline exposes none, so this simply clears them).
+% Publish the protocol-loaded parameters so the GUI shows them as its initial spinbox values
 gui_publish_loaded_params(ipc_dir, S);
 
 %% ---------- Rotary Encoder Module ---------------------------------------
@@ -57,14 +50,14 @@ BpodSystem.SerialPort.write('*', 'uint8');
 Confirmed = BpodSystem.SerialPort.read(1,'uint8');
 if Confirmed ~= 1, error('Faulty clock reset'); end
 
+% start rotary encoder stream
 R.startUSBStream()
 
 %% ---------- Emergency-stop watcher --------------------------------------
-% Poll for the GUI emergency-stop flag from here on, so the button works even
-% while waiting for WaveSurfer. onCleanup guarantees the timer is removed on
-% every exit path (normal end, early return, or error).
+% Poll for the GUI emergency-stop flag
+% onCleanup guarantees the timer is removed on every exit path (normal end, early return, or error).
 t_estop = gui_start_estop_timer(ipc_dir);
-estopCleanup = onCleanup(@() stop_estop_timer(t_estop)); %#ok<NASGU>
+estopCleanup = onCleanup(@() stop_estop_timer(t_estop));
 
 %% ---------- Synching with WaveSurfer ------------------------------------
 sma = NewStateMachine();
@@ -105,10 +98,10 @@ SendStateMachine(sma);
 disp('Experiment running...');
 RawEvents = RunStateMachine;
 
-if ~isempty(fieldnames(RawEvents)) %If trial data was returned
-    BpodSystem.Data = AddTrialEvents(BpodSystem.Data,RawEvents); %Computes trial events from raw data
+if ~isempty(fieldnames(RawEvents)) % If trial data was returned
+    BpodSystem.Data = AddTrialEvents(BpodSystem.Data,RawEvents); % Computes trial events from raw data
     BpodSystem.Data.TrialSettings(1) = S;
-    SaveBpodSessionData; %Saves the field BpodSystem.Data to the current data file
+    SaveBpodSessionData; % Saves the field BpodSystem.Data to the current data file
     SaveBpodProtocolSettings;
     RotData = R.readUSBStream();
 end
@@ -126,7 +119,7 @@ end
 R.stopUSBStream()
 
 BpodSystem.Status.BeingUsed = 0;
-try, close(BpodSystem.ProtocolFigures.ParameterGUI); catch, end
+try close(BpodSystem.ProtocolFigures.ParameterGUI); catch, end
 
 % Signal the GUI: session complete, stop WaveSurfer
 gui_signal_done(ipc_dir);

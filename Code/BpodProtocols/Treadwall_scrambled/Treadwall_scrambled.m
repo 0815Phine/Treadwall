@@ -8,10 +8,10 @@ ipc_dir = gui_ipc_dir();
 gui_session_init(ipc_dir);
 
 %% ---------- Define task parameters --------------------------------------
-start_path = BpodSystem.Path.DataFolder; % 'C:\Users\TomBombadil\Desktop\Animals' - Folder of current cohort selected in GUI;
+start_path = BpodSystem.Path.DataFolder; % folder selected in GUI;
 
 % initialize parameters
-S = struct(); %BpodSystem.ProtocolSettings;
+S = struct();
 
 % load correct parameters for location
 location = questdlg('Where do you perform your experiments?',...
@@ -21,39 +21,34 @@ params_file = fullfile([BpodSystem.Path.ProtocolFolder '\treadwall_scrambled_par
 run(params_file)
 fprintf('Parameters loaded for: %s \n', location);
 
-if isempty(fieldnames(S))
-    freshGUI = 1;        %flag to indicate that prameters have not been loaded from previous session.
-    
-    S.GUI.SubjectID = BpodSystem.GUIData.SubjectName;
-    S.GUI.SessionID = BpodSystem.GUIData.SessionID;
-    S.GUI.ITIDur = ITIDur; %in seconds
-    S.GUI.stimDur = stimDur; %in seconds
-    S.GUI.ScalingFactor = 1;
-    S.GUI.EmergencyStop = 'SendBpodSoftCode(2)';
-    S.GUIMeta.EmergencyStop.Style = 'pushbutton';
-    %S.GUI.ExpInfoPath = start_path;
+% ------ GUI parameters
+S.GUI.SubjectID = BpodSystem.GUIData.SubjectName;
+S.GUI.SessionID = BpodSystem.GUIData.SessionID;
+S.GUI.ITIDur = ITIDur; %in seconds
+S.GUI.stimDur = stimDur; %in seconds
+S.GUI.ScalingFactor = 1;
+S.GUI.EmergencyStop = 'SendBpodSoftCode(2)';
+S.GUIMeta.EmergencyStop.Style = 'pushbutton';
 
-    session_dir = ([start_path '\' S.GUI.SubjectID '\' S.GUI.SessionID]);
-    % Use datetime from StartSession.ps1 if available, so all file names match
-    if isfield(BpodSystem.GUIData, 'DatetimeStr') && ~isempty(BpodSystem.GUIData.DatetimeStr)
-        datetime_str = BpodSystem.GUIData.DatetimeStr;
-    else
-        datetime_str = datestr(now, 'yyyymmdd_HHMM');
-    end
-    base_name = sprintf('%s_%s_%s', S.GUI.SubjectID, datetime_str, S.GUI.SessionID);
-else
-    freshGUI  = 0;        %flag to indicate that prameters have been loaded from previous session.
-end
+session_dir = ([start_path '\' S.GUI.SubjectID '\' S.GUI.SessionID]);
 
 BpodParameterGUI('init', S);
 BpodSystem.ProtocolSettings = S;
-try, close(BpodSystem.ProtocolFigures.ParameterGUI); catch, end
+try close(BpodSystem.ProtocolFigures.ParameterGUI); catch, end
 
-% Publish the protocol-loaded parameters so the GUI shows them as its initial
-% spinbox values.
+% Publish the protocol-loaded parameters so the GUI shows them as its initial spinbox values.
 gui_publish_loaded_params(ipc_dir, S);
 
 %% ---------- Create Triallist and load Trials ----------------------------
+% get base name
+if isfield(BpodSystem.GUIData, 'DatetimeStr') && ~isempty(BpodSystem.GUIData.DatetimeStr)
+    % Use datetime from StartSession.ps1 if available, so all file names match
+    datetime_str = BpodSystem.GUIData.DatetimeStr;
+else
+    datetime_str = datestr(now, 'yyyymmdd_HHMM');
+end
+base_name = sprintf('%s_%s_%s', S.GUI.SubjectID, datetime_str, S.GUI.SessionID);
+
 % create triallist (adjust function according to trials needed)
 create_triallist_adaptable(session_dir, base_name); % not all offsets used, for all use "create_triallist_all"
 
@@ -124,14 +119,14 @@ BpodSystem.SerialPort.write('*', 'uint8');
 Confirmed = BpodSystem.SerialPort.read(1,'uint8');
 if Confirmed ~= 1, error('Faulty clock reset'); end
 
+% start rotary encoder stream
 R.startUSBStream()
 
 %% ---------- Emergency-stop watcher --------------------------------------
-% Poll for the GUI emergency-stop flag from here on, so the button works even
-% while waiting for WaveSurfer. onCleanup guarantees the timer is removed on
-% every exit path (normal end, early return, or error).
+% Poll for the GUI emergency-stop flag
+% onCleanup guarantees the timer is removed on every exit path (normal end, early return, or error).
 t_estop = gui_start_estop_timer(ipc_dir);
-estopCleanup = onCleanup(@() stop_estop_timer(t_estop)); %#ok<NASGU>
+estopCleanup = onCleanup(@() stop_estop_timer(t_estop));
 
 %% ---------- Synching with WaveSurfer ------------------------------------
 sma = NewStateMachine();
@@ -149,13 +144,10 @@ if ~isempty(fieldnames(RawEvents)) % If trial data was returned
 end
 
 % Clean exit if user stopped Bpod while waiting for WaveSurfer.
-% Without this check the code enters the main loop and crashes on destroyed GUI handles.
 if BpodSystem.Status.BeingUsed == 0
     disp('Session stopped while waiting for WaveSurfer. Exiting cleanly.');
     W.setFixedVoltage([1 2], 0);
     R.stopUSBStream();
-    % Tell WaveSurfer to stop/rename (in case recording had already started)
-    % and the GUI that the session is done. onCleanup removes the estop timer.
     gui_signal_done(ipc_dir);
     return
 end
@@ -163,7 +155,6 @@ end
 disp('Synced with Wavesurfer.');
 
 %% ---------- Main Loop ---------------------------------------------------
-try
 for currentTrial = 1:S.GUI.MaxTrialNumber
     disp(' ');
     disp('- - - - - - - - - - - - - - - ');
@@ -225,7 +216,7 @@ for currentTrial = 1:S.GUI.MaxTrialNumber
             'Timer', 1,...
             'StateChangeConditions', {'Tup', 'exit'},...
             'OutputActions', {'BNC1',1});
-        
+
     else
         sma = AddState(sma, 'Name', 'stimulus', ...
             'Timer', S.GUI.stimDur,...
@@ -246,11 +237,11 @@ for currentTrial = 1:S.GUI.MaxTrialNumber
     % run state machine
     SendStateMachine(sma);
     RawEvents = RunStateMachine();
-    if ~isempty(fieldnames(RawEvents)) %If trial data was returned
-        BpodSystem.Data = AddTrialEvents(BpodSystem.Data,RawEvents); %Computes trial events from raw data
+    if ~isempty(fieldnames(RawEvents)) % If trial data was returned
+        BpodSystem.Data = AddTrialEvents(BpodSystem.Data,RawEvents); % Computes trial events from raw data
         BpodSystem.Data.TrialSettings(currentTrial) = S;
         BpodSystem.Data.TrialTypes(currentTrial) = triallist(currentTrial);
-        SaveBpodSessionData; %Saves the field BpodSystem.Data to the current data file
+        SaveBpodSessionData; % Saves the field BpodSystem.Data to the current data file
         %SaveBpodProtocolSettings;
     end
 
@@ -260,13 +251,10 @@ for currentTrial = 1:S.GUI.MaxTrialNumber
         break
     end
 end
-catch e
-    fprintf('Protocol error on trial %d: %s\n', currentTrial, e.message);
-end
 
 stop_estop_timer(t_estop);
 BpodSystem.Status.BeingUsed = 0;
-try, close(BpodSystem.ProtocolFigures.ParameterGUI); catch, end
+try close(BpodSystem.ProtocolFigures.ParameterGUI); catch, end
 
 clear arduino
 disp('Loop end');
