@@ -42,7 +42,7 @@ gui_publish_loaded_params(ipc_dir, S);
 %% ---------- Create Triallist and load Trials ----------------------------
 % get base name
 if isfield(BpodSystem.GUIData, 'DatetimeStr') && ~isempty(BpodSystem.GUIData.DatetimeStr)
-    % Use datetime from StartSession.ps1 if available, so all file names match
+    % Use datetime from the GUI if available, so all file names match
     datetime_str = BpodSystem.GUIData.DatetimeStr;
 else
     datetime_str = datestr(now, 'yyyymmdd_HHMM');

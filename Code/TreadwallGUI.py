@@ -1,7 +1,7 @@
 """
 TreadwallGUI.py - Central session management GUI for Treadwall experiments.
 
-Replaces the StartSession.ps1 + SessionNotes.py combination.
+Sole launcher for a session (camera + Bpod + WaveSurfer + notes).
 Launch: double-click StartSession.bat  (or: python Code/TreadwallGUI.py)
 
 Features:
@@ -827,8 +827,8 @@ class TreadwallWindow(QMainWindow):
         return entry_name, tags, content
 
     def _write_note_draft(self, entry_name: str, tags: list, content: str) -> str:
-        """Write the notes to a local RSpace draft (same convention as
-        SessionNotes.py) and return the draft path. Raises on failure."""
+        """Write the notes to a local RSpace draft (via rspace.save_draft) and
+        return the draft path. Raises on failure."""
         draft_id = self._base_name or entry_name
         return rspace.save_draft(draft_id, {
             "name":    entry_name,
