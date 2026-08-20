@@ -242,9 +242,15 @@ write_queue_top   = queue.Queue()
 write_queue_front = queue.Queue()
 
 
-def _writer(write_queue, frame_buffers, cam_ts_buffers, pc_ts_buffers, proc, ts_accum, label):
-    """Pipe each completed chunk's raw bytes to its ffmpeg encoder and keep the
-    chunk's timestamps in memory (.copy(), since the buffer slot is reused).
+def _writer(write_queue, frame_buffers, cam_ts_buffers, pc_ts_buffers, enc, ts_accum, label):
+    """Pipe each completed chunk's raw bytes to its ffmpeg encoder (started lazily
+    on the first chunk) and keep the chunk's timestamps in memory (.copy(), since
+    the buffer slot is reused).
+
+    Starting the encoder only when the first chunk arrives means a session that
+    captured no frames (e.g. aborted while waiting for WaveSurfer, before the
+    camera was ever triggered) leaves no .mp4 behind — nothing to save and no
+    empty stub / orphaned encoder to clean up.
 
     If the encoder pipe breaks, the encoder has died — there is no raw .npy
     fallback, so stop the whole acquisition immediately and surface the error
@@ -257,7 +263,10 @@ def _writer(write_queue, frame_buffers, cam_ts_buffers, pc_ts_buffers, proc, ts_
             break
         slot, n, chunk_idx = item
         try:
-            proc.stdin.write(frame_buffers[slot][:n].tobytes())
+            if enc['proc'] is None:
+                enc['proc'] = _start_encoder(enc['path'], enc['fps'], use_nvenc)
+                print(f"{label}: encoder started on first chunk.")
+            enc['proc'].stdin.write(frame_buffers[slot][:n].tobytes())
             ts_accum['cam'].append(cam_ts_buffers[slot][:n].copy())
             ts_accum['pc'].append(pc_ts_buffers[slot][:n].copy())
         except (BrokenPipeError, OSError, ValueError) as e:
@@ -463,13 +472,15 @@ def _run_frontcam():
         stop_event.set()
 
 
-# ------ Launch Encoders ------
-# One ffmpeg process per camera, started before acquisition. Frames are piped
-# to stdin by the writer threads and finalized after acquisition ends.
+# ------ Encoders (lazily started on the first chunk) ------
+# One ffmpeg process per camera. Rather than spawning them up front, each writer
+# thread starts its encoder when the first frame chunk arrives (see _writer), so
+# an untriggered/aborted session produces no .mp4 at all. Each 'proc' is filled
+# in by the writer and read back here for finalizing.
 use_nvenc = _has_nvenc()
 print(f"Encoder: {'h264_nvenc (GPU)' if use_nvenc else 'libx264 (CPU)'}, qp/crf={ENCODE_QP}")
-enc_top   = _start_encoder(video_top,   TOPCAM_FPS_NOMINAL, use_nvenc)
-enc_front = _start_encoder(video_front, FRONTCAM_FPS,       use_nvenc)
+enc_top   = {'proc': None, 'path': video_top,   'fps': TOPCAM_FPS_NOMINAL}
+enc_front = {'proc': None, 'path': video_front, 'fps': FRONTCAM_FPS}
 
 # Per-camera in-memory timestamp accumulators (filled by the writer threads).
 ts_accum_top   = {'cam': [], 'pc': []}
@@ -552,7 +563,13 @@ counter_front, fps_front = front_results
 # Close stdin so ffmpeg writes the trailer/index, then drain stderr while it
 # exits (proc.wait() alone can deadlock on a full stderr pipe). Must always run
 # so the .mp4 is finalized even on emergency stop / early exit.
-def _finalize_encoder(proc, label):
+def _finalize_encoder(enc, label):
+    proc = enc['proc']
+    if proc is None:
+        # No chunk ever arrived — the encoder was never started and no .mp4 was
+        # created, so there is nothing to finalize.
+        print(f"{label}: no frames captured — no video written.")
+        return
     try:
         if proc.stdin and not proc.stdin.closed:
             proc.stdin.close()
@@ -578,7 +595,10 @@ _finalize_encoder(enc_front, "Frontcam")
 
 # ------ Save Timestamps ------
 def _save_timestamps(ts_chunks, ts_file):
-    combined = np.concatenate(ts_chunks) if ts_chunks else np.array([], dtype=np.int64)
+    if not ts_chunks:
+        # No frames captured — don't create an empty timestamp file.
+        return
+    combined = np.concatenate(ts_chunks)
     with open(ts_file, 'w') as f:
         for ts in combined:
             f.write(f"{ts}\n")
@@ -610,13 +630,13 @@ metadata = {
         "serial":        SERIAL_TOPCAM,
         "total_frames":  fcount_top,
         "fps_estimated": round(fps_top, 2),
-        "video_file":    os.path.basename(video_top),
+        "video_file":    os.path.basename(video_top) if enc_top['proc'] is not None else None,
     },
     "frontcam": {
         "serial":        SERIAL_FRONTCAM,
         "total_frames":  fcount_front,
         "fps_estimated": round(fps_front, 2),
-        "video_file":    os.path.basename(video_front),
+        "video_file":    os.path.basename(video_front) if enc_front['proc'] is not None else None,
     },
 }
 meta_path = os.path.join(session_out, f"{base_name}_cam_metadata.json")

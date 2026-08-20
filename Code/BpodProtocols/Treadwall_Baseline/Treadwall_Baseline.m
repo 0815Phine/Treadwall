@@ -126,8 +126,6 @@ if exist('RotData', 'var')
     disp('Saving Rotary Encoder Data...')
     rotary_src = fullfile(session_dir, [base_name '_bpod_rotdata.mat']);
     save(rotary_src, 'RotData')
-    R.stopUSBStream()
-    save([session_dir '\RotData'],'RotData')
 else
     Warning('No rotary encoder data recorded')
 end
