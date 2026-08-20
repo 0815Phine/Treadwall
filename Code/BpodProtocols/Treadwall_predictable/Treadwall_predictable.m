@@ -32,6 +32,15 @@ S.GUIMeta.EmergencyStop.Style = 'pushbutton';
 session_dir = ([start_path '\' S.GUI.SubjectID '\' S.GUI.SessionID]);
 animal_dir = ([start_path '\' S.GUI.SubjectID]);
 
+% get base name
+if isfield(BpodSystem.GUIData, 'DatetimeStr') && ~isempty(BpodSystem.GUIData.DatetimeStr)
+    % Use datetime from the GUI if available, so all file names match
+    datetime_str = BpodSystem.GUIData.DatetimeStr;
+else
+    datetime_str = datestr(now, 'yyyymmdd_HHMM');
+end
+base_name = sprintf('%s_%s_%s', S.GUI.SubjectID, datetime_str, S.GUI.SessionID);
+
 BpodParameterGUI('init', S);
 BpodSystem.ProtocolSettings = S;
 try close(BpodSystem.ProtocolFigures.ParameterGUI); catch, end
@@ -41,21 +50,13 @@ try close(BpodSystem.ProtocolFigures.ParameterGUI); catch, end
 gui_publish_loaded_params(ipc_dir, S);
 
 %% ---------- Trials ------------------------------------------------------
-% get base name
-if isfield(BpodSystem.GUIData, 'DatetimeStr') && ~isempty(BpodSystem.GUIData.DatetimeStr)
-    % Use datetime from the GUI if available, so all file names match
-    datetime_str = BpodSystem.GUIData.DatetimeStr;
-else
-    datetime_str = datestr(now, 'yyyymmdd_HHMM');
-end
-base_name = sprintf('%s_%s', S.GUI.SubjectID, datetime_str);
-
+base_name_z = sprintf('%s_%s', S.GUI.SubjectID, datetime_str);
 % load zones
-if exist(fullfile([animal_dir base_name '_zones.csv']), 'file')
-    zones_dir = fullfile([animal_dir base_name '_zones.csv']);
+if exist(fullfile([animal_dir base_name_z '_zones.csv']), 'file')
+    zones_dir = fullfile([animal_dir base_name_z '_zones.csv']);
     fprintf('Zones have been loaded from %s\n', zones_dir);
 else
-    zones_dir = create_zones(animal_dir);
+    zones_dir = create_zones(animal_dir, base_name_z);
 end
 
 zones = readtable(zones_dir);
@@ -489,7 +490,8 @@ disp('Loop end');
 
 disp('Saving Rotary Encoder Data...')
 RotData = R.readUSBStream();
-save([session_dir '\RotData'],'RotData')
+rotary_src = fullfile(session_dir, [base_name '_bpod_rotdata.mat']);
+save(rotary_src, 'RotData')
 R.stopUSBStream()
 
 BpodSystem.Status.BeingUsed = 0;

@@ -32,14 +32,6 @@ S.GUIMeta.EmergencyStop.Style = 'pushbutton';
 
 session_dir = ([start_path '\' S.GUI.SubjectID '\' S.GUI.SessionID]);
 
-BpodParameterGUI('init', S);
-BpodSystem.ProtocolSettings = S;
-try close(BpodSystem.ProtocolFigures.ParameterGUI); catch, end
-
-% Publish the protocol-loaded parameters so the GUI shows them as its initial spinbox values.
-gui_publish_loaded_params(ipc_dir, S);
-
-%% ---------- Create Triallist and load Trials ----------------------------
 % get base name
 if isfield(BpodSystem.GUIData, 'DatetimeStr') && ~isempty(BpodSystem.GUIData.DatetimeStr)
     % Use datetime from the GUI if available, so all file names match
@@ -49,6 +41,14 @@ else
 end
 base_name = sprintf('%s_%s_%s', S.GUI.SubjectID, datetime_str, S.GUI.SessionID);
 
+BpodParameterGUI('init', S);
+BpodSystem.ProtocolSettings = S;
+try close(BpodSystem.ProtocolFigures.ParameterGUI); catch, end
+
+% Publish the protocol-loaded parameters so the GUI shows them as its initial spinbox values.
+gui_publish_loaded_params(ipc_dir, S);
+
+%% ---------- Create Triallist and load Trials ----------------------------
 % create triallist (adjust function according to trials needed)
 create_triallist_adaptable(session_dir, base_name); % not all offsets used, for all use "create_triallist_all"
 

@@ -29,6 +29,15 @@ S.GUIMeta.EmergencyStop.Style = 'pushbutton';
 
 session_dir = ([start_path '\' S.GUI.SubjectID '\' S.GUI.SessionID]);
 
+% get base name
+if isfield(BpodSystem.GUIData, 'DatetimeStr') && ~isempty(BpodSystem.GUIData.DatetimeStr)
+    % Use datetime from the GUI if available, so all file names match
+    datetime_str = BpodSystem.GUIData.DatetimeStr;
+else
+    datetime_str = datestr(now, 'yyyymmdd_HHMM');
+end
+base_name = sprintf('%s_%s_%s', S.GUI.SubjectID, datetime_str, S.GUI.SessionID);
+
 BpodParameterGUI('init', S);
 BpodSystem.ProtocolSettings = S;
 try close(BpodSystem.ProtocolFigures.ParameterGUI); catch, end
@@ -211,7 +220,8 @@ disp('Loop end');
 
 disp('Saving Rotary Encoder Data...')
 RotData = R.readUSBStream();
-save([session_dir '\RotData'],'RotData')
+rotary_src = fullfile(session_dir, [base_name '_bpod_rotdata.mat']);
+save(rotary_src, 'RotData')
 R.stopUSBStream()
 
 BpodSystem.Status.BeingUsed = 0;
