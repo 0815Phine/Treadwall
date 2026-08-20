@@ -14,12 +14,17 @@ if ~exist(IPC_DIR, 'dir'), mkdir(IPC_DIR); end
 fclose(fopen(fullfile(IPC_DIR, 'matlab_alive.flag'), 'w'));
 global BpodSystem
 
+% An empty protocol_name means "pre-warm": initialise Bpod (and WaveSurfer) and
+% drop straight into the waiting loop, without running a protocol or creating a
+% session folder. The GUI sends the first real session via pending_bpod.json.
+prewarm = isempty(protocol_name);
+
 % Build paths
 session_dir = fullfile(DATA_BASE, animal_id, session_id);
 base_name   = sprintf('%s_%s_%s', animal_id, datetime_str, session_id);
 
-% Ensure session directory exists
-if ~exist(session_dir, 'dir')
+% Ensure session directory exists (skip for pre-warm — no session yet)
+if ~prewarm && ~exist(session_dir, 'dir')
     mkdir(session_dir)
 end
 
@@ -41,15 +46,22 @@ BpodSystem.GUIData.DatetimeStr = datetime_str;
 
 % Override data folder and session file path
 BpodSystem.Path.DataFolder      = DATA_BASE;
-BpodSystem.Path.CurrentDataFile = fullfile(session_dir, [base_name '_bpod.mat']);
+if ~prewarm
+    BpodSystem.Path.CurrentDataFile = fullfile(session_dir, [base_name '_bpod.mat']);
+end
 
-% Run the selected Bpod protocol (blocks until the protocol function returns)
-fprintf('Starting protocol: %s\n\n', protocol_name);
-try
-    feval(protocol_name)
-catch e
-    fprintf('Protocol error: %s\n', e.message);
-    write_session_error(IPC_DIR, e.message);
+% Run the selected Bpod protocol (blocks until the protocol function returns).
+% For a pre-warm, skip this and go straight to the waiting loop below.
+if ~prewarm
+    fprintf('Starting protocol: %s\n\n', protocol_name);
+    try
+        feval(protocol_name)
+    catch e
+        fprintf('Protocol error: %s\n', e.message);
+        write_session_error(IPC_DIR, e.message);
+    end
+else
+    fprintf('Bpod ready (pre-warm). Waiting for the first session from the GUI...\n');
 end
 
 % ── Multi-session waiting loop ────────────────────────────────────────────

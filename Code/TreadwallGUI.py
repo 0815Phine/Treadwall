@@ -272,6 +272,9 @@ class TreadwallWindow(QMainWindow):
         self._ipc_timer.timeout.connect(self._poll_ipc)
         self._ipc_timer.start(2000)
 
+        # Pre-warm MATLAB (WaveSurfer + Bpod) so they're ready by the first session.
+        self._prewarm_matlab()
+
     # ── UI construction ────────────────────────────────────────────────────────
 
     def _build_ui(self):
@@ -601,39 +604,71 @@ class TreadwallWindow(QMainWindow):
 
     def _matlab_is_alive(self) -> bool:
         """True if an existing MATLAB session should be reused."""
-        if self._matlab_proc is None:
-            return False
-        # Direct check — works if matlab.exe itself is the main process
-        if self._matlab_proc.poll() is None:
+        # Owned process still running — covers the whole prewarm/launch init window.
+        if self._matlab_proc is not None and self._matlab_proc.poll() is None:
             return True
-        # Heartbeat check — StartBpodSession.m touches this file every 2 s in its wait loop
+        # Heartbeat check — StartBpodSession.m touches this file every ~2 s in its
+        # wait loop. Also covers a MATLAB adopted from a previous GUI run, for which
+        # we have no owned process handle.
         hb = Path(IPC_DIR) / "matlab_alive.flag"
         if hb.exists() and time.time() - hb.stat().st_mtime < 10:
             return True
-        # Startup grace — MATLAB takes ~30 s to start before the flag is written
+        # Startup grace — MATLAB takes ~30 s to start before the flag is written.
         if self._matlab_launch_time is not None and time.time() - self._matlab_launch_time < 60:
             return True
         return False
 
-    def _launch_matlab(self, animal: str, session: str, protocol: str):
+    def _spawn_matlab(self, session_dir: str, base_name: str,
+                      animal: str, session: str, datetime_str: str, protocol: str):
+        """Launch one MATLAB instance: StartWaveSurfer opens WaveSurfer + its IPC
+        timer and returns, then StartBpodSession runs in the same instance and
+        blocks in its multi-session wait loop until end-of-day. An empty protocol
+        makes StartBpodSession pre-warm (init + wait, no protocol run)."""
         # Clear any stale heartbeat from a previous (possibly crashed) session
         try:
             (Path(IPC_DIR) / "matlab_alive.flag").unlink(missing_ok=True)
         except Exception:
             pass
         self._matlab_launch_time = time.time()
-        # StartWaveSurfer opens WaveSurfer, starts the IPC timer, then returns.
-        # StartBpodSession then runs in the same instance and blocks until end-of-day.
         ws_part   = (
             f"addpath('{WS_FOLDER}'); "
-            f"StartWaveSurfer('{WSP_FILE}','{self._session_dir}','{self._base_name}'); "
+            f"StartWaveSurfer('{WSP_FILE}','{session_dir}','{base_name}'); "
         )
         bpod_part = (
-            f"StartBpodSession('{animal}','{session}','{self._datetime_str}','{protocol}')"
+            f"StartBpodSession('{animal}','{session}','{datetime_str}','{protocol}')"
         )
         self._matlab_proc = subprocess.Popen(
             [MATLAB_EXE, "-nosplash", "-r", ws_part + bpod_part]
         )
+
+    def _launch_matlab(self, animal: str, session: str, protocol: str):
+        self._spawn_matlab(str(self._session_dir), self._base_name,
+                           animal, session, self._datetime_str, protocol)
+
+    def _prewarm_matlab(self):
+        """Launch MATLAB (WaveSurfer + Bpod) at GUI startup with placeholder names
+        so they initialise while the operator sets up. The first Start Session then
+        just updates the names via the pending IPC (like a subsequent session).
+
+        If a MATLAB from a previous GUI run is still alive (fresh heartbeat), adopt
+        it instead of spawning a second instance (which would collide on Bpod)."""
+        hb = Path(IPC_DIR) / "matlab_alive.flag"
+        try:
+            if hb.exists() and time.time() - hb.stat().st_mtime < 10:
+                self._matlab_launch_time = time.time()
+                self._set_status("Existing MATLAB (WaveSurfer + Bpod) detected — reusing it.")
+                return
+        except Exception:
+            pass
+        try:
+            # Empty protocol → StartBpodSession pre-warms (init + wait, no run).
+            self._spawn_matlab(DATA_BASE, "prewarm", "prewarm", "prewarm", "", "")
+            self._set_status(
+                "Starting WaveSurfer + Bpod (placeholder names) — "
+                "set up the session while they open."
+            )
+        except Exception as e:
+            self._set_status(f"Could not pre-launch MATLAB: {e}")
 
     def _start_camera(self, animal: str, session: str):
         Path(PREVIEW_DIR).mkdir(parents=True, exist_ok=True)
