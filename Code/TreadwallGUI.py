@@ -222,6 +222,15 @@ class TreadwallWindow(QMainWindow):
         self._session_dir  = None
         self._datetime_str = None
         self._notes        = []
+        # Identifiers of the session the current notes belong to (set at session
+        # start, so notes stay correctly attributed after the session ends even
+        # if the animal/session fields are changed for the next run).
+        self._cur_animal   = ""
+        self._cur_session  = ""
+        # True when the current notes are safely persisted (uploaded to RSpace or
+        # written to a local draft). Empty notes count as saved. Used to decide
+        # whether to auto-back-up before the next session clears them.
+        self._notes_saved  = True
         self._matlab_proc        = None   # single MATLAB instance (WaveSurfer + Bpod)
         self._matlab_launch_time = None
         self._cam_proc     = None   # camera Python process
@@ -504,6 +513,11 @@ class TreadwallWindow(QMainWindow):
             QMessageBox.warning(self, "Missing info", "Animal ID and Session ID are required.")
             return
 
+        # A new session is about to overwrite the previous session's identifiers
+        # and clear the notes pane — back up any un-uploaded notes from the last
+        # session first so a forgotten upload can't lose them.
+        self._backup_pending_notes()
+
         self._datetime_str = datetime.now().strftime("%Y%m%d_%H%M")
         self._base_name    = f"{animal}_{self._datetime_str}_{session}"
         self._session_dir  = Path(DATA_BASE) / animal / session
@@ -563,8 +577,11 @@ class TreadwallWindow(QMainWindow):
         self._lbl_front.setText("Waiting for trigger…")
         self._start_camera(animal, session)
 
-        # Reset notes pane
+        # Reset notes pane and record which session these notes belong to.
         self._notes = []
+        self._notes_saved = True   # empty notes are trivially "saved"
+        self._cur_animal  = animal
+        self._cur_session = session
         self._notes_display.clear()
         self._notes_display.append(f"=== {self._base_name} ===\n")
 
@@ -768,6 +785,10 @@ class TreadwallWindow(QMainWindow):
         )
         if ans == QMessageBox.Yes:
             self._upload_notes()
+        # If declined, the notes stay in the pane so more can be added or uploaded
+        # later via the button. They're auto-backed-up at the next session start
+        # (_backup_pending_notes) if still un-uploaded, so a forgotten upload can't
+        # lose them.
         # Consistent end-of-session state (identical after every session): the
         # operator can start another session or shut down via Disconnect Bpod.
         self._set_status(
@@ -787,25 +808,47 @@ class TreadwallWindow(QMainWindow):
         self._notes.append(entry)
         self._notes_display.append(entry)
         self._note_edit.clear()
+        self._notes_saved = False   # new content not yet uploaded/drafted
 
-    def _upload_notes(self):
+    def _current_note_payload(self):
+        """Build the (entry_name, tags, content) for the current notes, or None
+        if there are no notes. Uses the identifiers of the session the notes
+        belong to (captured at session start), not the live animal/session fields
+        — those may already point at the next session."""
         if not self._notes:
-            QMessageBox.information(self, "No notes", "No notes to upload.")
-            return
-
-        animal     = self._animal_combo.currentText().strip()
-        session    = self._session_edit.text().strip()
+            return None
+        animal     = self._cur_animal
+        session    = self._cur_session
         # RSpace 'text' fields hold HTML, so newlines collapse — wrap each note
         # in its own paragraph (escaped) so it renders on a separate line.
         content    = "".join(f"<p>{html.escape(n)}</p>" for n in self._notes)
         entry_name = f"{self._datetime_str}_treadwall_{session}"
         tags       = [f"id_{animal}", RSPACE_METHOD_TAG]
+        return entry_name, tags, content
+
+    def _write_note_draft(self, entry_name: str, tags: list, content: str) -> str:
+        """Write the notes to a local RSpace draft (same convention as
+        SessionNotes.py) and return the draft path. Raises on failure."""
+        draft_id = self._base_name or entry_name
+        return rspace.save_draft(draft_id, {
+            "name":    entry_name,
+            "tags":    tags,
+            "content": content,
+        })
+
+    def _upload_notes(self):
+        payload = self._current_note_payload()
+        if payload is None:
+            QMessageBox.information(self, "No notes", "No notes to upload.")
+            return
+        entry_name, tags, content = payload
 
         # Try the live upload; if it can't happen (no client, no notebook, or the
         # call fails), fall back to a local draft so the notes are never lost.
         if self._rs and self._notebook_id:
             try:
                 rspace.create_entry(self._notebook_id, tags, entry_name, content)
+                self._notes_saved = True
                 QMessageBox.information(self, "Uploaded", f"RSpace entry created: {entry_name}")
                 return
             except Exception as e:
@@ -818,15 +861,11 @@ class TreadwallWindow(QMainWindow):
         self._save_notes_backup(entry_name, tags, content, reason)
 
     def _save_notes_backup(self, entry_name: str, tags: list, content: str, reason: str):
-        """RSpace upload failed — save a local draft (same convention as
-        SessionNotes.py) that can be uploaded later from the IEECRSpace GUI."""
-        draft_id = self._base_name or entry_name
+        """RSpace upload failed — save a local draft that can be uploaded later
+        from the IEECRSpace GUI."""
         try:
-            draft_path = rspace.save_draft(draft_id, {
-                "name":    entry_name,
-                "tags":    tags,
-                "content": content,
-            })
+            draft_path = self._write_note_draft(entry_name, tags, content)
+            self._notes_saved = True
             QMessageBox.warning(
                 self, "Upload failed — saved locally",
                 f"Could not upload to RSpace ({reason}).\n\n"
@@ -838,6 +877,33 @@ class TreadwallWindow(QMainWindow):
                 self, "Upload and backup both failed",
                 f"Could not upload to RSpace ({reason}) and could not save a "
                 f"local draft either:\n\n{e}",
+            )
+
+    def _backup_pending_notes(self):
+        """Safety net called just before a new session clears the notes pane. If
+        the previous session's notes were never uploaded or drafted (the operator
+        declined the upload and forgot to do it later), save them to a local draft
+        so they aren't lost. No-op if there are no notes or they're already saved."""
+        if self._notes_saved:
+            return
+        payload = self._current_note_payload()
+        if payload is None:
+            return
+        entry_name, tags, content = payload
+        try:
+            draft_path = self._write_note_draft(entry_name, tags, content)
+            self._notes_saved = True
+            QMessageBox.information(
+                self, "Previous notes backed up locally",
+                f"The previous session's notes were never uploaded, so they were "
+                f"saved as a local draft:\n{draft_path}\n\n"
+                "Upload it later from the IEECRSpace GUI.",
+            )
+        except Exception as e:
+            QMessageBox.critical(
+                self, "Backup failed",
+                f"The previous session's notes were not uploaded and a local "
+                f"draft could not be saved either:\n\n{e}",
             )
 
     # ── Camera log ─────────────────────────────────────────────────────────────
