@@ -87,7 +87,7 @@ end
 if BpodSystem.Status.BeingUsed == 0
     disp('Session stopped while waiting for WaveSurfer. Exiting cleanly.');
     R.stopUSBStream();
-    gui_signal_done(ipc_dir);
+    gui_signal_aborted(ipc_dir);
     return
 end
 

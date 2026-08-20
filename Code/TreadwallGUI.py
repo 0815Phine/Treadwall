@@ -251,7 +251,8 @@ class TreadwallWindow(QMainWindow):
         # Drop stale completion/error/disconnect signals from a previous run so
         # we don't react to them on launch.
         for fname in ("session_done.flag", "session_error.json",
-                      "bpod_disconnected.flag", "loaded_params.json"):
+                      "bpod_disconnected.flag", "loaded_params.json",
+                      "camera_no_data.flag"):
             try:
                 (Path(IPC_DIR) / fname).unlink(missing_ok=True)
             except Exception:
@@ -535,7 +536,8 @@ class TreadwallWindow(QMainWindow):
         for fname in ("emergency_stop.flag", "stop_wavesurfer.flag",
                       "session_done.flag", "session_error.json",
                       "shutdown.flag", "bpod_disconnected.flag", "bpod_state.txt",
-                      "protocol_params.json", "loaded_params.json"):
+                      "protocol_params.json", "loaded_params.json",
+                      "camera_no_data.flag"):
             try:
                 (ipc / fname).unlink(missing_ok=True)
             except Exception:
@@ -771,13 +773,27 @@ class TreadwallWindow(QMainWindow):
         if not flag.exists():
             return
         flag.unlink(missing_ok=True)
+        # The protocol marks camera_no_data.flag when it stopped before any
+        # acquisition (e.g. emergency stop while waiting for WaveSurfer). In that
+        # case the camera never triggered, so it can't self-stop on the BNC pulse
+        # and has nothing to save — hard-stop it to release the devices at once.
+        no_data = ipc / "camera_no_data.flag"
+        aborted = no_data.exists()
+        if aborted:
+            no_data.unlink(missing_ok=True)
         self._estop_btn.setEnabled(False)
         self._disconnect_btn.setEnabled(True)   # idle now — disconnect allowed
-        # Let the camera self-stop (via the BNC trigger) and finish writing its
-        # frames/timestamps/metadata; don't kill it mid-save.
-        self._finish_camera()
+        if aborted:
+            self._stop_camera()
+        else:
+            # Let the camera self-stop (via the BNC trigger) and finish writing its
+            # frames/timestamps/metadata; don't kill it mid-save.
+            self._finish_camera()
         # WaveSurfer stops automatically — the protocol already wrote stop_wavesurfer.flag
-        self._set_status("Bpod protocol finished.")
+        self._set_status(
+            "Session stopped before start — camera released." if aborted
+            else "Bpod protocol finished."
+        )
         ans = QMessageBox.question(
             self, "Session complete",
             "Bpod protocol finished.\n\nUpload session notes to RSpace?",
