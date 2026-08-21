@@ -111,7 +111,6 @@ if ~isempty(fieldnames(RawEvents)) % If trial data was returned
     BpodSystem.Data = AddTrialEvents(BpodSystem.Data,RawEvents); % Computes trial events from raw data
     BpodSystem.Data.TrialSettings(1) = S;
     SaveBpodSessionData; % Saves the field BpodSystem.Data to the current data file
-    SaveBpodProtocolSettings;
     RotData = R.readUSBStream();
 end
 

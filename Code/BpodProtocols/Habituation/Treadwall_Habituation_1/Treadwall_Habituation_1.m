@@ -15,7 +15,7 @@ start_path = BpodSystem.Path.DataFolder; % folder selected in GUI;
 S = struct();
 
 % load parameters
-params_file = fullfile([BpodSystem.Path.ProtocolFolder '\treadwall_h1_parameters.m']);
+params_file = fullfile([BpodSystem.Path.ProtocolFolder '\parameters\treadwall_h1_parameters.m']);
 run(params_file)
 
 % ------ GUI parameters
@@ -132,7 +132,7 @@ end
 disp('Synced with Wavesurfer.');
 
 %% ---------- Main Loop ---------------------------------------------------
-for currentTrial = 1:floor(length(waveforms)/2)
+for currentTrial = 1:floor(length(WAVEFORMS)/2)
     disp(' ');
     disp('- - - - - - - - - - - - - - - ');
     disp(['Trial: ' num2str(currentTrial) ' - ' datestr(now,'HH:MM:SS')]);
@@ -170,7 +170,7 @@ for currentTrial = 1:floor(length(waveforms)/2)
             'OutputActions', {'BNC1',1});
 
     % last trial
-    elseif currentTrial == floor(length(waveforms)/2)
+    elseif currentTrial == floor(length(WAVEFORMS)/2)
         sma = AddState(sma, 'Name', 'stimulus', ...
             'Timer', S.GUI.stimDur,...
             'StateChangeConditions', {'Tup', 'EndBuffer', 'SoftCode2', 'StopCamera'},...
@@ -204,8 +204,7 @@ for currentTrial = 1:floor(length(waveforms)/2)
     if ~isempty(fieldnames(RawEvents)) % If trial data was returned
         BpodSystem.Data = AddTrialEvents(BpodSystem.Data,RawEvents); % Computes trial events from raw data
         BpodSystem.Data.TrialSettings(currentTrial) = S;
-        SaveBpodSessionData; %S aves the field BpodSystem.Data to the current data file
-        SaveBpodProtocolSettings;
+        SaveBpodSessionData; % Saves the field BpodSystem.Data to the current data file
     end
 
     if BpodSystem.Status.BeingUsed == 0

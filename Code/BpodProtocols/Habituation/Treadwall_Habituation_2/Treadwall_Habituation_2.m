@@ -15,13 +15,13 @@ start_path = BpodSystem.Path.DataFolder; % folder selected in GUI;
 S = struct();
 
 % load parameters
-params_file = fullfile([BpodSystem.Path.ProtocolFolder '\treadwall_habituation2_parameters.m']);
+params_file = fullfile([BpodSystem.Path.ProtocolFolder '\parameters\treadwall_h2_parameters.m']);
 run(params_file)
 
 % ------ GUI parameters
 S.GUI.SubjectID = BpodSystem.GUIData.SubjectName;
 S.GUI.SessionID = BpodSystem.GUIData.SessionID;
-S.GUI.stimDur =STIM_DUR; %in seconds
+S.GUI.stimDur = STIM_DUR; %in seconds
 S.GUI.ITIDur = ITI_DUR; %in seconds
 S.GUI.ScalingFactor = 1;
 S.GUI.EmergencyStop = 'SendBpodSoftCode(2)';
@@ -132,7 +132,7 @@ end
 disp('Synced with Wavesurfer.');
 
 %% ---------- Main Loop ---------------------------------------------------
-for currentTrial = 1:length(waveforms)
+for currentTrial = 1:length(WAVEFORMS)
     disp(' ');
     disp('- - - - - - - - - - - - - - - ');
     disp(['Trial: ' num2str(currentTrial) ' - ' datestr(now,'HH:MM:SS')]);
@@ -170,7 +170,7 @@ for currentTrial = 1:length(waveforms)
             'OutputActions', {'BNC1',1});
 
     % last trial
-    elseif currentTrial == length(waveforms)
+    elseif currentTrial == length(WAVEFORMS)
         sma = AddState(sma, 'Name', 'stimulus', ...
             'Timer', S.GUI.stimDur,...
             'StateChangeConditions', {'Tup', 'EndBuffer', 'SoftCode2', 'StopCamera'},...
@@ -205,7 +205,6 @@ for currentTrial = 1:length(waveforms)
         BpodSystem.Data = AddTrialEvents(BpodSystem.Data,RawEvents); % Computes trial events from raw data
         BpodSystem.Data.TrialSettings(currentTrial) = S;
         SaveBpodSessionData; % Saves the field BpodSystem.Data to the current data file
-        SaveBpodProtocolSettings;
     end
 
     if BpodSystem.Status.BeingUsed == 0

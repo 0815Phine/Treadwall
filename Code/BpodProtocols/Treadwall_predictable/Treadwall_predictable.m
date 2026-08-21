@@ -14,7 +14,7 @@ start_path = BpodSystem.Path.DataFolder; % folder selected in GUI;
 S = struct();
 
 % load parameters
-params_file = fullfile([BpodSystem.Path.ProtocolFolder '\treadwall_sc_p_parameters_.m']);
+params_file = fullfile([BpodSystem.Path.ProtocolFolder '\parameters\treadwall_sc_p_parameters.m']);
 run(params_file)
 
 % ------ GUI parameters
@@ -218,7 +218,7 @@ for currentTrial = 1:S.GUI.MaxTrialNumber
         sma = AddState(sma, 'Name', 'readDirection', ...
             'Timer', 0,...
             'StateChangeConditions', {'RotaryEncoder1_2', 'z1f', 'RotaryEncoder1_1', 'z1b', 'SoftCode1', 'EndBuffer', 'SoftCode2', 'StopCamera'},...
-            'OutputActions', {'WavePlayer1', ['!' 3 0 0],'RotaryEncoder1', 'ZE'});
+            'OutputActions', {'WavePlayer1', ['!' 3 0 0], 'RotaryEncoder1', 'ZE'});
 
         % zone 1
         sma = AddState(sma, 'Name', 'z1f',...
@@ -458,7 +458,6 @@ for currentTrial = 1:S.GUI.MaxTrialNumber
         BpodSystem.Data.TrialSettings(currentTrial) = S;
         BpodSystem.Data.Loop(currentTrial) = currentTrial;
         SaveBpodSessionData; % Saves the field BpodSystem.Data to the current data file
-        %SaveBpodProtocolSettings;
     end
 
     if strcmp(tpredict.Running, 'off')

@@ -14,7 +14,7 @@ start_path = BpodSystem.Path.DataFolder; % folder selected in GUI;
 S = struct();
 
 % load parameters
-params_file = fullfile([BpodSystem.Path.ProtocolFolder '\treadwall_sc_p_parameters.m']);
+params_file = fullfile([BpodSystem.Path.ProtocolFolder '\parameters\treadwall_sc_p_parameters.m']);
 run(params_file)
 
 % ------ GUI parameters
@@ -238,7 +238,6 @@ for currentTrial = 1:S.GUI.MaxTrialNumber
         BpodSystem.Data.TrialSettings(currentTrial) = S;
         BpodSystem.Data.TrialTypes(currentTrial) = triallist(currentTrial);
         SaveBpodSessionData; % Saves the field BpodSystem.Data to the current data file
-        %SaveBpodProtocolSettings;
     end
 
     if BpodSystem.Status.BeingUsed == 0
