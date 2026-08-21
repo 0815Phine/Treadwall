@@ -48,11 +48,14 @@ gui_publish_loaded_params(ipc_dir, S);
 %% ---------- Trials ------------------------------------------------------
 base_name_z = sprintf('%s_%s', S.GUI.SubjectID, datetime_str);
 % load zones
-if exist(fullfile([animal_dir base_name_z '_zones.csv']), 'file')
-    zones_dir = fullfile([animal_dir base_name_z '_zones.csv']);
+content = dir(animal_dir); files = content(~[content.isdir]);
+zones_dir = [files.folder '\' files.name];
+if strcmp(zones_dir, '\')
+    zones_dir = create_zones(animal_dir, base_name_z);
+elseif exist(zones_dir, 'file') == 2
     fprintf('Zones have been loaded from %s\n', zones_dir);
 else
-    zones_dir = create_zones(animal_dir, base_name_z);
+    error('No zones created')
 end
 
 zones = readtable(zones_dir);
