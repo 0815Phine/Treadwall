@@ -47,6 +47,16 @@ PROTOCOLS = [
     "Treadwall_scrambled",
     "Treadwall_predictable",
 ]
+# Which Protocol Parameters each protocol reads live (via gui_read_params) and so
+# can be adjusted in the GUI. Params not listed are fixed by the protocol and are
+# shown greyed-out/read-only. Unknown protocols default to all three editable.
+PROTOCOL_EDITABLE_PARAMS = {
+    "Treadwall_Baseline":      set(),                                  # fixed once
+    "Treadwall_Habituation_1": {"ITIDur", "stimDur", "ScalingFactor"},
+    "Treadwall_Habituation_2": {"ITIDur", "stimDur", "ScalingFactor"},
+    "Treadwall_scrambled":     {"ITIDur", "stimDur", "ScalingFactor"},
+    "Treadwall_predictable":   {"ITIDur", "ScalingFactor"},            # no stimDur
+}
 # ──────────────────────────────────────────────────────────────────────────────
 
 _HERE         = Path(__file__).parent
@@ -233,6 +243,8 @@ class TreadwallWindow(QMainWindow):
         self._notes_saved  = True
         self._matlab_proc        = None   # single MATLAB instance (WaveSurfer + Bpod)
         self._matlab_launch_time = None
+        self._bpod_ready         = False  # WaveSurfer + Bpod finished initialising
+        self._bpod_connected     = True   # False while Bpod is disconnected (standby)
         self._cam_proc     = None   # camera Python process
         self._preview_thr  = None   # CameraPreviewThread
         self._cam_log_thr  = None   # CameraLogThread
@@ -252,7 +264,7 @@ class TreadwallWindow(QMainWindow):
         # we don't react to them on launch.
         for fname in ("session_done.flag", "session_error.json",
                       "bpod_disconnected.flag", "loaded_params.json",
-                      "camera_no_data.flag"):
+                      "camera_no_data.flag", "reconnect.flag", "quit.flag"):
             try:
                 (Path(IPC_DIR) / fname).unlink(missing_ok=True)
             except Exception:
@@ -333,6 +345,11 @@ class TreadwallWindow(QMainWindow):
         self._nb_combo.currentIndexChanged.connect(self._on_notebook_changed)
 
         sv.addLayout(self._row("Animal:", self._make_combo("_animal_combo")))
+        # Editable so an animal ID can be typed by hand (e.g. when RSpace is
+        # unreachable and the dropdown can't be populated from notebook tags).
+        self._animal_combo.setEditable(True)
+        self._animal_combo.setInsertPolicy(QComboBox.NoInsert)   # don't persist typed text
+        self._animal_combo.lineEdit().setPlaceholderText("select or type animal ID")
 
         self._session_edit = QLineEdit()
         self._session_edit.setPlaceholderText("e.g. S1_B1")
@@ -348,6 +365,7 @@ class TreadwallWindow(QMainWindow):
         self._start_btn.setStyleSheet(
             "QPushButton{background:#2a7a4a;color:white;font-weight:bold;padding:8px}"
             "QPushButton:hover{background:#35a060}"
+            "QPushButton:disabled{background:#444;color:#888}"
         )
         self._start_btn.clicked.connect(self._on_start)
 
@@ -388,7 +406,8 @@ class TreadwallWindow(QMainWindow):
             "QPushButton:disabled{background:#2a2a2a;color:#666}"
         )
         self._disconnect_btn.setEnabled(False)
-        self._disconnect_btn.clicked.connect(self._on_disconnect)
+        # One button toggles between disconnecting and reconnecting Bpod.
+        self._disconnect_btn.clicked.connect(self._on_connect_btn)
         sv.addWidget(self._disconnect_btn)
 
         # Notes group
@@ -427,6 +446,12 @@ class TreadwallWindow(QMainWindow):
 
         for sp in (self._iti_spin, self._stim_spin, self._scale_spin):
             sp.valueChanged.connect(self._write_params)
+
+        # Grey out parameters the selected protocol doesn't read live (e.g. all of
+        # them for Baseline), so it's clear which are fixed / set once.
+        self._prot_combo.currentTextChanged.connect(
+            lambda _: self._update_param_editability())
+        self._update_param_editability()
 
         rv.addWidget(setup_box)
         rv.addWidget(params_box)
@@ -540,7 +565,7 @@ class TreadwallWindow(QMainWindow):
                       "session_done.flag", "session_error.json",
                       "shutdown.flag", "bpod_disconnected.flag", "bpod_state.txt",
                       "protocol_params.json", "loaded_params.json",
-                      "camera_no_data.flag"):
+                      "camera_no_data.flag", "reconnect.flag", "quit.flag"):
             try:
                 (ipc / fname).unlink(missing_ok=True)
             except Exception:
@@ -591,8 +616,10 @@ class TreadwallWindow(QMainWindow):
         self._notes_display.append(f"=== {self._base_name} ===\n")
 
         self._start_btn.setText("NEW SESSION")
+        self._start_btn.setEnabled(False)        # can't start another mid-session
         self._estop_btn.setEnabled(True)
         self._disconnect_btn.setEnabled(False)   # a session is running now
+        self._set_setup_enabled(False)           # lock setup fields during a session
         self.setWindowTitle(f"Treadwall — {self._base_name}")
         self._set_status(
             f"Session ready: {self._base_name}\n"
@@ -651,23 +678,36 @@ class TreadwallWindow(QMainWindow):
         just updates the names via the pending IPC (like a subsequent session).
 
         If a MATLAB from a previous GUI run is still alive (fresh heartbeat), adopt
-        it instead of spawning a second instance (which would collide on Bpod)."""
+        it instead of spawning a second instance (which would collide on Bpod).
+
+        Start stays disabled until StartBpodSession signals readiness via
+        bpod_ready.flag (picked up in _poll_ipc); on a launch failure Start is left
+        enabled so the on-demand launch path still works."""
         hb = Path(IPC_DIR) / "matlab_alive.flag"
         try:
             if hb.exists() and time.time() - hb.stat().st_mtime < 10:
                 self._matlab_launch_time = time.time()
+                # Existing MATLAB already ran init — its bpod_ready.flag (if in the
+                # wait loop) re-enables Start on the next poll.
+                self._start_btn.setEnabled(False)
                 self._set_status("Existing MATLAB (WaveSurfer + Bpod) detected — reusing it.")
                 return
         except Exception:
             pass
         try:
+            # Fresh launch — drop any stale readiness/standby flags and gate Start
+            # until the new MATLAB reports ready.
+            (Path(IPC_DIR) / "bpod_ready.flag").unlink(missing_ok=True)
+            (Path(IPC_DIR) / "bpod_standby.flag").unlink(missing_ok=True)
+            self._start_btn.setEnabled(False)
             # Empty protocol → StartBpodSession pre-warms (init + wait, no run).
             self._spawn_matlab(DATA_BASE, "prewarm", "prewarm", "prewarm", "", "")
             self._set_status(
                 "Starting WaveSurfer + Bpod (placeholder names) — "
-                "set up the session while they open."
+                "Start will enable once they're ready."
             )
         except Exception as e:
+            self._start_btn.setEnabled(True)   # fallback: allow on-demand launch
             self._set_status(f"Could not pre-launch MATLAB: {e}")
 
     def _start_camera(self, animal: str, session: str):
@@ -769,16 +809,29 @@ class TreadwallWindow(QMainWindow):
                 pass
             lp_file.unlink(missing_ok=True)
 
-        # Bpod cleanly disconnected — the rig is safe to close.
+        # WaveSurfer + Bpod finished initialising (or reconnected) — enable Start.
+        if not self._bpod_ready and (ipc / "bpod_ready.flag").exists():
+            self._bpod_ready = True
+            self._bpod_connected = True
+            self._start_btn.setEnabled(True)
+            self._set_connect_mode(connected=True, enabled=True)
+            self._set_status("WaveSurfer + Bpod ready — you can start a session.")
+
+        # Bpod disconnected (standby) — offer Reconnect, disable Start. Triggered by
+        # the one-shot bpod_disconnected.flag, or by a persistent bpod_standby.flag
+        # (covers a GUI reopened while MATLAB was already in standby).
         disc_file = ipc / "bpod_disconnected.flag"
-        if disc_file.exists():
+        in_standby = (ipc / "bpod_standby.flag").exists()
+        if disc_file.exists() or (in_standby and self._bpod_connected):
             disc_file.unlink(missing_ok=True)
+            self._bpod_ready = False
+            self._bpod_connected = False
             self._estop_btn.setEnabled(False)
-            self._disconnect_btn.setEnabled(False)
             self._start_btn.setEnabled(False)
+            self._set_connect_mode(connected=False, enabled=True)
             self._set_status(
-                "Bpod disconnected — safe to close this window "
-                "(and MATLAB / WaveSurfer)."
+                "Bpod disconnected — press \"Reconnect Bpod\" to reconnect, "
+                "or close the windows to quit."
             )
             return
 
@@ -792,7 +845,9 @@ class TreadwallWindow(QMainWindow):
                 msg = "unknown error"
             err_file.unlink(missing_ok=True)
             self._estop_btn.setEnabled(False)
+            self._start_btn.setEnabled(True)        # idle — can start again
             self._disconnect_btn.setEnabled(True)   # idle now — disconnect allowed
+            self._set_setup_enabled(True)           # idle — setup editable again
             # Startup error → the camera never got its trigger and recorded
             # nothing, so stop it immediately rather than waiting it out.
             self._stop_camera()
@@ -817,7 +872,9 @@ class TreadwallWindow(QMainWindow):
         if aborted:
             no_data.unlink(missing_ok=True)
         self._estop_btn.setEnabled(False)
+        self._start_btn.setEnabled(True)        # idle — can start again
         self._disconnect_btn.setEnabled(True)   # idle now — disconnect allowed
+        self._set_setup_enabled(True)           # idle — setup editable again
         if aborted:
             self._stop_camera()
         else:
@@ -977,6 +1034,21 @@ class TreadwallWindow(QMainWindow):
 
     # ── Protocol parameters ─────────────────────────────────────────────────────
 
+    def _update_param_editability(self):
+        """Enable only the Protocol Parameters the selected protocol reads live;
+        grey out (with a tooltip) the ones it fixes, so it's clear they're set
+        once and not adjustable during the session (e.g. all of them for Baseline)."""
+        protocol = self._prot_combo.currentText()
+        editable = PROTOCOL_EDITABLE_PARAMS.get(
+            protocol, {"ITIDur", "stimDur", "ScalingFactor"})
+        for key, spin in (("ITIDur",        self._iti_spin),
+                          ("stimDur",       self._stim_spin),
+                          ("ScalingFactor", self._scale_spin)):
+            on = key in editable
+            spin.setEnabled(on)
+            spin.setToolTip("" if on else
+                            "Fixed by this protocol — set once, not adjustable during the session.")
+
     def _apply_loaded_params(self, params: dict):
         """Set the spinboxes to the protocol's loaded values. Signals are blocked
         so applying them does not immediately re-write protocol_params.json (that
@@ -1015,8 +1087,22 @@ class TreadwallWindow(QMainWindow):
         except Exception as e:
             self._set_status(f"Emergency stop failed: {e}")
 
+    def _set_connect_mode(self, connected: bool, enabled: bool):
+        """Toggle the connect button between Disconnect (when Bpod is connected)
+        and Reconnect (when it's in standby), and set its enabled state."""
+        self._disconnect_btn.setText("Disconnect Bpod" if connected else "Reconnect Bpod")
+        self._disconnect_btn.setEnabled(enabled)
+
+    def _on_connect_btn(self):
+        """Single button: disconnect when connected, reconnect when in standby."""
+        if self._bpod_connected:
+            self._on_disconnect()
+        else:
+            self._on_reconnect()
+
     def _on_disconnect(self):
-        """Ask MATLAB to cleanly EndBpod when done for the day."""
+        """Ask MATLAB to cleanly EndBpod (e.g. to fix code), staying alive so it can
+        be reconnected without restarting the GUI."""
         if not self._matlab_is_alive():
             self._set_status("No running MATLAB session to disconnect.")
             self._disconnect_btn.setEnabled(False)
@@ -1024,24 +1110,52 @@ class TreadwallWindow(QMainWindow):
         ans = QMessageBox.question(
             self, "Disconnect Bpod",
             "Cleanly disconnect Bpod from MATLAB?\n\n"
-            "MATLAB and WaveSurfer stay open so you can close them yourself.",
+            "MATLAB and WaveSurfer stay open; press \"Reconnect Bpod\" to bring "
+            "Bpod back.",
             QMessageBox.Yes | QMessageBox.No,
         )
         if ans != QMessageBox.Yes:
             return
         try:
+            # Drop readiness locally so a poll can't re-enable Start before MATLAB
+            # finishes disconnecting.
+            self._bpod_ready = False
+            (Path(IPC_DIR) / "bpod_ready.flag").unlink(missing_ok=True)
             (Path(IPC_DIR) / "shutdown.flag").touch()
+            self._start_btn.setEnabled(False)
             self._disconnect_btn.setEnabled(False)
             self._set_status("Disconnecting Bpod…")
         except Exception as e:
             self._set_status(f"Disconnect failed: {e}")
 
+    def _on_reconnect(self):
+        """Ask MATLAB (in standby) to re-initialise Bpod. Readiness returns via
+        bpod_ready.flag, which re-enables Start and flips the button back."""
+        try:
+            (Path(IPC_DIR) / "reconnect.flag").touch()
+            self._disconnect_btn.setEnabled(False)
+            self._set_status("Reconnecting Bpod…")
+        except Exception as e:
+            self._set_status(f"Reconnect failed: {e}")
+
     # ── Helpers ────────────────────────────────────────────────────────────────
+
+    def _set_setup_enabled(self, on: bool):
+        """Enable/disable the session-setup inputs so they can't be changed while a
+        session is running."""
+        for w in (self._nb_combo, self._animal_combo, self._session_edit,
+                  self._prot_combo):
+            w.setEnabled(on)
 
     def _set_status(self, msg: str):
         self._status_lbl.setText(msg)
 
     def closeEvent(self, event):
+        # Release MATLAB from the connect/standby loop back to a normal prompt.
+        try:
+            (Path(IPC_DIR) / "quit.flag").touch()
+        except Exception:
+            pass
         self._stop_camera()
         if self._cam_reaper is not None:
             self._cam_reaper.wait(3000)

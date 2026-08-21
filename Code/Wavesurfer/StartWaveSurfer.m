@@ -13,7 +13,11 @@ if ~exist(IPC_DIR, 'dir'), mkdir(IPC_DIR); end
 % WaveSurfer + Bpod startup and every subsequent session.
 log_file = fullfile(IPC_DIR, 'matlab_log.txt');
 try, diary off; catch, end
-if exist(log_file, 'file'), delete(log_file); end
+% Truncate (don't delete) so a fresh diary starts without warning even when the
+% GUI is briefly tailing the file — deleting a file the GUI has open warns
+% "permission denied". The GUI resets its read position when the file shrinks.
+fid = fopen(log_file, 'w');
+if fid ~= -1, fclose(fid); end
 diary(log_file);
 diary on;
 
@@ -43,6 +47,7 @@ fclose(fid);
 
 % ── IPC: start polling timer ─────────────────────────────────────────────────
 t = timer('Period', 0.5, 'ExecutionMode', 'fixedRate', ...
+    'Tag', 'treadwall_ws_ipc', ...
     'TimerFcn', @(~,~) ws_ipc_check(ws, IPC_DIR));
 start(t);
 fprintf('IPC timer started (0.5 s poll interval).\n');
