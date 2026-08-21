@@ -15,14 +15,14 @@ start_path = BpodSystem.Path.DataFolder; % folder selected in GUI;
 S = struct();
 
 % load parameters
-params_file = fullfile([BpodSystem.Path.ProtocolFolder '\treadwall_habituation1_parameters.m']);
+params_file = fullfile([BpodSystem.Path.ProtocolFolder '\treadwall_h1_parameters.m']);
 run(params_file)
 
 % ------ GUI parameters
 S.GUI.SubjectID = BpodSystem.GUIData.SubjectName;
 S.GUI.SessionID = BpodSystem.GUIData.SessionID;
-S.GUI.stimDur = stimDur; %in seconds
-S.GUI.ITIDur = ITIDur; %in seconds
+S.GUI.stimDur = STIM_DUR; %in seconds
+S.GUI.ITIDur = ITI_DUR; %in seconds
 S.GUI.ScalingFactor = 1;
 S.GUI.EmergencyStop = 'SendBpodSoftCode(2)';
 S.GUIMeta.EmergencyStop.Style = 'pushbutton';
@@ -83,8 +83,8 @@ W.TriggerMode = 'Master';
 
 % load waveforms (part of parameter file)
 lengthWave = (S.GUI.stimDur+5)*W.SamplingRate; % add 5 second buffer
-for i = 1:length(waveforms)
-    W.loadWaveform(i, waveforms{i}*ones(1,lengthWave));
+for i = 1:length(WAVEFORMS)
+    W.loadWaveform(i, WAVEFORMS{i}*ones(1,lengthWave));
 end
 
 %% ---------- Restart Timer -----------------------------------------------

@@ -13,19 +13,15 @@ start_path = BpodSystem.Path.DataFolder; % folder selected in GUI;
 % initialize parameters
 S = struct();
 
-% load correct parameters for location
-location = questdlg('Where do you perform your experiments?',...
-    'Locations',...
-    'BN','ISR','ISR');
-params_file = fullfile([BpodSystem.Path.ProtocolFolder '\treadwall_scrambled_parameters_', location, '.m']);
+% load parameters
+params_file = fullfile([BpodSystem.Path.ProtocolFolder '\treadwall_sc_p_parameters.m']);
 run(params_file)
-fprintf('Parameters loaded for: %s \n', location);
 
 % ------ GUI parameters
 S.GUI.SubjectID = BpodSystem.GUIData.SubjectName;
 S.GUI.SessionID = BpodSystem.GUIData.SessionID;
-S.GUI.ITIDur = ITIDur; %in seconds
-S.GUI.stimDur = stimDur; %in seconds
+S.GUI.ITIDur = ITI_DUR; %in seconds
+S.GUI.stimDur = STIM_DUR; %in seconds
 S.GUI.ScalingFactor = 1;
 S.GUI.EmergencyStop = 'SendBpodSoftCode(2)';
 S.GUIMeta.EmergencyStop.Style = 'pushbutton';
@@ -106,8 +102,8 @@ W.TriggerMode = 'Normal';
 
 % Waveforms for distances (waveforms are loaded with the parameter file)
 lengthWave = S.GUI.stimDur*W.SamplingRate;
-for i = 1:length(waveforms)
-    W.loadWaveform(i, waveforms{i}*ones(1,lengthWave));
+for i = 1:length(WAVEFORMS)
+    W.loadWaveform(i, WAVEFORMS{i}*ones(1,lengthWave));
 end
 
 %% ---------- Restart Timer -----------------------------------------------
