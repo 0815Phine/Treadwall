@@ -1,9 +1,10 @@
 % Helper function to determine the correct stimulus output based on trial type
-% this outputs are currently calibrated for my guiding plate, they might have to be adapted
+% output voltages are defined in the parameter files in the variable 'WAVEFORMS'
+% each index points to the corresponding waveform
 
 function stimOutput = GetStimOutput(trialType)
     switch trialType
-        %centered
+        % centered
         case 'C51'
             stimOutput = ['>' 2 2 255 255];
         case 'C45'
@@ -14,14 +15,14 @@ function stimOutput = GetStimOutput(trialType)
             stimOutput = ['>' 5 5 255 255]; %['!' 3 181 194];
         case 'C27'
             stimOutput = ['>' 6 6 255 255]; %['!' 3 205 210];
-        %left
+        % left
         case 'L51'
             stimOutput = ['>' 0 4 255 255];
         case 'L45'
             stimOutput = ['>' 1 5 255 255];
         case 'L39'
             stimOutput = ['>' 2 6 255 255];
-        %right
+        % right
         case 'R51'
             stimOutput = ['>' 4 0 255 255];
         case 'R45'
@@ -29,7 +30,7 @@ function stimOutput = GetStimOutput(trialType)
         case 'R39'
             stimOutput = ['>' 6 2 255 255];
 
-        % calibrated for Israel
+        % calibrated for Israel / not reachable in Bonn
         case 'L33'
             stimOutput = ['>' 3 7 255 255];
         case 'L27'

@@ -64,8 +64,24 @@ def run_reconstruction(chunks_dir, output_video_path, fps, output_dir=None, log_
     if not chunk_files:
         raise FileNotFoundError(f"No chunk files (chunk_NNNNNN.npy) found in: {chunks_dir}")
 
+    # --- Detect frame dimensions / pixel format from the data itself ---
+    # (Resolution varies between recording sessions, so never hardcode it.)
+    first = np.load(chunk_files[0], mmap_mode='r')
+    if first.ndim == 4 and first.shape[-1] == 3:
+        height, width = int(first.shape[1]), int(first.shape[2])
+        pix_fmt_in = "rgb24"
+    elif first.ndim == 3:
+        height, width = int(first.shape[1]), int(first.shape[2])
+        pix_fmt_in = "gray"
+    else:
+        raise ValueError(
+            f"Unexpected chunk shape {first.shape} in {chunk_files[0]}; "
+            "expected (frames, H, W) grayscale or (frames, H, W, 3) color."
+        )
+
     total_frames = sum(np.load(f, mmap_mode='r').shape[0] for f in chunk_files)
     log_fn(f"Found {len(chunk_files)} chunks, {total_frames} frames total")
+    log_fn(f"Frame size: {width}x{height} ({pix_fmt_in})")
     log_fn(f"Frame rate: {fps} Hz")
     log_fn(f"Output: {output_video_path}")
 
@@ -78,8 +94,8 @@ def run_reconstruction(chunks_dir, output_video_path, fps, output_dir=None, log_
         "ffmpeg", "-y",
         "-f", "rawvideo",
         "-vcodec", "rawvideo",
-        "-pix_fmt", "gray",
-        "-s", "1440x1080",
+        "-pix_fmt", pix_fmt_in,
+        "-s", f"{width}x{height}",
         "-r", str(fps),
         "-i", "pipe:0",
     ]
@@ -141,7 +157,18 @@ def run_reconstruction(chunks_dir, output_video_path, fps, output_dir=None, log_
     # --- Copy timestamps.txt alongside video so MATLAB can find both together ---
     out_dir = output_dir or os.path.dirname(os.path.abspath(output_video_path))
     parent_dir = os.path.dirname(os.path.abspath(chunks_dir))
-    ts_candidates = glob.glob(os.path.join(parent_dir, "*_video_timestamps.txt"))
+    # Frame dirs are named "<stem>_frames" with timestamps "<stem>_timestamps.txt"
+    # in the parent (session) directory, e.g. "..._frontcam_frames" ->
+    # "..._frontcam_timestamps.txt". Fall back to older "*_video_timestamps.txt".
+    chunks_base = os.path.basename(os.path.normpath(chunks_dir))
+    ts_candidates = []
+    if chunks_base.endswith("_frames"):
+        derived = os.path.join(parent_dir, chunks_base[:-len("_frames")] + "_timestamps.txt")
+        if os.path.exists(derived):
+            ts_candidates = [derived]
+    if not ts_candidates:
+        ts_candidates = (glob.glob(os.path.join(parent_dir, "*_timestamps.txt"))
+                         or glob.glob(os.path.join(parent_dir, "*_video_timestamps.txt")))
     if ts_candidates:
         ts_src = ts_candidates[0]
         ts_dst = os.path.join(out_dir, os.path.basename(ts_src))
@@ -152,6 +179,66 @@ def run_reconstruction(chunks_dir, output_video_path, fps, output_dir=None, log_
             log_fn(f"Timestamps already at destination.")
     else:
         log_fn("No timestamps file found alongside chunks directory.")
+
+
+# ======================================================================
+# Batch reconstruction (walk a root directory)
+# ======================================================================
+
+def find_frame_dirs(root_dir):
+    """Return sorted list of '*_frames' directories under root_dir that
+    actually contain chunk_NNNNNN.npy files."""
+    found = []
+    for dirpath, dirnames, _ in os.walk(root_dir):
+        for d in dirnames:
+            if d.endswith("_frames"):
+                full = os.path.join(dirpath, d)
+                if glob.glob(os.path.join(full, "chunk_??????.npy")):
+                    found.append(full)
+    return sorted(found)
+
+
+def run_batch(root_dir, fps, log_fn=print, skip_existing=True):
+    """
+    Reconstruct every '*_frames' directory found under root_dir.
+
+    The output .mp4 is written next to each frames directory (in the session
+    folder), named after the frames directory with '_frames' stripped.
+    Failures are isolated so one bad folder does not abort the whole run.
+    """
+    frame_dirs = find_frame_dirs(root_dir)
+    if not frame_dirs:
+        raise FileNotFoundError(f"No '*_frames' directories with chunks found under: {root_dir}")
+
+    log_fn(f"=== Batch: {len(frame_dirs)} frame folder(s) under {root_dir} ===")
+
+    succeeded, skipped, failed = [], [], []
+    for i, chunks_dir in enumerate(frame_dirs, 1):
+        base = os.path.basename(os.path.normpath(chunks_dir))
+        name = base[:-len("_frames")] if base.endswith("_frames") else base
+        session_dir = os.path.dirname(os.path.normpath(chunks_dir))
+        output_video_path = os.path.join(session_dir, name + ".mp4")
+
+        log_fn("")
+        log_fn(f"--- [{i}/{len(frame_dirs)}] {base} ---")
+
+        if skip_existing and os.path.exists(output_video_path):
+            log_fn(f"  Output already exists, skipping: {output_video_path}")
+            skipped.append(chunks_dir)
+            continue
+
+        try:
+            run_reconstruction(chunks_dir, output_video_path, fps, log_fn=log_fn)
+            succeeded.append(chunks_dir)
+        except Exception as exc:
+            log_fn(f"  ERROR reconstructing {base}: {exc}")
+            failed.append((chunks_dir, str(exc)))
+
+    log_fn("")
+    log_fn(f"=== Batch complete: {len(succeeded)} ok, {len(skipped)} skipped, {len(failed)} failed ===")
+    for cd, err in failed:
+        log_fn(f"  FAILED: {cd} -> {err}")
+    return succeeded, skipped, failed
 
 
 # ======================================================================
@@ -211,9 +298,13 @@ def run_gui():
     ttk.Label(frame_inputs, text="Frame rate (Hz):").grid(row=2, column=0, sticky="w", **pad)
     ttk.Entry(frame_inputs, textvariable=var_fps, width=10).grid(row=2, column=1, sticky="w", **pad)
 
-    # ---- Reconstruct button ----
-    btn_run = ttk.Button(root, text="Reconstruct", padding=(20, 6))
-    btn_run.grid(row=1, column=0, pady=8)
+    # ---- Action buttons ----
+    frame_buttons = ttk.Frame(root)
+    frame_buttons.grid(row=1, column=0, pady=8)
+    btn_run = ttk.Button(frame_buttons, text="Reconstruct", padding=(20, 6))
+    btn_run.grid(row=0, column=0, padx=6)
+    btn_batch = ttk.Button(frame_buttons, text="Batch folder…", padding=(20, 6))
+    btn_batch.grid(row=0, column=1, padx=6)
 
     # ---- Log area ----
     frame_log = ttk.Frame(root, padding=(10, 0, 10, 10))
@@ -267,7 +358,7 @@ def run_gui():
             messagebox.showerror("Invalid input", f"Frame rate must be a number, got: {fps_str!r}")
             return
 
-        btn_run.configure(state="disabled")
+        _set_buttons("disabled")
         gui_log(f"--- Starting reconstruction ---")
         gui_log(f"Chunks: {chunks_dir}")
 
@@ -278,11 +369,44 @@ def run_gui():
             except Exception as exc:
                 gui_log(f"ERROR: {exc}")
             finally:
-                root.after(0, lambda: btn_run.configure(state="normal"))
+                root.after(0, lambda: _set_buttons("normal"))
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _set_buttons(state):
+        btn_run.configure(state=state)
+        btn_batch.configure(state=state)
+
+    # ---- Batch: reconstruct every '*_frames' folder under a chosen root ----
+    def on_batch():
+        fps_str = var_fps.get().strip()
+        try:
+            fps = float(fps_str)
+        except ValueError:
+            messagebox.showerror("Invalid input", f"Frame rate must be a number, got: {fps_str!r}")
+            return
+
+        root_dir = filedialog.askdirectory(title="Select root folder to batch-reconstruct")
+        if not root_dir:
+            return
+
+        _set_buttons("disabled")
+        gui_log(f"--- Starting batch reconstruction ---")
+        gui_log(f"Root: {root_dir}")
+
+        def worker():
+            try:
+                run_batch(root_dir, fps, log_fn=gui_log)
+                gui_log("--- Batch done ---")
+            except Exception as exc:
+                gui_log(f"ERROR: {exc}")
+            finally:
+                root.after(0, lambda: _set_buttons("normal"))
 
         threading.Thread(target=worker, daemon=True).start()
 
     btn_run.configure(command=on_run)
+    btn_batch.configure(command=on_batch)
 
     root.mainloop()
 
@@ -292,10 +416,19 @@ def run_gui():
 # ======================================================================
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1:
+    if len(sys.argv) > 1 and sys.argv[1] == "--batch":
+        # Batch mode: python VideoReconstruct.py --batch <root_dir> [fps]
+        if len(sys.argv) < 3:
+            print("Usage: python VideoReconstruct.py --batch <root_dir> [fps]")
+            sys.exit(1)
+        root_dir = sys.argv[2]
+        fps = float(sys.argv[3]) if len(sys.argv) > 3 else 200.0
+        run_batch(root_dir, fps)
+    elif len(sys.argv) > 1:
         # CLI mode
         if len(sys.argv) < 4:
             print("Usage: python VideoReconstruct.py <chunks_dir> <output_video_path> <fps> [output_dir]")
+            print("   or: python VideoReconstruct.py --batch <root_dir> [fps]")
             sys.exit(1)
         chunks_dir        = sys.argv[1]
         output_video_path = sys.argv[2]

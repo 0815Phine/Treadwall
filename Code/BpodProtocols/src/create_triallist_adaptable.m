@@ -1,11 +1,11 @@
-function create_triallist_adaptable(session_dir)
+function create_triallist_adaptable(session_dir, base_name)
 % Ensure directories exist
 if ~exist(session_dir, 'dir')
     mkdir(session_dir);
 end
 
 % Path for the output file
-output_path = fullfile(session_dir, 'triallist.csv');
+output_path = fullfile(session_dir, [base_name '_triallist.csv']);
 
 % Define trial types
 offset = {'C', 'L', 'R'}; % Centre, Left, Right
