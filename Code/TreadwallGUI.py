@@ -35,7 +35,7 @@ import rspace
 
 # ── Configuration ─────────────────────────────────────────────────────────────
 MATLAB_EXE        = r"C:\Program Files\MATLAB\R2024a\bin\matlab.exe"
-PYTHON_EXE        = r"C:\Users\TomBombadil\anaconda3\python.exe"
+PYTHON_EXE        = r"C:\Users\TomBombadil\anaconda3\envs\treadwall\python.exe"
 DATA_BASE         = r"D:\\"
 IPC_DIR           = r"C:\Users\TomBombadil\Documents\TreadwallGUI\ipc"
 PREVIEW_DIR       = r"C:\Users\TomBombadil\Documents\TreadwallGUI\preview"

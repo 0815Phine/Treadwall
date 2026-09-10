@@ -72,8 +72,42 @@ libraries from its own sketchbook `libraries/` folder, not from this repo):
 - `Tic` (Pololu) — Wall Mover / Wall Synchronizer sketches.
 - `Servo`, `SoftwareSerial` — ship with the Arduino IDE.
 
-Python packages and external tools (`ffmpeg`, MATLAB, Pololu Tic driver, Anaconda) will be pinned
-in a later step (`environment.yml` + parts list).
+### Python environment
+The GUI and camera scripts run on a dedicated conda environment pinned in
+[`Code/dependencies/environment.yml`](Code/dependencies/environment.yml). Create it once:
+
+```
+conda env create -f Code/dependencies/environment.yml
+```
+
+This builds an env named `treadwall` (Python 3.11 + numpy, opencv-python, pypylon, PyQt5,
+requests). The launcher ([Code/StartSession.bat](Code/StartSession.bat)) and the camera subprocess
+already point at this env's interpreter, so **the `treadwall` env must exist for the app to run**.
+Run the end-of-day sync in the same env, e.g. `conda run -n treadwall python Code/src/data_management/DailyDataManager.py`.
+(`rspace` is not listed here — it is imported from the `IEECRSpace` submodule source.)
+
+**ffmpeg** is required for live video encoding and is **not** a conda package here — the camera
+calls `ffmpeg` by name, so it must be on the system `PATH`. FFmpeg's official home is
+[ffmpeg.org](https://ffmpeg.org/), which doesn't ship Windows binaries itself but links trusted
+builders on its [download page](https://ffmpeg.org/download.html) (→ *Windows*). Install the
+**gyan.dev _full_ build**: `winget install Gyan.FFmpeg`, or download `ffmpeg-full` from
+[gyan.dev/ffmpeg/builds](https://www.gyan.dev/ffmpeg/builds/), unzip, and add its `bin\` folder to
+`PATH`; verify with `ffmpeg -version`. Use the *full* build (not the conda-forge one): the camera
+auto-detects and prefers the `h264_nvenc` (NVIDIA GPU) encoder, which the full build ships but the
+conda-forge build generally omits — otherwise capture silently falls back to CPU `libx264`.
+
+### External tools
+| Tool | Version / build | Purpose |
+| :--- | :--- | :--- |
+| MATLAB | R2024a | Runs Bpod (`Bpod_Gen2`) + WaveSurfer |
+| WaveSurfer | 1.0.x (see `Code/dependencies/wavesurfer`) | Synchronized data acquisition (needs a DAQ) |
+| ffmpeg ([ffmpeg.org](https://ffmpeg.org/)) | gyan.dev **full** build, on `PATH` | Live H.264 encoding in `VideoAquisition.py`; full build needed for `h264_nvenc` (GPU) |
+| Anaconda / Python | Python 3.11 | Runs the GUI + camera scripts (`treadwall` env) |
+| Basler pylon Camera Software Suite | matching pypylon 4.1 | Camera drivers/runtime for `pypylon` |
+| NI-DAQmx driver + NI DAQ device | — | WaveSurfer acquisition + TTL sync (the "DAQ-Box") |
+| Pololu Tic software (Tic Control Center) | — | Configure the Wall Mover / Wall Synchronizer stepper controllers |
+| Arduino IDE | 2.x ([arduino.cc](https://www.arduino.cc/en/software)) | Flash/modify the Wall-Synchronizer Arduino + rotary-encoder firmware |
+| git | ≥ 2.x | Clone the repo with `--recurse-submodules` |
 
 ## Camera
 

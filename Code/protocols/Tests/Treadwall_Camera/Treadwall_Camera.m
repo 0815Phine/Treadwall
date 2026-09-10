@@ -27,7 +27,7 @@ BpodSystem.ProtocolSettings = S;
 %% ---------- Setup Camera ------------------------------------------------
 disp('Starting Python video acquisition script...');
 
-pythonExe = 'C:\Users\TomBombadil\anaconda3\python.exe';
+pythonExe = 'C:\Users\TomBombadil\anaconda3\envs\treadwall\python.exe';
 pyenv('Version', pythonExe);
 
 scriptPath = "C:\Users\TomBombadil\Documents\GitHub\Treadwall\Code\src\camera\VideoAquisition.py";
