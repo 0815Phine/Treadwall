@@ -33,13 +33,18 @@ from PyQt5.QtWidgets import (
 sys.path.insert(0, str(Path(__file__).resolve().parent / "dependencies" / "IEECRSpace" / "src"))
 import rspace
 
-# ── Configuration ─────────────────────────────────────────────────────────────
-MATLAB_EXE        = r"C:\Program Files\MATLAB\R2024a\bin\matlab.exe"
-PYTHON_EXE        = r"C:\Users\TomBombadil\anaconda3\envs\treadwall\python.exe"
-DATA_BASE         = r"D:\\"
-IPC_DIR           = r"C:\Users\TomBombadil\Documents\TreadwallGUI\ipc"
-PREVIEW_DIR       = r"C:\Users\TomBombadil\Documents\TreadwallGUI\preview"
-RSPACE_METHOD_TAG = "m_invivo_imaging"
+# ── Configuration (rig paths + hardware from parameters/treadwall_config.json) ──
+_HERE       = Path(__file__).parent
+CONFIG_FILE = _HERE / "parameters" / "treadwall_config.json"
+with open(CONFIG_FILE) as _f:
+    _CFG = json.load(_f)
+_PATHS            = _CFG["paths"]
+MATLAB_EXE        = _PATHS["matlab_exe"]
+PYTHON_EXE        = _PATHS["python_exe"]
+DATA_BASE         = _PATHS["data_root"]
+IPC_DIR           = _PATHS["ipc_dir"]
+PREVIEW_DIR       = _PATHS["preview_dir"]
+RSPACE_METHOD_TAG = _CFG["rspace"]["method_tag"]
 PROTOCOLS = [
     "Treadwall_Baseline",
     "Treadwall_Habituation_1",
@@ -59,8 +64,6 @@ PROTOCOL_EDITABLE_PARAMS = {
 }
 # ──────────────────────────────────────────────────────────────────────────────
 
-_HERE         = Path(__file__).parent
-CONFIG_FILE   = _HERE / "parameters" / "treadwall_config.json"
 WS_FOLDER     = _HERE / "src" / "wavesurfer"
 WSP_FILE      = _HERE / "parameters" / "wavesurfer" / "Treadwall.wsp"
 CAMERA_SCRIPT = _HERE / "src" / "camera" / "VideoAquisition.py"
@@ -510,7 +513,7 @@ class TreadwallWindow(QMainWindow):
             self._notebook_map = {f['label']: f['id'] for f in folders}
             for label in self._notebook_map:
                 self._nb_combo.addItem(label)
-            last = self._cfg.get('notebook_label', '')
+            last = self._cfg.get('rspace', {}).get('notebook_label', '')
             idx  = self._nb_combo.findText(last)
             if idx >= 0:
                 self._nb_combo.setCurrentIndex(idx)
@@ -553,7 +556,7 @@ class TreadwallWindow(QMainWindow):
         self._session_dir.mkdir(parents=True, exist_ok=True)
 
         # Persist notebook choice
-        self._cfg['notebook_label'] = self._nb_combo.currentText()
+        self._cfg.setdefault('rspace', {})['notebook_label'] = self._nb_combo.currentText()
         _save_config(self._cfg)
 
         ipc = Path(IPC_DIR)

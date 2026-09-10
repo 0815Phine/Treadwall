@@ -17,13 +17,14 @@ S = struct();
 % load parameters
 params_file = fullfile(treadwall_params_dir(), 'treadwall_h1_parameters.m');
 run(params_file)
+cfg = treadwall_config();   % rig hardware (Arduino COM / WavePlayer)
 
 % ------ GUI parameters
 S.GUI.SubjectID = BpodSystem.GUIData.SubjectName;
 S.GUI.SessionID = BpodSystem.GUIData.SessionID;
 S.GUI.stimDur = STIM_DUR; %in seconds
 S.GUI.ITIDur = ITI_DUR; %in seconds
-S.GUI.ScalingFactor = 1;
+S.GUI.ScalingFactor = INIT_SCALING_FACTOR;
 S.GUI.EmergencyStop = 'SendBpodSoftCode(2)';
 S.GUIMeta.EmergencyStop.Style = 'pushbutton';
 
@@ -46,9 +47,9 @@ try close(BpodSystem.ProtocolFigures.ParameterGUI); catch, end
 gui_publish_loaded_params(ipc_dir, S);
 
 %% ---------- Arduino Synchronizer ----------------------------------------
-COM = 'COM9';
+COM = cfg.bpod.arduino.com;
 try
-    arduino = serialport(COM, 115385);
+    arduino = serialport(COM, cfg.bpod.arduino.baud);
 catch
     error('The Arduino is not connected to %s, select the correct COM!', COM)
 end
@@ -77,12 +78,12 @@ catch
         'check the Bpod Console!'])
 end
 
-W.SamplingRate = 100;%in kHz
-W.OutputRange = '0V:5V';
-W.TriggerMode = 'Master';
+W.SamplingRate = cfg.bpod.waveplayer.sampling_rate_khz; % kHz
+W.OutputRange = cfg.bpod.waveplayer.output_range;
+W.TriggerMode = WAVEPLAYER_TRIGGER_MODE;
 
 % load waveforms (part of parameter file)
-lengthWave = (S.GUI.stimDur+5)*W.SamplingRate; % add 5 second buffer
+lengthWave = (S.GUI.stimDur+WAVE_BUFFER)*W.SamplingRate;
 for i = 1:length(WAVEFORMS)
     W.loadWaveform(i, WAVEFORMS{i}*ones(1,lengthWave));
 end
@@ -165,7 +166,7 @@ for currentTrial = 1:floor(length(WAVEFORMS)/2)
             'OutputActions', {'WavePlayer1', ['>' currentTrial-1 currentTrial-1 255 255]});
 
         sma = AddState(sma, 'Name', 'StopCamera', ...
-            'Timer', 1,...
+            'Timer', STOP_CAMERA_DELAY,...
             'StateChangeConditions', {'Tup', 'exit'},...
             'OutputActions', {'BNC1',1});
 
@@ -182,7 +183,7 @@ for currentTrial = 1:floor(length(WAVEFORMS)/2)
             'OutputActions', {'WavePlayer1', ['!' 3 0 0]});
 
         sma = AddState(sma, 'Name', 'StopCamera', ...
-            'Timer', 1,...
+            'Timer', STOP_CAMERA_DELAY,...
             'StateChangeConditions', {'Tup', 'exit'},...
             'OutputActions', {'BNC1',1});
 
@@ -193,7 +194,7 @@ for currentTrial = 1:floor(length(WAVEFORMS)/2)
             'OutputActions', {'WavePlayer1', ['>' currentTrial-1 currentTrial-1 255 255]});
 
         sma = AddState(sma, 'Name', 'StopCamera', ...
-            'Timer', 1,...
+            'Timer', STOP_CAMERA_DELAY,...
             'StateChangeConditions', {'Tup', 'exit'},...
             'OutputActions', {'BNC1',1});
     end

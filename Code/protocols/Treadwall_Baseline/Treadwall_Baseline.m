@@ -14,12 +14,16 @@ start_path = BpodSystem.Path.DataFolder; % folder selected in GUI;
 % initialize parameters
 S = struct();
 
+% load parameters
+params_file = fullfile(treadwall_params_dir(), 'treadwall_baseline_parameters.m');
+run(params_file)
+
 % ------ GUI parameters
 S.GUI.SubjectID = BpodSystem.GUIData.SubjectName;
 S.GUI.SessionID = BpodSystem.GUIData.SessionID;
 S.GUI.EmergencyStop = 'SendBpodSoftCode(2)';
 S.GUIMeta.EmergencyStop.Style = 'pushbutton';
-S.GUI.ScalingFactor = 1; % can not be updated during session (sesison is one trial)
+S.GUI.ScalingFactor = INIT_SCALING_FACTOR; % can not be updated during session (sesison is one trial)
 
 session_dir = ([start_path '\' S.GUI.SubjectID '\' S.GUI.SessionID]);
 
@@ -96,11 +100,11 @@ disp('Synced with Wavesurfer.');
 %% ---------- Main Loop ---------------------------------------------------
 sma = NewStateMachine();
 sma = AddState(sma, 'Name', 'ExperimentRunning', ...
-    'Timer',1200,...
+    'Timer', SESSION_DUR,...
     'StateChangeConditions', {'Tup', 'StopCamera', 'SoftCode2', 'StopCamera'},...
     'OutputActions', {});
 sma = AddState(sma, 'Name', 'StopCamera', ...
-    'Timer', 1,...
+    'Timer', STOP_CAMERA_DELAY,...
     'StateChangeConditions', {'Tup', 'exit'},...
     'OutputActions', {'BNC1',1});
 SendStateMachine(sma);

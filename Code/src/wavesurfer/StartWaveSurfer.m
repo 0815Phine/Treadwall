@@ -5,7 +5,7 @@ function StartWaveSurfer(wsp_file, session_dir, base_name)
 %   pending_session.json  →  update filename for a new session
 %   stop_wavesurfer.flag  →  stop recording, rename _00001.h5 → base_name.h5
 
-IPC_DIR = 'C:\Users\TomBombadil\Documents\TreadwallGUI\ipc';
+IPC_DIR = treadwall_config().paths.ipc_dir;   % central config (treadwall_config.json)
 if ~exist(IPC_DIR, 'dir'), mkdir(IPC_DIR); end
 
 % Mirror the MATLAB command window to a file the GUI tails (fresh per launch).

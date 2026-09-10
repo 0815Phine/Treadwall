@@ -1,3 +1,30 @@
 {
-  "notebook_label": "jtim > establishing_paradigm"
+  "paths": {
+    "data_root":   "D:\\",
+    "ipc_dir":     "C:\\Users\\TomBombadil\\Documents\\TreadwallGUI\\ipc",
+    "preview_dir": "C:\\Users\\TomBombadil\\Documents\\TreadwallGUI\\preview",
+    "matlab_exe":  "C:\\Program Files\\MATLAB\\R2024a\\bin\\matlab.exe",
+    "python_exe":  "C:\\Users\\TomBombadil\\anaconda3\\envs\\treadwall\\python.exe",
+    "server": {
+      "_note":        "placeholders — wired up when DailyDataManager is reworked",
+      "lts_base":     "",
+      "server_base":  "",
+      "skip_animals": []
+    }
+  },
+  "rspace": {
+    "notebook_label": "jtim > establishing_paradigm",
+    "method_tag":     "m_invivo_imaging"
+  },
+  "bpod": {
+    "arduino":    { "com": "COM9", "baud": 115385 },
+    "waveplayer": { "sampling_rate_khz": 100, "output_range": "0V:5V" },
+    "analogin":   { "sampling_rate_khz": 100, "input_range": "0V:10V", "n_active_channels": 3 }
+  },
+  "cameras": {
+    "topcam":    { "serial": "40486089", "fps": 30 },
+    "frontcam":  { "serial": "40442087", "fps": 200 },
+    "encode_qp":  18,
+    "chunk_size": 200
+  }
 }

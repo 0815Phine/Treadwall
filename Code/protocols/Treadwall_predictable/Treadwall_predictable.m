@@ -14,14 +14,15 @@ start_path = BpodSystem.Path.DataFolder; % folder selected in GUI;
 S = struct();
 
 % load parameters
-params_file = fullfile(treadwall_params_dir(), 'treadwall_sc_p_parameters.m');
+params_file = fullfile(treadwall_params_dir(), 'treadwall_predictable_parameters.m');
 run(params_file)
+cfg = treadwall_config();   % rig hardware (Arduino COM / WavePlayer / AnalogIn)
 
 % ------ GUI parameters
 S.GUI.SubjectID = BpodSystem.GUIData.SubjectName;
 S.GUI.SessionID = BpodSystem.GUIData.SessionID;
 S.GUI.ITIDur = ITI_DUR; %in seconds
-S.GUI.ScalingFactor = 1;
+S.GUI.ScalingFactor = INIT_SCALING_FACTOR;
 S.GUI.EmergencyStop = 'SendBpodSoftCode(2)';
 S.GUIMeta.EmergencyStop.Style = 'pushbutton';
 
@@ -68,12 +69,12 @@ end
 
 % one trial will be defined as one lap on the treadmill
 % maximum 100 laps per session
-S.GUI.MaxTrialNumber = 100;
+S.GUI.MaxTrialNumber = MAX_LAPS;
 
 %% ---------- Arduino Synchronizer ----------------------------------------
-COM = 'COM9';
+COM = cfg.bpod.arduino.com;
 try
-    arduino = serialport(COM, 115385);
+    arduino = serialport(COM, cfg.bpod.arduino.baud);
 catch
     error('The Arduino is not connected to %s, select the correct COM!', COM)
 end
@@ -91,7 +92,7 @@ catch
         'check the Bpod Console!'])
 end
 
-R.thresholds = [-5,5];
+R.thresholds = ENCODER_THRESHOLDS;
 R.sendThresholdEvents = 'On';
 R.enableThresholds([1,1])
 
@@ -106,12 +107,12 @@ catch
         'check the Bpod Console!'])
 end
 
-W.SamplingRate = 100;%in kHz
-W.OutputRange = '0V:5V';
-W.TriggerMode = 'Master';
+W.SamplingRate = cfg.bpod.waveplayer.sampling_rate_khz; % kHz
+W.OutputRange = cfg.bpod.waveplayer.output_range;
+W.TriggerMode = WAVEPLAYER_TRIGGER_MODE;
 
 % Waveforms for distances
-lengthWave = 1800*W.SamplingRate; %maximum length of session
+lengthWave = MAX_WAVE_DUR*W.SamplingRate; %maximum length of session
 for i = 1:length(WAVEFORMS)
     W.loadWaveform(i, WAVEFORMS{i}*ones(1,lengthWave));
 end
@@ -124,11 +125,11 @@ catch
         'check the Bpod Console!'])
 end
 
-A.SamplingRate = 100;%in kHz
-A.nActiveChannels = 3;
-A.InputRange = {'0V:10V', '0V:10V', '0V:10V', '0V:10V', '0V:10V', '0V:10V', '0V:10V', '0V:10V'};
-A.Thresholds(1,1:3) = [4.0, 2.5, 1.5];
-A.ResetVoltages(1,1:3) = [3.2, 1.65, 1.65]; % TO DO: check reset voltage for first trigger
+A.SamplingRate = cfg.bpod.analogin.sampling_rate_khz; % kHz
+A.nActiveChannels = cfg.bpod.analogin.n_active_channels;
+A.InputRange = repmat({cfg.bpod.analogin.input_range}, 1, 8);
+A.Thresholds(1,1:3) = ANALOG_THRESHOLDS;
+A.ResetVoltages(1,1:3) = ANALOG_RESET_VOLTAGES; % TO DO: check reset voltage for first trigger
 A.SMeventsEnabled(1,1:3) = [1, 1, 1];
 A.startReportingEvents()
 
@@ -183,7 +184,7 @@ disp('Synced with Wavesurfer.');
 %% ---------- Main Loop ---------------------------------------------------
 % start timer in Matlab, session ends if timer is up or 100 laps have been run
 tpredict = timer;
-tpredict.StartDelay = 1200;
+tpredict.StartDelay = SESSION_DUR;
 tpredict.TimerFcn = "SendBpodSoftCode(1)";
 tpredict.StartFcn = "fprintf('timer started\n')";
 
@@ -286,12 +287,12 @@ for currentTrial = 1:S.GUI.MaxTrialNumber
 
         % reached timer
         sma = AddState(sma, 'Name', 'EndBuffer',...
-            'Timer', 10,...
+            'Timer', END_BUFFER_DUR,...
             'StateChangeConditions', {'Tup', 'StopCamera', 'SoftCode2', 'StopCamera'},...
             'OutputActions', {'WavePlayer1', ['!' 3 0 0]});
 
         sma = AddState(sma, 'Name', 'StopCamera', ...
-            'Timer', 1,...
+            'Timer', STOP_CAMERA_DELAY,...
             'StateChangeConditions', {'Tup', 'exit'},...
             'OutputActions', {'BNC1',1});
 
@@ -363,12 +364,12 @@ for currentTrial = 1:S.GUI.MaxTrialNumber
 
         % exit experiment
         sma = AddState(sma, 'Name', 'EndBuffer',...
-            'Timer', 10,...
+            'Timer', END_BUFFER_DUR,...
             'StateChangeConditions', {'Tup', 'StopCamera', 'SoftCode2', 'StopCamera'},...
             'OutputActions', {'WavePlayer1', ['!' 3 0 0]});
 
         sma = AddState(sma, 'Name', 'StopCamera', ...
-            'Timer', 1,...
+            'Timer', STOP_CAMERA_DELAY,...
             'StateChangeConditions', {'Tup', 'exit'},...
             'OutputActions', {'BNC1',1});
 
@@ -439,12 +440,12 @@ for currentTrial = 1:S.GUI.MaxTrialNumber
 
         % reached timer
         sma = AddState(sma, 'Name', 'EndBuffer',...
-            'Timer', 10,...
+            'Timer', END_BUFFER_DUR,...
             'StateChangeConditions', {'Tup', 'StopCamera', 'SoftCode2', 'StopCamera'},...
             'OutputActions', {'WavePlayer1', ['!' 3 0 0]});
 
         sma = AddState(sma, 'Name', 'StopCamera', ...
-            'Timer', 1,...
+            'Timer', STOP_CAMERA_DELAY,...
             'StateChangeConditions', {'Tup', 'exit'},...
             'OutputActions', {'BNC1',1});
     end

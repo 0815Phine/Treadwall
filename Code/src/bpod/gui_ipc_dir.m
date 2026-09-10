@@ -1,6 +1,6 @@
 function d = gui_ipc_dir()
 % Canonical IPC directory shared by the Treadwall GUI and every protocol.
-% Single source of truth — keep in sync with TreadwallGUI.py (IPC_DIR),
-% StartBpodSession.m and StartWaveSurfer.m.
-d = 'C:\Users\TomBombadil\Documents\TreadwallGUI\ipc';
+% Sourced from the central config (treadwall_config.json) so the Python GUI and
+% all MATLAB scripts share one value (a past IPC_DIR mismatch broke all IPC).
+d = treadwall_config().paths.ipc_dir;
 end

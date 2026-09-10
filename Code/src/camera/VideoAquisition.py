@@ -8,16 +8,20 @@ import queue
 import json
 import numpy as np
 import subprocess
+from pathlib import Path
 
-# ------ Configuration ------
-CHUNK_SIZE = 200        # frames per chunk piped to the encoder (200 = 1 s at 200 Hz)
+# ------ Configuration (camera settings from parameters/treadwall_config.json) ------
+_CFG = json.load(open(Path(__file__).resolve().parents[2] / "parameters" / "treadwall_config.json"))
+_CAM = _CFG["cameras"]
+
+CHUNK_SIZE = _CAM["chunk_size"]   # frames per chunk piped to the encoder (200 = 1 s at 200 Hz)
 H, W = 540, 720       # frame dimensions (must match camera settings below)
 
 # Encoder settings — frames are encoded live to visually-lossless H.264 .mp4
 # instead of being dumped as uncompressed .npy (which was ~93 GB/session).
-TOPCAM_FPS_NOMINAL = 30.0   # top cam is hardware-triggered; .mp4 -r is nominal,
-                            # true timing lives in the timestamp .txt files
-ENCODE_QP = 18              # constant quality (h264_nvenc -qp / libx264 -crf);
+TOPCAM_FPS_NOMINAL = float(_CAM["topcam"]["fps"])   # top cam is hardware-triggered; .mp4 -r is
+                            # nominal, true timing lives in the timestamp .txt files
+ENCODE_QP = _CAM["encode_qp"]   # constant quality (h264_nvenc -qp / libx264 -crf);
                             # lower = higher quality + larger file (15 ≈ near-lossless)
 
 
@@ -79,10 +83,10 @@ def _start_encoder(out_path, fps, use_nvenc):
         stderr=subprocess.PIPE,
     )
 
-# Fill in Basler serial numbers before first use.
+# Basler serial numbers come from the central config (parameters/treadwall_config.json).
 # Run the script with no cameras configured to print detected serials.
-SERIAL_TOPCAM   = "40486089"   # e.g. "12345678"
-SERIAL_FRONTCAM = "40442087"   # e.g. "87654321"
+SERIAL_TOPCAM   = _CAM["topcam"]["serial"]
+SERIAL_FRONTCAM = _CAM["frontcam"]["serial"]
 
 # ------ Set up Output Directory ------
 session_folder = sys.argv[1]   # full LTS path, e.g. D:\Animals\Cohort01_Training\OPI2714\S1_B1
@@ -193,7 +197,7 @@ cam_top.LineMode.Value     = "Output"
 cam_top.LineSource.Value   = "ExposureActive"
 
 # ------ Front Camera Settings (free-running) ------
-FRONTCAM_FPS = 200.0
+FRONTCAM_FPS = float(_CAM["frontcam"]["fps"])
 
 cam_front.BinningHorizontal.Value     = 2
 cam_front.BinningVertical.Value       = 2

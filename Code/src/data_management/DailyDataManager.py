@@ -18,6 +18,8 @@ import shutil
 
 # ======================================================================
 # Configuration — edit these paths to match the current setup
+# TODO: migrate to the central config (parameters/treadwall_config.json → paths.server)
+#       when DailyDataManager is reworked.
 # ======================================================================
 
 LTS_BASE    = r"D:\Animals"                          # long-term storage

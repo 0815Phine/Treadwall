@@ -14,15 +14,16 @@ start_path = BpodSystem.Path.DataFolder; % folder selected in GUI;
 S = struct();
 
 % load parameters
-params_file = fullfile(treadwall_params_dir(), 'treadwall_sc_p_parameters.m');
+params_file = fullfile(treadwall_params_dir(), 'treadwall_scrambled_parameters.m');
 run(params_file)
+cfg = treadwall_config();   % rig hardware (Arduino COM / WavePlayer)
 
 % ------ GUI parameters
 S.GUI.SubjectID = BpodSystem.GUIData.SubjectName;
 S.GUI.SessionID = BpodSystem.GUIData.SessionID;
 S.GUI.ITIDur = ITI_DUR; %in seconds
 S.GUI.stimDur = STIM_DUR; %in seconds
-S.GUI.ScalingFactor = 1;
+S.GUI.ScalingFactor = INIT_SCALING_FACTOR;
 S.GUI.EmergencyStop = 'SendBpodSoftCode(2)';
 S.GUIMeta.EmergencyStop.Style = 'pushbutton';
 
@@ -65,9 +66,9 @@ triallist = triallist.type;
 S.GUI.MaxTrialNumber = numel(triallist);
 
 %% ---------- Arduino Synchronizer ----------------------------------------
-COM = 'COM9';
+COM = cfg.bpod.arduino.com;
 try
-    arduino = serialport(COM, 115385);
+    arduino = serialport(COM, cfg.bpod.arduino.baud);
 catch
     error('The Arduino is not connected to %s, select the correct COM!', COM)
 end
@@ -96,9 +97,9 @@ catch
         'check the Bpod Console!'])
 end
 
-W.SamplingRate = 100;%in kHz
-W.OutputRange = '0V:5V';
-W.TriggerMode = 'Normal';
+W.SamplingRate = cfg.bpod.waveplayer.sampling_rate_khz; % kHz
+W.OutputRange = cfg.bpod.waveplayer.output_range;
+W.TriggerMode = WAVEPLAYER_TRIGGER_MODE;
 
 % Waveforms for distances (waveforms are loaded with the parameter file)
 lengthWave = S.GUI.stimDur*W.SamplingRate;
@@ -192,7 +193,7 @@ for currentTrial = 1:S.GUI.MaxTrialNumber
             'OutputActions', {'WavePlayer1', ['!' 3 0 0]});
 
         sma = AddState(sma, 'Name', 'StopCamera', ...
-            'Timer', 1,...
+            'Timer', STOP_CAMERA_DELAY,...
             'StateChangeConditions', {'Tup', 'exit'},...
             'OutputActions', {'BNC1',1});
 
@@ -209,7 +210,7 @@ for currentTrial = 1:S.GUI.MaxTrialNumber
             'OutputActions', {'WavePlayer1', ['!' 3 0 0]});
 
         sma = AddState(sma, 'Name', 'StopCamera', ...
-            'Timer', 1,...
+            'Timer', STOP_CAMERA_DELAY,...
             'StateChangeConditions', {'Tup', 'exit'},...
             'OutputActions', {'BNC1',1});
 
@@ -225,7 +226,7 @@ for currentTrial = 1:S.GUI.MaxTrialNumber
             'OutputActions', {'WavePlayer1', ['!' 3 0 0]});
 
         sma = AddState(sma, 'Name', 'StopCamera', ...
-            'Timer', 1,...
+            'Timer', STOP_CAMERA_DELAY,...
             'StateChangeConditions', {'Tup', 'exit'},...
             'OutputActions', {'BNC1',1});
     end

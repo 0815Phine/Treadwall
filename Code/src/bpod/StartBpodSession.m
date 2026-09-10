@@ -4,9 +4,10 @@
 % polling for a pending_session.json that the GUI writes when a new session
 % is started — so MATLAB does not need to be restarted between sessions.
 
-% ── Configuration (edit once) ─────────────────────────────────────────────
-DATA_BASE = 'D:\';
-IPC_DIR   = 'C:\Users\TomBombadil\Documents\TreadwallGUI\ipc';
+% ── Configuration (from central config; edit treadwall_config.json) ───────
+cfg       = treadwall_config();
+DATA_BASE = cfg.paths.data_root;
+IPC_DIR   = cfg.paths.ipc_dir;
 % ──────────────────────────────────────────────────────────────────────────
 
 % Signal to GUI that MATLAB is alive (heartbeat, also updated in wait loop below)
