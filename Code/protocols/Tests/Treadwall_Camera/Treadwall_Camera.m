@@ -30,7 +30,7 @@ disp('Starting Python video acquisition script...');
 pythonExe = 'C:\Users\TomBombadil\anaconda3\python.exe';
 pyenv('Version', pythonExe);
 
-scriptPath = "C:\Users\TomBombadil\Documents\GitHub\Treadwall\Code\Camera\VideoAquisition.py";
+scriptPath = "C:\Users\TomBombadil\Documents\GitHub\Treadwall\Code\src\camera\VideoAquisition.py";
 
 % Run in background
 command = sprintf('"%s" "%s" "%s" "%s" "%s" &', pythonExe, scriptPath, session_dir, S.GUI.SubjectID, S.GUI.SessionID);

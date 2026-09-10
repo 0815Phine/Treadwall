@@ -1,6 +1,5 @@
-function Treadwall_Habituation_1
-% iterating through half of the travel length
-% stay in each phase for 200s
+function Treadwall_scrambled
+%
 
 global BpodSystem
 
@@ -15,14 +14,14 @@ start_path = BpodSystem.Path.DataFolder; % folder selected in GUI;
 S = struct();
 
 % load parameters
-params_file = fullfile([BpodSystem.Path.ProtocolFolder '\parameters\treadwall_h1_parameters.m']);
+params_file = fullfile(treadwall_params_dir(), 'treadwall_sc_p_parameters.m');
 run(params_file)
 
 % ------ GUI parameters
 S.GUI.SubjectID = BpodSystem.GUIData.SubjectName;
 S.GUI.SessionID = BpodSystem.GUIData.SessionID;
-S.GUI.stimDur = STIM_DUR; %in seconds
 S.GUI.ITIDur = ITI_DUR; %in seconds
+S.GUI.stimDur = STIM_DUR; %in seconds
 S.GUI.ScalingFactor = 1;
 S.GUI.EmergencyStop = 'SendBpodSoftCode(2)';
 S.GUIMeta.EmergencyStop.Style = 'pushbutton';
@@ -44,6 +43,26 @@ try close(BpodSystem.ProtocolFigures.ParameterGUI); catch, end
 
 % Publish the protocol-loaded parameters so the GUI shows them as its initial spinbox values.
 gui_publish_loaded_params(ipc_dir, S);
+
+%% ---------- Create Triallist and load Trials ----------------------------
+% create triallist (adjust function according to trials needed)
+create_triallist_adaptable(session_dir, base_name); % not all offsets used, for all use "create_triallist_all"
+
+% read triallist
+trialList_Info = dir(fullfile(session_dir, [base_name '_triallist.csv']));
+if isempty(trialList_Info)
+    [triallist_file, triallist_path] = uigetfile(fullfile(start_path,'*.csv'));
+    if isequal(triallist_file, 0)
+        error('No triallist selected. Aborting.');
+    end
+    triallist_dir = fullfile(triallist_path, triallist_file);
+else
+    triallist_dir = fullfile(trialList_Info.folder, trialList_Info.name);
+end
+
+triallist = readtable(triallist_dir);
+triallist = triallist.type;
+S.GUI.MaxTrialNumber = numel(triallist);
 
 %% ---------- Arduino Synchronizer ----------------------------------------
 COM = 'COM9';
@@ -67,7 +86,7 @@ catch
 end
 
 %R.startUSBStream() -> moved to after restarting timer for proper alignment
-%R.streamUI() % for live streaming position, good for troubleshooting
+%R.streamUI() % uncomment for live streaming position, good for troubleshooting
 
 %% ---------- Analog Output Module ----------------------------------------
 try
@@ -79,10 +98,10 @@ end
 
 W.SamplingRate = 100;%in kHz
 W.OutputRange = '0V:5V';
-W.TriggerMode = 'Master';
+W.TriggerMode = 'Normal';
 
-% load waveforms (part of parameter file)
-lengthWave = (S.GUI.stimDur+5)*W.SamplingRate; % add 5 second buffer
+% Waveforms for distances (waveforms are loaded with the parameter file)
+lengthWave = S.GUI.stimDur*W.SamplingRate;
 for i = 1:length(WAVEFORMS)
     W.loadWaveform(i, WAVEFORMS{i}*ones(1,lengthWave));
 end
@@ -132,10 +151,10 @@ end
 disp('Synced with Wavesurfer.');
 
 %% ---------- Main Loop ---------------------------------------------------
-for currentTrial = 1:floor(length(WAVEFORMS)/2)
+for currentTrial = 1:S.GUI.MaxTrialNumber
     disp(' ');
     disp('- - - - - - - - - - - - - - - ');
-    disp(['Trial: ' num2str(currentTrial) ' - ' datestr(now,'HH:MM:SS')]);
+    disp(['Trial: ' num2str(currentTrial) ' - ' datestr(now,'HH:MM:SS') ' - ' 'Type: ' triallist{currentTrial}]);
 
     % Read live parameter edits from the GUI
     S = gui_read_params(S, ipc_dir);
@@ -149,32 +168,40 @@ for currentTrial = 1:floor(length(WAVEFORMS)/2)
         fprintf('Updated Arduino with new ScalingFactor: %.1f \n', scalingValue);
     end
 
-    % construct state machine
-    sma = NewStateMachine();
+    % read output action
+    stimOutput = GetStimOutput(triallist{currentTrial});
 
-    % first trial
+    % construct state machine
+    sma = NewStateMachine(); %Assemble new state machine description
+
+    % first trial: with start buffer
     if currentTrial == 1
-        sma = AddState(sma, 'Name', 'Baseline', ...
-            'Timer', S.GUI.stimDur,...
+        sma = AddState(sma, 'Name', 'StartBuffer', ...
+            'Timer', S.GUI.ITIDur,...
             'StateChangeConditions', {'Tup', 'stimulus', 'SoftCode2', 'StopCamera'},...
             'OutputActions', {'WavePlayer1', ['!' 3 0 0]});
 
         sma = AddState(sma, 'Name', 'stimulus', ...
             'Timer', S.GUI.stimDur,...
+            'StateChangeConditions', {'Tup', 'iti', 'SoftCode2', 'StopCamera'},...
+            'OutputActions', {'WavePlayer1', stimOutput});
+
+        sma = AddState(sma, 'Name', 'iti', ...
+            'Timer', S.GUI.ITIDur,...
             'StateChangeConditions', {'Tup', 'exit', 'SoftCode2', 'StopCamera'},...
-            'OutputActions', {'WavePlayer1', ['>' currentTrial-1 currentTrial-1 255 255]});
+            'OutputActions', {'WavePlayer1', ['!' 3 0 0]});
 
         sma = AddState(sma, 'Name', 'StopCamera', ...
             'Timer', 1,...
             'StateChangeConditions', {'Tup', 'exit'},...
             'OutputActions', {'BNC1',1});
 
-    % last trial
-    elseif currentTrial == floor(length(WAVEFORMS)/2)
+    % last trial: with end buffer and stopping camera
+    elseif currentTrial == S.GUI.MaxTrialNumber
         sma = AddState(sma, 'Name', 'stimulus', ...
             'Timer', S.GUI.stimDur,...
             'StateChangeConditions', {'Tup', 'EndBuffer', 'SoftCode2', 'StopCamera'},...
-            'OutputActions', {'WavePlayer1', ['>' currentTrial-1 currentTrial-1 255 255]});
+            'OutputActions', {'WavePlayer1', stimOutput});
 
         sma = AddState(sma, 'Name', 'EndBuffer', ...
             'Timer', S.GUI.ITIDur,...
@@ -189,8 +216,13 @@ for currentTrial = 1:floor(length(WAVEFORMS)/2)
     else
         sma = AddState(sma, 'Name', 'stimulus', ...
             'Timer', S.GUI.stimDur,...
+            'StateChangeConditions', {'Tup', 'iti', 'SoftCode2', 'StopCamera'},...
+            'OutputActions', {'WavePlayer1', stimOutput});
+
+        sma = AddState(sma, 'Name', 'iti', ...
+            'Timer', S.GUI.ITIDur,...
             'StateChangeConditions', {'Tup', 'exit', 'SoftCode2', 'StopCamera'},...
-            'OutputActions', {'WavePlayer1', ['>' currentTrial-1 currentTrial-1 255 255]});
+            'OutputActions', {'WavePlayer1', ['!' 3 0 0]});
 
         sma = AddState(sma, 'Name', 'StopCamera', ...
             'Timer', 1,...
@@ -204,6 +236,7 @@ for currentTrial = 1:floor(length(WAVEFORMS)/2)
     if ~isempty(fieldnames(RawEvents)) % If trial data was returned
         BpodSystem.Data = AddTrialEvents(BpodSystem.Data,RawEvents); % Computes trial events from raw data
         BpodSystem.Data.TrialSettings(currentTrial) = S;
+        BpodSystem.Data.TrialTypes(currentTrial) = triallist(currentTrial);
         SaveBpodSessionData; % Saves the field BpodSystem.Data to the current data file
     end
 
@@ -214,6 +247,10 @@ for currentTrial = 1:floor(length(WAVEFORMS)/2)
     end
 end
 
+stop_estop_timer(t_estop);
+BpodSystem.Status.BeingUsed = 0;
+try close(BpodSystem.ProtocolFigures.ParameterGUI); catch, end
+
 clear arduino
 disp('Loop end');
 
@@ -222,9 +259,6 @@ RotData = R.readUSBStream();
 rotary_src = fullfile(session_dir, [base_name '_bpod_rotdata.mat']);
 save(rotary_src, 'RotData')
 R.stopUSBStream()
-
-BpodSystem.Status.BeingUsed = 0;
-try close(BpodSystem.ProtocolFigures.ParameterGUI); catch, end
 
 % Signal the GUI: session complete, stop WaveSurfer
 gui_signal_done(ipc_dir);

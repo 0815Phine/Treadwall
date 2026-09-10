@@ -16,9 +16,9 @@ location = questdlg('Where do you perform your experiments?',...
     'Locations',...
     'BN','ISR','ISR');
 
-Folder = BpodSystem.Path.ProtocolFolder;
-Folder = fullfile(Folder, '..');
-params_file = fullfile([Folder, '\treadwall_scrambled_parameters_', location, '.m']);
+% NOTE: refers to a non-existent treadwall_scrambled_parameters_<loc>.m
+% (pre-existing bug, flagged during reorg — path repointed only).
+params_file = fullfile(treadwall_params_dir(), ['treadwall_scrambled_parameters_', location, '.m']);
 run(params_file)
 
 fprintf('Parameters loaded for: %s \n', location);
@@ -43,7 +43,7 @@ BpodSystem.ProtocolSettings = S;
 
 %% ---------- Create Triallist and load Trials ----------------------------
 % read triallist
-trialList_Info =  dir([BpodSystem.Path.ProtocolFolder '\triallist_testing.csv']);
+trialList_Info =  dir(fullfile(treadwall_params_dir(), 'triallist_testing.csv'));
 if isempty(trialList_Info)
     [~,triallist_dir] = uigetfile(fullfile(start_path,'*.csv'));
 else

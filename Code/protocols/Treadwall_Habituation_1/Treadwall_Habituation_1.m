@@ -1,6 +1,6 @@
-function Treadwall_Habituation_2
-% iterating through the full travel length
-% stay in each phase for 110s
+function Treadwall_Habituation_1
+% iterating through half of the travel length
+% stay in each phase for 200s
 
 global BpodSystem
 
@@ -15,7 +15,7 @@ start_path = BpodSystem.Path.DataFolder; % folder selected in GUI;
 S = struct();
 
 % load parameters
-params_file = fullfile([BpodSystem.Path.ProtocolFolder '\parameters\treadwall_h2_parameters.m']);
+params_file = fullfile(treadwall_params_dir(), 'treadwall_h1_parameters.m');
 run(params_file)
 
 % ------ GUI parameters
@@ -77,11 +77,11 @@ catch
         'check the Bpod Console!'])
 end
 
-W.SamplingRate = 100; % in kHz
+W.SamplingRate = 100;%in kHz
 W.OutputRange = '0V:5V';
 W.TriggerMode = 'Master';
 
-% load waveforms (from parameter file)
+% load waveforms (part of parameter file)
 lengthWave = (S.GUI.stimDur+5)*W.SamplingRate; % add 5 second buffer
 for i = 1:length(WAVEFORMS)
     W.loadWaveform(i, WAVEFORMS{i}*ones(1,lengthWave));
@@ -132,7 +132,7 @@ end
 disp('Synced with Wavesurfer.');
 
 %% ---------- Main Loop ---------------------------------------------------
-for currentTrial = 1:length(WAVEFORMS)
+for currentTrial = 1:floor(length(WAVEFORMS)/2)
     disp(' ');
     disp('- - - - - - - - - - - - - - - ');
     disp(['Trial: ' num2str(currentTrial) ' - ' datestr(now,'HH:MM:SS')]);
@@ -170,7 +170,7 @@ for currentTrial = 1:length(WAVEFORMS)
             'OutputActions', {'BNC1',1});
 
     % last trial
-    elseif currentTrial == length(WAVEFORMS)
+    elseif currentTrial == floor(length(WAVEFORMS)/2)
         sma = AddState(sma, 'Name', 'stimulus', ...
             'Timer', S.GUI.stimDur,...
             'StateChangeConditions', {'Tup', 'EndBuffer', 'SoftCode2', 'StopCamera'},...

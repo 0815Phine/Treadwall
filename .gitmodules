@@ -1,0 +1,13 @@
+[submodule "Code/dependencies/Bpod_RotaryEncoder_Firmware"]
+	path = Code/dependencies/Bpod_RotaryEncoder_Firmware
+	url = https://github.com/0815Phine/Bpod_RotaryEncoder_Firmware.git
+[submodule "Code/dependencies/IEECRSpace"]
+	path = Code/dependencies/IEECRSpace
+	url = https://github.com/IEECR-BeckGroup/IEECRSpace.git
+[submodule "Code/dependencies/Bpod_Gen2"]
+	path = Code/dependencies/Bpod_Gen2
+	url = https://github.com/LenaGschossmann/Bpod_Gen2.git
+	branch = softcodes-udp-sync
+[submodule "Code/dependencies/wavesurfer"]
+	path = Code/dependencies/wavesurfer
+	url = https://github.com/JaneliaSciComp/Wavesurfer.git

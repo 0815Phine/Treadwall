@@ -46,6 +46,35 @@ Modules used for scrambled and predictable experiments:
 
 For further modules see [sanworks.io/products](https://sanworks.io/shop/products.php).
 
+## Software Dependencies
+External code is vendored as **git submodules** under [Code/dependencies/](Code/dependencies/).
+Clone with `git clone --recurse-submodules`, or run `git submodule update --init --recursive`
+after cloning.
+
+| Submodule | Source | Notes |
+| :--- | :--- | :--- |
+| `Bpod_Gen2` | [LenaGschossmann/Bpod_Gen2](https://github.com/LenaGschossmann/Bpod_Gen2) @ `softcodes-udp-sync` | Bpod control framework (sanworks fork). The `softcodes-udp-sync` branch is required and is pinned in `.gitmodules`. |
+| `Bpod_RotaryEncoder_Firmware` | [0815Phine/Bpod_RotaryEncoder_Firmware](https://github.com/0815Phine/Bpod_RotaryEncoder_Firmware) | Modified rotary-encoder module firmware (needed for the *predictable* experiments). |
+| `wavesurfer` | [JaneliaSciComp/Wavesurfer](https://github.com/JaneliaSciComp/Wavesurfer) | WaveSurfer app for synchronized data acquisition. |
+| `IEECRSpace` | [IEECR-BeckGroup/IEECRSpace](https://github.com/IEECR-BeckGroup/IEECRSpace) | RSpace integration; `TreadwallGUI.py` adds `IEECRSpace/src` to `sys.path` and imports `rspace`. |
+
+**IEECRSpace must be set up once before the GUI's RSpace features work.** The submodule is a
+self-contained app that installs itself on first launch. If you haven't done this yet, run its
+first-time setup — on Windows double-click
+[`Code/dependencies/IEECRSpace/IEECRSpace_Launcher.bat`](Code/dependencies/IEECRSpace/) (the first
+launch downloads its own private Python + dependencies, so it needs an internet connection) — and
+then paste your RSpace API key into the app's **Settings** tab. See the
+[IEECRSpace README](Code/dependencies/IEECRSpace/README.md) for the full instructions.
+
+**Arduino libraries** are installed via the Arduino IDE **Library Manager** (the IDE resolves
+libraries from its own sketchbook `libraries/` folder, not from this repo):
+- `CapacitiveSensor` (PaulStoffregen) — Lickport sketches.
+- `Tic` (Pololu) — Wall Mover / Wall Synchronizer sketches.
+- `Servo`, `SoftwareSerial` — ship with the Arduino IDE.
+
+Python packages and external tools (`ffmpeg`, MATLAB, Pololu Tic driver, Anaconda) will be pinned
+in a later step (`environment.yml` + parts list).
+
 ## Camera
 
 

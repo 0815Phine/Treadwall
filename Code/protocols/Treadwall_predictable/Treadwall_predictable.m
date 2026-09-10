@@ -14,7 +14,7 @@ start_path = BpodSystem.Path.DataFolder; % folder selected in GUI;
 S = struct();
 
 % load parameters
-params_file = fullfile([BpodSystem.Path.ProtocolFolder '\parameters\treadwall_sc_p_parameters.m']);
+params_file = fullfile(treadwall_params_dir(), 'treadwall_sc_p_parameters.m');
 run(params_file)
 
 % ------ GUI parameters

@@ -30,7 +30,7 @@ from PyQt5.QtWidgets import (
     QTextEdit, QVBoxLayout, QWidget,
 )
 
-sys.path.insert(0, r'C:\Users\TomBombadil\CodingTools\IEECRSpace\src')
+sys.path.insert(0, str(Path(__file__).resolve().parent / "dependencies" / "IEECRSpace" / "src"))
 import rspace
 
 # ── Configuration ─────────────────────────────────────────────────────────────
@@ -60,10 +60,10 @@ PROTOCOL_EDITABLE_PARAMS = {
 # ──────────────────────────────────────────────────────────────────────────────
 
 _HERE         = Path(__file__).parent
-CONFIG_FILE   = _HERE / "treadwall_config.json"
-WS_FOLDER     = _HERE / "Wavesurfer"
-WSP_FILE      = WS_FOLDER / "Treadwall.wsp"
-CAMERA_SCRIPT = _HERE / "Camera" / "VideoAquisition.py"
+CONFIG_FILE   = _HERE / "parameters" / "treadwall_config.json"
+WS_FOLDER     = _HERE / "src" / "wavesurfer"
+WSP_FILE      = _HERE / "parameters" / "wavesurfer" / "Treadwall.wsp"
+CAMERA_SCRIPT = _HERE / "src" / "camera" / "VideoAquisition.py"
 
 
 def _load_config() -> dict:
@@ -658,7 +658,9 @@ class TreadwallWindow(QMainWindow):
             pass
         self._matlab_launch_time = time.time()
         ws_part   = (
-            f"addpath('{WS_FOLDER}'); "
+            f"addpath(genpath('{_HERE / 'src'}')); "
+            f"addpath(genpath('{_HERE / 'protocols'}')); "
+            f"addpath('{_HERE / 'parameters' / 'bpod'}'); "
             f"StartWaveSurfer('{WSP_FILE}','{session_dir}','{base_name}'); "
         )
         bpod_part = (
