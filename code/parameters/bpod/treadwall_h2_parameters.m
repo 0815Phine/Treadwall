@@ -1,5 +1,5 @@
-%% Parameters for Treadwall_Habituation_2 (full travel length)
-% Loaded by Treadwall_Habituation_2.m via treadwall_params_dir().
+%% Parameters for treadwall_habituation_2 (full travel length)
+% Loaded by treadwall_habituation_2.m via treadwall_paramsdir().
 
 % -------- Behaviour --------
 STIM_DUR = 110;                                        % s, stimulus duration

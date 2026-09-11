@@ -1,5 +1,5 @@
-﻿function StartBpodSession(animal_id, session_id, datetime_str, protocol_name)
-% Called by TreadwallGUI.py to launch a session
+﻿function start_bpodsession(animal_id, session_id, datetime_str, protocol_name)
+% Called by treadwallGUI.py to launch a session
 % non-interactively.  After the protocol finishes this function stays alive,
 % polling for a pending_session.json that the GUI writes when a new session
 % is started — so MATLAB does not need to be restarted between sessions.

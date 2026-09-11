@@ -1,12 +1,12 @@
-function Treadwall_Habituation_2
+function treadwall_habituation_2
 % iterating through the full travel length
 % stay in each phase for 110s
 
 global BpodSystem
 
 %% ---------- IPC setup ---------------------------------------------------
-ipc_dir = gui_ipc_dir();
-gui_session_init(ipc_dir);
+ipc_dir = gui_ipcdir();
+gui_sessioninit(ipc_dir);
 
 %% ---------- Define task parameters --------------------------------------
 start_path = BpodSystem.Path.DataFolder; % folder selected in GUI;
@@ -15,7 +15,7 @@ start_path = BpodSystem.Path.DataFolder; % folder selected in GUI;
 S = struct();
 
 % load parameters
-params_file = fullfile(treadwall_params_dir(), 'treadwall_h2_parameters.m');
+params_file = fullfile(treadwall_paramsdir(), 'treadwall_h2_parameters.m');
 run(params_file)
 cfg = treadwall_config();   % rig hardware (Arduino COM / WavePlayer)
 
@@ -44,7 +44,7 @@ BpodSystem.ProtocolSettings = S;
 try close(BpodSystem.ProtocolFigures.ParameterGUI); catch, end
 
 % Publish the protocol-loaded parameters so the GUI shows them as its initial spinbox values.
-gui_publish_loaded_params(ipc_dir, S);
+gui_publishloadedparams(ipc_dir, S);
 
 %% ---------- Arduino Synchronizer ----------------------------------------
 COM = cfg.bpod.arduino.com;
@@ -103,8 +103,8 @@ R.startUSBStream()
 %% ---------- Emergency-stop watcher --------------------------------------
 % Poll for the GUI emergency-stop flag
 % onCleanup guarantees the timer is removed on every exit path (normal end, early return, or error).
-t_estop = gui_start_estop_timer(ipc_dir);
-estopCleanup = onCleanup(@() stop_estop_timer(t_estop));
+t_estop = gui_start_estoptimer(ipc_dir);
+estopCleanup = onCleanup(@() stop_estoptimer(t_estop));
 
 %% ---------- Synching with WaveSurfer ------------------------------------
 sma = NewStateMachine();
@@ -126,7 +126,7 @@ if BpodSystem.Status.BeingUsed == 0
     disp('Session stopped while waiting for WaveSurfer. Exiting cleanly.');
     W.setFixedVoltage([1 2], 0);
     R.stopUSBStream();
-    gui_signal_aborted(ipc_dir);
+    gui_signalaborted(ipc_dir);
     return
 end
 
@@ -139,7 +139,7 @@ for currentTrial = 1:length(WAVEFORMS)
     disp(['Trial: ' num2str(currentTrial) ' - ' datestr(now,'HH:MM:SS')]);
 
     % Read live parameter edits from the GUI
-    S = gui_read_params(S, ipc_dir);
+    S = gui_readparams(S, ipc_dir);
 
     % Get current Scaling value
     scalingValue = S.GUI.ScalingFactor;
@@ -228,6 +228,6 @@ BpodSystem.Status.BeingUsed = 0;
 try close(BpodSystem.ProtocolFigures.ParameterGUI); catch, end
 
 % Signal the GUI: session complete, stop WaveSurfer
-gui_signal_done(ipc_dir);
+gui_signaldone(ipc_dir);
 disp('Session complete. WaveSurfer stopping automatically.');
 end

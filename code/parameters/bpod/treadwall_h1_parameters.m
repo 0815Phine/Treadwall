@@ -1,5 +1,5 @@
-%% Parameters for Treadwall_Habituation_1 (longer stimulus duration)
-% Loaded by Treadwall_Habituation_1.m via treadwall_params_dir().
+%% Parameters for treadwall_habituation_1 (longer stimulus duration)
+% Loaded by treadwall_habituation_1.m via treadwall_paramsdir().
 
 % -------- Behaviour --------
 STIM_DUR = 200;                                        % s, stimulus duration

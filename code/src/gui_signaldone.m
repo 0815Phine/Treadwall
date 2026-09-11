@@ -1,4 +1,4 @@
-function gui_signal_done(ipc_dir)
+function gui_signaldone(ipc_dir)
 % Signal the GUI that the session is complete and tell WaveSurfer to stop/rename.
 % Also clears the live-state report so the GUI shows idle between sessions.
 % Safe to call on both the normal end and the "stopped while waiting for

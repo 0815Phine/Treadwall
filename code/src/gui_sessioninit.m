@@ -1,4 +1,4 @@
-function gui_session_init(ipc_dir)
+function gui_sessioninit(ipc_dir)
 % Prepare the IPC directory at the start of a protocol: make sure it exists and
 % clear any stale emergency-stop flag left over from a previous session so it
 % cannot immediately abort this one.

@@ -1,4 +1,4 @@
-function create_triallist_adaptable(session_dir, base_name)
+function create_triallist(session_dir, base_name)
 % Ensure directories exist
 if ~exist(session_dir, 'dir')
     mkdir(session_dir);

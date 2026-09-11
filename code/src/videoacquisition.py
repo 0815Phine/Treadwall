@@ -11,7 +11,8 @@ import subprocess
 from pathlib import Path
 
 # ------ Configuration (camera settings from parameters/treadwall_config.json) ------
-_CFG = json.load(open(Path(__file__).resolve().parents[2] / "parameters" / "treadwall_config.json"))
+# This file lives in code/src/, so code/ (which holds parameters/) is parents[1].
+_CFG = json.load(open(Path(__file__).resolve().parents[1] / "parameters" / "treadwall_config.json"))
 _CAM = _CFG["cameras"]
 
 CHUNK_SIZE = _CAM["chunk_size"]   # frames per chunk piped to the encoder (200 = 1 s at 200 Hz)

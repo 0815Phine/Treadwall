@@ -1,4 +1,4 @@
-function report_and_check(ipc_dir)
+function reportandcheck(ipc_dir)
 % Runs every 0.5 s during a session (incl. inside RunStateMachine). Reports the
 % live Bpod state to the GUI and handles the emergency-stop flag.
 global BpodSystem

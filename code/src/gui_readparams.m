@@ -1,4 +1,4 @@
-function S = gui_read_params(S, ipc_dir)
+function S = gui_readparams(S, ipc_dir)
 % Read live parameter edits the GUI wrote to protocol_params.json and apply them
 % to S.GUI. Call once at the top of each trial. Only fields the protocol already
 % exposes (present in S.GUI) are updated, so unrelated keys are ignored.

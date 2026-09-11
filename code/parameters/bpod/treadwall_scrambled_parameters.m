@@ -1,5 +1,5 @@
-%% Parameters for Treadwall_scrambled
-% Loaded by Treadwall_scrambled.m via treadwall_params_dir().
+%% Parameters for treadwall_scrambled
+% Loaded by treadwall_scrambled.m via treadwall_paramsdir().
 
 % -------- Behaviour --------
 ITI_DUR = 10;                                   % s, inter-trial interval

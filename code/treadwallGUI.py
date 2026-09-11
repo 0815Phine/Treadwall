@@ -1,13 +1,13 @@
 """
-TreadwallGUI.py - Central session management GUI for Treadwall experiments.
+treadwallGUI.py - Central session management GUI for Treadwall experiments.
 
 Sole launcher for a session (camera + Bpod + WaveSurfer + notes).
-Launch: double-click StartSession.bat  (or: python Code/TreadwallGUI.py)
+Launch: double-click startsession.bat  (or: python code/treadwallGUI.py)
 
 Features:
   - Select RSpace notebook + animal ID from live dropdown (fetched from RSpace)
   - Start / update session without restarting MATLAB
-  - Live camera preview from both cameras (requires VideoAquisition.py --preview-dir)
+  - Live camera preview from both cameras (requires videoacquisition.py --preview-dir)
   - Timestamped note-taking with direct RSpace upload
   - Auto-detects when Bpod session ends; prompts for notes upload + WaveSurfer stop
 """
@@ -46,27 +46,26 @@ IPC_DIR           = _PATHS["ipc_dir"]
 PREVIEW_DIR       = _PATHS["preview_dir"]
 RSPACE_METHOD_TAG = _CFG["rspace"]["method_tag"]
 PROTOCOLS = [
-    "Treadwall_Baseline",
-    "Treadwall_Habituation_1",
-    "Treadwall_Habituation_2",
-    "Treadwall_scrambled",
-    "Treadwall_predictable",
+    "treadwall_baseline",
+    "treadwall_habituation_1",
+    "treadwall_habituation_2",
+    "treadwall_scrambled",
+    "treadwall_predictable",
 ]
-# Which Protocol Parameters each protocol reads live (via gui_read_params) and so
+# Which Protocol Parameters each protocol reads live (via gui_readparams) and so
 # can be adjusted in the GUI. Params not listed are fixed by the protocol and are
 # shown greyed-out/read-only. Unknown protocols default to all three editable.
 PROTOCOL_EDITABLE_PARAMS = {
-    "Treadwall_Baseline":      set(),                                  # fixed once
-    "Treadwall_Habituation_1": {"ITIDur", "stimDur", "ScalingFactor"},
-    "Treadwall_Habituation_2": {"ITIDur", "stimDur", "ScalingFactor"},
-    "Treadwall_scrambled":     {"ITIDur", "stimDur", "ScalingFactor"},
-    "Treadwall_predictable":   {"ITIDur", "ScalingFactor"},            # no stimDur
+    "treadwall_baseline":      set(),                                  # fixed once
+    "treadwall_habituation_1": {"ITIDur", "stimDur", "ScalingFactor"},
+    "treadwall_habituation_2": {"ITIDur", "stimDur", "ScalingFactor"},
+    "treadwall_scrambled":     {"ITIDur", "stimDur", "ScalingFactor"},
+    "treadwall_predictable":   {"ITIDur", "ScalingFactor"},            # no stimDur
 }
 # ──────────────────────────────────────────────────────────────────────────────
 
-WS_FOLDER     = _HERE / "src" / "wavesurfer"
-WSP_FILE      = _HERE / "parameters" / "wavesurfer" / "Treadwall.wsp"
-CAMERA_SCRIPT = _HERE / "src" / "camera" / "VideoAquisition.py"
+WSP_FILE      = _HERE / "parameters" / "wavesurfer" / "treadwall.wsp"
+CAMERA_SCRIPT = _HERE / "src" / "videoacquisition.py"
 
 
 def _load_config() -> dict:
@@ -82,7 +81,7 @@ def _save_config(data: dict) -> None:
 
 
 class CameraPreviewThread(QThread):
-    """Reads preview .npy files written by VideoAquisition.py and emits them."""
+    """Reads preview .npy files written by videoacquisition.py and emits them."""
     frames_ready = pyqtSignal(object, object)
 
     def __init__(self, preview_dir: str):
@@ -637,7 +636,7 @@ class TreadwallWindow(QMainWindow):
         # Owned process still running — covers the whole prewarm/launch init window.
         if self._matlab_proc is not None and self._matlab_proc.poll() is None:
             return True
-        # Heartbeat check — StartBpodSession.m touches this file every ~2 s in its
+        # Heartbeat check — start_bpodsession.m touches this file every ~2 s in its
         # wait loop. Also covers a MATLAB adopted from a previous GUI run, for which
         # we have no owned process handle.
         hb = Path(IPC_DIR) / "matlab_alive.flag"
@@ -650,10 +649,10 @@ class TreadwallWindow(QMainWindow):
 
     def _spawn_matlab(self, session_dir: str, base_name: str,
                       animal: str, session: str, datetime_str: str, protocol: str):
-        """Launch one MATLAB instance: StartWaveSurfer opens WaveSurfer + its IPC
-        timer and returns, then StartBpodSession runs in the same instance and
+        """Launch one MATLAB instance: start_wavesurfer opens WaveSurfer + its IPC
+        timer and returns, then start_bpodsession runs in the same instance and
         blocks in its multi-session wait loop until end-of-day. An empty protocol
-        makes StartBpodSession pre-warm (init + wait, no protocol run)."""
+        makes start_bpodsession pre-warm (init + wait, no protocol run)."""
         # Clear any stale heartbeat from a previous (possibly crashed) session
         try:
             (Path(IPC_DIR) / "matlab_alive.flag").unlink(missing_ok=True)
@@ -664,10 +663,10 @@ class TreadwallWindow(QMainWindow):
             f"addpath(genpath('{_HERE / 'src'}')); "
             f"addpath(genpath('{_HERE / 'protocols'}')); "
             f"addpath('{_HERE / 'parameters' / 'bpod'}'); "
-            f"StartWaveSurfer('{WSP_FILE}','{session_dir}','{base_name}'); "
+            f"start_wavesurfer('{WSP_FILE}','{session_dir}','{base_name}'); "
         )
         bpod_part = (
-            f"StartBpodSession('{animal}','{session}','{datetime_str}','{protocol}')"
+            f"start_bpodsession('{animal}','{session}','{datetime_str}','{protocol}')"
         )
         self._matlab_proc = subprocess.Popen(
             [MATLAB_EXE, "-nosplash", "-r", ws_part + bpod_part]
@@ -685,7 +684,7 @@ class TreadwallWindow(QMainWindow):
         If a MATLAB from a previous GUI run is still alive (fresh heartbeat), adopt
         it instead of spawning a second instance (which would collide on Bpod).
 
-        Start stays disabled until StartBpodSession signals readiness via
+        Start stays disabled until start_bpodsession signals readiness via
         bpod_ready.flag (picked up in _poll_ipc); on a launch failure Start is left
         enabled so the on-demand launch path still works."""
         hb = Path(IPC_DIR) / "matlab_alive.flag"
@@ -705,7 +704,7 @@ class TreadwallWindow(QMainWindow):
             (Path(IPC_DIR) / "bpod_ready.flag").unlink(missing_ok=True)
             (Path(IPC_DIR) / "bpod_standby.flag").unlink(missing_ok=True)
             self._start_btn.setEnabled(False)
-            # Empty protocol → StartBpodSession pre-warms (init + wait, no run).
+            # Empty protocol → start_bpodsession pre-warms (init + wait, no run).
             self._spawn_matlab(DATA_BASE, "prewarm", "prewarm", "prewarm", "", "")
             self._set_status(
                 "Starting WaveSurfer + Bpod (placeholder names) — "

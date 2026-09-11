@@ -1,5 +1,5 @@
-%% Parameters for Treadwall_predictable
-% Loaded by Treadwall_predictable.m via treadwall_params_dir().
+%% Parameters for treadwall_predictable
+% Loaded by treadwall_predictable.m via treadwall_paramsdir().
 % (Analog-in sampling rate / input range / channel count are rig hardware and
 %  live in the central config: treadwall_config().bpod.analogin.)
 

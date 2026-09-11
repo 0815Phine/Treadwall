@@ -1,5 +1,5 @@
-%% Parameters for Treadwall_Baseline (camera + 2P only, no lateral wall movement)
-% Loaded by Treadwall_Baseline.m via treadwall_params_dir().
+%% Parameters for treadwall_baseline (camera + 2P only, no lateral wall movement)
+% Loaded by treadwall_baseline.m via treadwall_paramsdir().
 
 % -------- Behaviour --------
 SESSION_DUR = 1200;          % s, run duration (ExperimentRunning state)

@@ -2,7 +2,7 @@
 % output voltages are defined in the parameter files in the variable 'WAVEFORMS'
 % each index points to the corresponding waveform
 
-function stimOutput = GetStimOutput(trialType)
+function stimOutput = get_stimoutput(trialType)
     switch trialType
         % centered
         case 'C51'

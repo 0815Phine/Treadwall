@@ -1,4 +1,4 @@
-function stop_estop_timer(t)
+function stop_estoptimer(t)
 % Safely stop and delete the emergency-stop timer on any exit path
 % (idempotent — guards against an already-deleted timer).
 try

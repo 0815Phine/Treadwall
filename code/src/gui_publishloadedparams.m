@@ -1,4 +1,4 @@
-function gui_publish_loaded_params(ipc_dir, S)
+function gui_publishloadedparams(ipc_dir, S)
 % Publish the protocol-loaded parameters so the GUI shows them as the initial
 % values in its spinboxes. The GUI must NOT pre-seed protocol_params.json; it
 % ingests this file instead, and only writes protocol_params.json back when the

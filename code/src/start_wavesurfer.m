@@ -1,4 +1,4 @@
-function StartWaveSurfer(wsp_file, session_dir, base_name)
+function start_wavesurfer(wsp_file, session_dir, base_name)
 % Opens WaveSurfer, pre-fills output folder + filename, and starts an IPC
 % timer that handles two signals from the experiment GUI:
 %
@@ -9,7 +9,7 @@ IPC_DIR = treadwall_config().paths.ipc_dir;   % central config (treadwall_config
 if ~exist(IPC_DIR, 'dir'), mkdir(IPC_DIR); end
 
 % Mirror the MATLAB command window to a file the GUI tails (fresh per launch).
-% StartWaveSurfer runs first in each MATLAB launch, so the diary captures
+% start_wavesurfer runs first in each MATLAB launch, so the diary captures
 % WaveSurfer + Bpod startup and every subsequent session.
 log_file = fullfile(IPC_DIR, 'matlab_log.txt');
 try, diary off; catch, end
@@ -52,7 +52,7 @@ t = timer('Period', 0.5, 'ExecutionMode', 'fixedRate', ...
 start(t);
 fprintf('IPC timer started (0.5 s poll interval).\n');
 
-end  % StartWaveSurfer
+end  % start_wavesurfer
 
 
 function ws_ipc_check(ws, ipc_dir)
