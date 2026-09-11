@@ -1,19 +1,19 @@
 # Treadwall
 
 <p align="center">
-  <img src="./images/" width="800">
+  <!-- TODO: setup overview image to be added -->
 </p>
 
 ### Hardware Components
-- [Treadmill-Main](https://github.com/0815Phine/Treadwall/tree/main/Hardware/Treadmill%20Main)
-- [Treadwall-Main](https://github.com/0815Phine/Treadwall/tree/main/Hardware/Treadwall%20Main)
-- [Wall Synchronizer](https://github.com/0815Phine/Treadwall/tree/main/Hardware/Wall%20Synchronizer)
-- [Wall Mover](https://github.com/0815Phine/Treadwall/tree/main/Hardware/Wall%20Mover)
-- [Circuit Box](https://github.com/0815Phine/Treadwall/tree/main/Hardware/Circuit%20Box)
+- [Treadmill-Main](hardware/treadmillmain)
+- [Treadwall-Main](hardware/treadwallmain)
+- [Wall Synchronizer](hardware/wallsynchronizer)
+- [Wall Mover](hardware/wallmover)
+- [Circuit Box](hardware/circuitbox)
 
 ### Wiring Overview
 <p align="center">
-  <img src="./images/Treadwall_Connections_Overview_V2.3.png" width="800">
+  <img src="./hardware/connections_overview.png" width="800">
 </p>
 
 ## Lasercutting
@@ -47,7 +47,7 @@ Modules used for scrambled and predictable experiments:
 For further modules see [sanworks.io/products](https://sanworks.io/shop/products.php).
 
 ## Software Dependencies
-External code is vendored as **git submodules** under [Code/dependencies/](Code/dependencies/).
+External code is vendored as **git submodules** under [code/dependencies/](code/dependencies/).
 Clone with `git clone --recurse-submodules`, or run `git submodule update --init --recursive`
 after cloning.
 
@@ -55,16 +55,16 @@ after cloning.
 | :--- | :--- | :--- |
 | `Bpod_Gen2` | [LenaGschossmann/Bpod_Gen2](https://github.com/LenaGschossmann/Bpod_Gen2) @ `softcodes-udp-sync` | Bpod control framework (sanworks fork). The `softcodes-udp-sync` branch is required and is pinned in `.gitmodules`. |
 | `Bpod_RotaryEncoder_Firmware` | [0815Phine/Bpod_RotaryEncoder_Firmware](https://github.com/0815Phine/Bpod_RotaryEncoder_Firmware) | Modified rotary-encoder module firmware (needed for the *predictable* experiments). |
-| `wavesurfer` | [JaneliaSciComp/Wavesurfer](https://github.com/JaneliaSciComp/Wavesurfer) | WaveSurfer app for synchronized data acquisition. |
-| `IEECRSpace` | [IEECR-BeckGroup/IEECRSpace](https://github.com/IEECR-BeckGroup/IEECRSpace) | RSpace integration; `TreadwallGUI.py` adds `IEECRSpace/src` to `sys.path` and imports `rspace`. |
+| `Wavesurfer` | [JaneliaSciComp/Wavesurfer](https://github.com/JaneliaSciComp/Wavesurfer) | WaveSurfer app for synchronized data acquisition. |
+| `IEECRSpace` | [IEECR-BeckGroup/IEECRSpace](https://github.com/IEECR-BeckGroup/IEECRSpace) | RSpace integration; `treadwallGUI.py` adds `IEECRSpace/src` to `sys.path` and imports `rspace`. |
 
 **IEECRSpace must be set up once before the GUI's RSpace features work.** The submodule is a
 self-contained app that installs itself on first launch. If you haven't done this yet, run its
 first-time setup — on Windows double-click
-[`Code/dependencies/IEECRSpace/IEECRSpace_Launcher.bat`](Code/dependencies/IEECRSpace/) (the first
+[`code/dependencies/IEECRSpace/IEECRSpace_Launcher.bat`](code/dependencies/IEECRSpace/) (the first
 launch downloads its own private Python + dependencies, so it needs an internet connection) — and
 then paste your RSpace API key into the app's **Settings** tab. See the
-[IEECRSpace README](Code/dependencies/IEECRSpace/README.md) for the full instructions.
+[IEECRSpace README](code/dependencies/IEECRSpace/README.md) for the full instructions.
 
 **Arduino libraries** are installed via the Arduino IDE **Library Manager** (the IDE resolves
 libraries from its own sketchbook `libraries/` folder, not from this repo):
@@ -74,16 +74,15 @@ libraries from its own sketchbook `libraries/` folder, not from this repo):
 
 ### Python environment
 The GUI and camera scripts run on a dedicated conda environment pinned in
-[`Code/dependencies/environment.yml`](Code/dependencies/environment.yml). Create it once:
+[`code/dependencies/environment.yml`](code/dependencies/environment.yml). Create it once:
 
 ```
-conda env create -f Code/dependencies/environment.yml
+conda env create -f code/dependencies/environment.yml
 ```
 
 This builds an env named `treadwall` (Python 3.11 + numpy, opencv-python, pypylon, PyQt5,
-requests). The launcher ([Code/StartSession.bat](Code/StartSession.bat)) and the camera subprocess
+requests). The launcher ([code/startsession.bat](code/startsession.bat)) and the camera subprocess
 already point at this env's interpreter, so **the `treadwall` env must exist for the app to run**.
-Run the end-of-day sync in the same env, e.g. `conda run -n treadwall python Code/src/data_management/DailyDataManager.py`.
 (`rspace` is not listed here — it is imported from the `IEECRSpace` submodule source.)
 
 **ffmpeg** is required for live video encoding and is **not** a conda package here — the camera
@@ -100,8 +99,8 @@ conda-forge build generally omits — otherwise capture silently falls back to C
 | Tool | Version / build | Purpose |
 | :--- | :--- | :--- |
 | MATLAB | R2024a | Runs Bpod (`Bpod_Gen2`) + WaveSurfer |
-| WaveSurfer | 1.0.x (see `Code/dependencies/wavesurfer`) | Synchronized data acquisition (needs a DAQ) |
-| ffmpeg ([ffmpeg.org](https://ffmpeg.org/)) | gyan.dev **full** build, on `PATH` | Live H.264 encoding in `VideoAquisition.py`; full build needed for `h264_nvenc` (GPU) |
+| WaveSurfer | 1.0.x (see `code/dependencies/Wavesurfer`) | Synchronized data acquisition (needs a DAQ) |
+| ffmpeg ([ffmpeg.org](https://ffmpeg.org/)) | gyan.dev **full** build, on `PATH` | Live H.264 encoding in `videoacquisition.py`; full build needed for `h264_nvenc` (GPU) |
 | Anaconda / Python | Python 3.11 | Runs the GUI + camera scripts (`treadwall` env) |
 | Basler pylon Camera Software Suite | matching pypylon 4.1 | Camera drivers/runtime for `pypylon` |
 | NI-DAQmx driver + NI DAQ device | — | WaveSurfer acquisition + TTL sync (the "DAQ-Box") |

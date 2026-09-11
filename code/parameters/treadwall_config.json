@@ -4,13 +4,7 @@
     "ipc_dir":     "C:\\Users\\TomBombadil\\Documents\\TreadwallGUI\\ipc",
     "preview_dir": "C:\\Users\\TomBombadil\\Documents\\TreadwallGUI\\preview",
     "matlab_exe":  "C:\\Program Files\\MATLAB\\R2024a\\bin\\matlab.exe",
-    "python_exe":  "C:\\Users\\TomBombadil\\anaconda3\\envs\\treadwall\\python.exe",
-    "server": {
-      "_note":        "placeholders — wired up when DailyDataManager is reworked",
-      "lts_base":     "",
-      "server_base":  "",
-      "skip_animals": []
-    }
+    "python_exe":  "C:\\Users\\TomBombadil\\anaconda3\\envs\\treadwall\\python.exe"
   },
   "rspace": {
     "notebook_label": "jtim > establishing_paradigm",

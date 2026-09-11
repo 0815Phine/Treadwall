@@ -1,8 +1,8 @@
 ## Treadwall-Main
 
 <p align="center">
-  <img src="./images/Treadwall_2.png" height="300">
-  <img src="./images/Treadwall_4.png" height="300">
+  <img src="./images/treadwall_1.png" height="300">
+  <img src="./images/treadwall_2.png" height="300">
 </p>
 
 ### File List

@@ -1,7 +1,7 @@
 # Wall Mover
 
 <p align="center">
-  <img src="./images/Wall_Mover.jpg" width="800">
+  <img src="./images/wallmover.jpg" width="800">
 </p>
 
 | Item | Quantity | Notes | Product Example Link |
@@ -27,10 +27,10 @@
 
 ### Wiring Diagram
 <p align="center">
-  <img src="./images/Wall_Mover_Electronics_V2.3.png" width="800">
+  <img src="./images/mover_connections.png" width="800">
 </p>
 
 ### PCB
 <p align="center">
-  <img src="./images/Mover_PCB.png" width="800">
+  <img src="./images/mover_PCB.png" width="800">
 </p>

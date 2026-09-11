@@ -1,7 +1,7 @@
 # Wall Synchronizer
 
 <p align="center">
-  <img src="./images/Wall_Synchronizer.jpg" width="800">
+  <img src="./images/wallsynchronizer.jpg" width="800">
 </p>
 
 | Item | Quantity | Notes | Product Example Link |
@@ -30,12 +30,12 @@
 
 ### Wiring Diagram
 <p align="center">
-  <img src="./images/Wall_Synchronizer_Electronics_V2.3.png" width="800">
+  <img src="./images/synchronizer_connections.png" width="800">
 </p>
 
 ### PCB
 <p align="center">
-  <img src="./images/Synchronizer_PCB.png" width="800">
+  <img src="./images/synchronizer_PCB.png" width="800">
 </p>
 
 **Caution:** The Rotary Encoder will get power from the Bpod-Rotary-Encoder-Module. Power has to be provided differently if not using the Bpod-System.
