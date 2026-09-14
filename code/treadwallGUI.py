@@ -45,6 +45,7 @@ DATA_BASE         = _PATHS["data_root"]
 IPC_DIR           = _PATHS["ipc_dir"]
 PREVIEW_DIR       = _PATHS["preview_dir"]
 RSPACE_METHOD_TAG = _CFG["rspace"]["method_tag"]
+_GUI              = _CFG["gui"]
 PROTOCOLS = [
     "treadwall_baseline",
     "treadwall_habituation_1",
@@ -99,7 +100,7 @@ class CameraPreviewThread(QThread):
             except Exception:
                 top, front = None, None
             self.frames_ready.emit(top, front)
-            self.msleep(66)    # ~15 fps display, matches camera write rate
+            self.msleep(_GUI["preview_display_interval_ms"])    # ~15 fps display, matches camera write rate
 
     def stop(self):
         self._active = False
@@ -128,7 +129,7 @@ class CameraReaperThread(QThread):
     thread to keep the UI responsive."""
     finished_reaping = pyqtSignal()
 
-    def __init__(self, proc, log_thr, timeout_s: int = 120):
+    def __init__(self, proc, log_thr, timeout_s: int = _GUI["camera_reaper_timeout_s"]):
         super().__init__()
         self._proc    = proc
         self._log_thr = log_thr
@@ -205,7 +206,7 @@ class MatlabLogThread(QThread):
             except Exception:
                 pass
 
-            self.msleep(500)
+            self.msleep(_GUI["matlab_log_refresh_ms"])
 
     def stop(self):
         self._active = False
@@ -284,7 +285,7 @@ class TreadwallWindow(QMainWindow):
         # Poll IPC dir every 2 s for session_done.flag / session_error.json from Bpod
         self._ipc_timer = QTimer(self)
         self._ipc_timer.timeout.connect(self._poll_ipc)
-        self._ipc_timer.start(2000)
+        self._ipc_timer.start(_GUI["ipc_poll_interval_ms"])
 
         # Pre-warm MATLAB (WaveSurfer + Bpod) so they're ready by the first session.
         self._prewarm_matlab()
@@ -327,7 +328,7 @@ class TreadwallWindow(QMainWindow):
         self._matlab_log.setReadOnly(True)
         self._matlab_log.setFont(QFont("Consolas", 8))
         self._matlab_log.setMinimumHeight(150)
-        self._matlab_log.document().setMaximumBlockCount(500)
+        self._matlab_log.document().setMaximumBlockCount(_GUI["matlab_log_max_blocks"])
         ml.addWidget(self._matlab_log)
 
         lv.addWidget(top_box)
@@ -482,7 +483,7 @@ class TreadwallWindow(QMainWindow):
     @staticmethod
     def _make_cam_label() -> QLabel:
         lbl = QLabel("Waiting for camera…")
-        lbl.setFixedSize(480, 360)
+        lbl.setFixedSize(_GUI["preview_label_width"], _GUI["preview_label_height"])
         lbl.setAlignment(Qt.AlignCenter)
         lbl.setStyleSheet("background:#111;color:#555;border:1px solid #333;font-size:12px;")
         return lbl

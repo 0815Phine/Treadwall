@@ -14,13 +14,25 @@ from pathlib import Path
 # This file lives in code/src/, so code/ (which holds parameters/) is parents[1].
 _CFG = json.load(open(Path(__file__).resolve().parents[1] / "parameters" / "treadwall_config.json"))
 _CAM = _CFG["cameras"]
+_TOP = _CAM["topcam"]
+_FRONT = _CAM["frontcam"]
 
 CHUNK_SIZE = _CAM["chunk_size"]   # frames per chunk piped to the encoder (200 = 1 s at 200 Hz)
-H, W = 540, 720       # frame dimensions (must match camera settings below)
+
+# Per-camera frame dimensions (from config). The two cameras differ, so each
+# gets its own width/height for its buffers, encoder -s, and metadata.
+TOP_W,   TOP_H   = _TOP["width"],   _TOP["height"]
+FRONT_W, FRONT_H = _FRONT["width"], _FRONT["height"]
+
+# Preview downsample size + write cadence (GUI live view).
+PREVIEW_W       = _CAM["preview"]["width"]
+PREVIEW_H       = _CAM["preview"]["height"]
+_PREVIEW_EVERY  = _CAM["preview"]["every_n"]   # write preview frame every N iterations
+ENCODER_FINALIZE_TIMEOUT_S = _CAM["encoder_finalize_timeout_s"]
 
 # Encoder settings — frames are encoded live to visually-lossless H.264 .mp4
 # instead of being dumped as uncompressed .npy (which was ~93 GB/session).
-TOPCAM_FPS_NOMINAL = float(_CAM["topcam"]["fps"])   # top cam is hardware-triggered; .mp4 -r is
+TOPCAM_FPS_NOMINAL = float(_TOP["fps"])   # top cam is hardware-triggered; .mp4 -r is
                             # nominal, true timing lives in the timestamp .txt files
 ENCODE_QP = _CAM["encode_qp"]   # constant quality (h264_nvenc -qp / libx264 -crf);
                             # lower = higher quality + larger file (15 ≈ near-lossless)
@@ -38,7 +50,7 @@ def _has_nvenc():
         return False
 
 
-def _start_encoder(out_path, fps, use_nvenc):
+def _start_encoder(out_path, fps, use_nvenc, w, h):
     """Launch an ffmpeg subprocess that reads raw Mono8 frames on stdin and
     encodes them straight to a visually-lossless H.264 .mp4.
 
@@ -49,7 +61,7 @@ def _start_encoder(out_path, fps, use_nvenc):
         "-f", "rawvideo",
         "-vcodec", "rawvideo",
         "-pix_fmt", "gray",
-        "-s", f"{W}x{H}",
+        "-s", f"{w}x{h}",
         "-r", str(fps),
         "-i", "pipe:0",
     ]
@@ -170,47 +182,46 @@ cam_top   = _open_camera(SERIAL_TOPCAM)
 cam_front = _open_camera(SERIAL_FRONTCAM)
 
 # ------ Top Camera Settings (hardware-triggered, 30 Hz) ------
-cam_top.BinningHorizontal.Value     = 2
-cam_top.BinningVertical.Value       = 2
-cam_top.BinningHorizontalMode.Value = "Average"
-cam_top.BinningVerticalMode.Value   = "Average"
-cam_top.Width.Value  = W
-cam_top.Height.Value = H
-cam_top.PixelFormat.Value = "Mono8"          # explicit — Pylon Viewer can leave Mono12
-cam_top.ExposureTime.Value = 6000
+cam_top.BinningHorizontal.Value     = _TOP["binning"]
+cam_top.BinningVertical.Value       = _TOP["binning"]
+cam_top.BinningHorizontalMode.Value = _TOP["binning_mode"]
+cam_top.BinningVerticalMode.Value   = _TOP["binning_mode"]
+cam_top.Width.Value  = TOP_W
+cam_top.Height.Value = TOP_H
+cam_top.PixelFormat.Value = _TOP["pixel_format"]   # explicit — Pylon Viewer can leave Mono12
+cam_top.ExposureTime.Value = _TOP["exposure_us"]
 cam_top.ExposureAuto.Value = "Off"
-cam_top.Gain.Value = 5
-cam_top.DeviceLinkThroughputLimitMode.Value = "Off"
+cam_top.Gain.Value = _TOP["gain"]
+cam_top.DeviceLinkThroughputLimitMode.Value = "On" if _TOP["throughput_limit"] else "Off" # Off = higher frame rate
 cam_top.AcquisitionFrameRateEnable.Value = False
-cam_top.AcquisitionMode.Value = "Continuous"
 
 # TriggerSelector must be set BEFORE TriggerMode/Source — it selects which trigger to configure
-cam_top.TriggerSelector.Value   = "FrameStart"
-cam_top.TriggerMode.Value       = "On"
-cam_top.TriggerSource.Value     = "Line1"
-cam_top.TriggerActivation.Value = "RisingEdge"
+_TRIG = _TOP["trigger"]
+cam_top.TriggerSelector.Value   = _TRIG["selector"]
+cam_top.TriggerMode.Value       = _TRIG["mode"]
+cam_top.TriggerSource.Value     = _TRIG["source"]
+cam_top.TriggerActivation.Value = _TRIG["activation"]
 
-cam_top.LineSelector.Value = "Line2"
+cam_top.LineSelector.Value = _TOP["lines"]["stop_input"]
 cam_top.LineMode.Value     = "Input"
 
-cam_top.LineSelector.Value = "Line3"
+cam_top.LineSelector.Value = _TOP["lines"]["exposure_output"]
 cam_top.LineMode.Value     = "Output"
 cam_top.LineSource.Value   = "ExposureActive"
 
 # ------ Front Camera Settings (free-running) ------
-FRONTCAM_FPS = float(_CAM["frontcam"]["fps"])
+FRONTCAM_FPS = float(_FRONT["fps"])
 
-cam_front.BinningHorizontal.Value     = 2
-cam_front.BinningVertical.Value       = 2
-cam_front.BinningHorizontalMode.Value = "Average"
-cam_front.BinningVerticalMode.Value   = "Average"
-cam_front.Width.Value  = W
-cam_front.Height.Value = H
-cam_front.PixelFormat.Value = "Mono8"
-cam_front.ExposureTime.Value = 4900
+cam_front.BinningHorizontal.Value     = _FRONT["binning"]
+cam_front.BinningVertical.Value       = _FRONT["binning"]
+cam_front.BinningHorizontalMode.Value = _FRONT["binning_mode"]
+cam_front.BinningVerticalMode.Value   = _FRONT["binning_mode"]
+cam_front.Width.Value  = FRONT_W
+cam_front.Height.Value = FRONT_H
+cam_front.PixelFormat.Value = _FRONT["pixel_format"]
+cam_front.ExposureTime.Value = _FRONT["exposure_us"]
 cam_front.ExposureAuto.Value = "Off"
-cam_front.Gain.Value = 10
-cam_front.AcquisitionMode.Value = "Continuous"
+cam_front.Gain.Value = _FRONT["gain"]
 cam_front.AcquisitionFrameRateEnable.Value = True
 cam_front.AcquisitionFrameRate.Value = FRONTCAM_FPS
 cam_front.TriggerMode.Value = "Off"  # free-running
@@ -219,18 +230,18 @@ cam_front.TriggerMode.Value = "Off"  # free-running
 # Each slot holds one full chunk. Writer reads the completed slot while
 # acquisition fills the other. Fill time (1 s) >> np.save time (~256 ms).
 
-def _make_buffers():
+def _make_buffers(h, w):
     return (
-        [np.empty((CHUNK_SIZE, H, W), dtype=np.uint8),
-         np.empty((CHUNK_SIZE, H, W), dtype=np.uint8)],
+        [np.empty((CHUNK_SIZE, h, w), dtype=np.uint8),
+         np.empty((CHUNK_SIZE, h, w), dtype=np.uint8)],
         [np.empty(CHUNK_SIZE, dtype=np.int64),
          np.empty(CHUNK_SIZE, dtype=np.int64)],
         [np.empty(CHUNK_SIZE, dtype=np.int64),
          np.empty(CHUNK_SIZE, dtype=np.int64)],
     )
 
-chunk_top,   cam_ts_top,   pc_ts_top   = _make_buffers()
-chunk_front, cam_ts_front, pc_ts_front = _make_buffers()
+chunk_top,   cam_ts_top,   pc_ts_top   = _make_buffers(TOP_H,   TOP_W)
+chunk_front, cam_ts_front, pc_ts_front = _make_buffers(FRONT_H, FRONT_W)
 
 # ------ Shared Events ------
 stop_event  = threading.Event()  # set by topcam when Line2 fires or trigger lost
@@ -240,7 +251,7 @@ start_event = threading.Event()  # set when topcam receives its first hardware t
 latest_top   = None
 latest_front = None
 display_lock = threading.Lock()
-_DIVIDER     = np.zeros((240, 4), dtype=np.uint8)  # 4-pixel separator between views
+_DIVIDER     = np.zeros((PREVIEW_H, 4), dtype=np.uint8)  # 4-pixel separator between views
 
 # ------ Writer Threads ------
 write_queue_top   = queue.Queue()
@@ -269,7 +280,7 @@ def _writer(write_queue, frame_buffers, cam_ts_buffers, pc_ts_buffers, enc, ts_a
         slot, n, chunk_idx = item
         try:
             if enc['proc'] is None:
-                enc['proc'] = _start_encoder(enc['path'], enc['fps'], use_nvenc)
+                enc['proc'] = _start_encoder(enc['path'], enc['fps'], use_nvenc, enc['w'], enc['h'])
                 print(f"{label}: encoder started on first chunk.")
             enc['proc'].stdin.write(frame_buffers[slot][:n].tobytes())
             ts_accum['cam'].append(cam_ts_buffers[slot][:n].copy())
@@ -324,7 +335,7 @@ def acquire_topcam():
                         fcount_top += 1
 
                         with display_lock:
-                            latest_top = cv2.resize(image, (320, 240))
+                            latest_top = cv2.resize(image, (PREVIEW_W, PREVIEW_H))
 
                         if fill == CHUNK_SIZE:
                             write_queue_top.put((slot, CHUNK_SIZE, counter))
@@ -418,7 +429,7 @@ def acquire_frontcam():
                         fcount_front += 1
 
                         with display_lock:
-                            latest_front = cv2.resize(image, (320, 240))
+                            latest_front = cv2.resize(image, (PREVIEW_W, PREVIEW_H))
 
                         if fill == CHUNK_SIZE:
                             write_queue_front.put((slot, CHUNK_SIZE, counter))
@@ -484,8 +495,8 @@ def _run_frontcam():
 # in by the writer and read back here for finalizing.
 use_nvenc = _has_nvenc()
 print(f"Encoder: {'h264_nvenc (GPU)' if use_nvenc else 'libx264 (CPU)'}, qp/crf={ENCODE_QP}")
-enc_top   = {'proc': None, 'path': video_top,   'fps': TOPCAM_FPS_NOMINAL}
-enc_front = {'proc': None, 'path': video_front, 'fps': FRONTCAM_FPS}
+enc_top   = {'proc': None, 'path': video_top,   'fps': TOPCAM_FPS_NOMINAL, 'w': TOP_W,   'h': TOP_H}
+enc_front = {'proc': None, 'path': video_front, 'fps': FRONTCAM_FPS,       'w': FRONT_W, 'h': FRONT_H}
 
 # Per-camera in-memory timestamp accumulators (filled by the writer threads).
 ts_accum_top   = {'cam': [], 'pc': []}
@@ -512,7 +523,7 @@ acq_front_thread.start()
 # Main thread: live display and/or preview-file writing.
 # cv2.imshow must be called from the main thread on Windows.
 _preview_tick  = 0
-_PREVIEW_EVERY = 2   # write preview frame every 2 iterations ≈ 15 fps at 33 ms loop
+# _PREVIEW_EVERY (frames between preview writes) comes from config; ≈ 15 fps at 33 ms loop.
 
 while acq_top_thread.is_alive() or acq_front_thread.is_alive():
     with display_lock:
@@ -581,7 +592,7 @@ def _finalize_encoder(enc, label):
     except Exception:
         pass
     try:
-        _, err = proc.communicate(timeout=120)
+        _, err = proc.communicate(timeout=ENCODER_FINALIZE_TIMEOUT_S)
     except Exception as e:
         print(f"{label} encoder: finalize error ({e}); killing.")
         proc.kill()
@@ -629,16 +640,17 @@ metadata = {
         "codec":      "h264_nvenc" if use_nvenc else "libx264",
         "qp_or_crf":  ENCODE_QP,
         "pix_fmt_in": "gray",
-        "resolution": f"{W}x{H}",
     },
     "topcam": {
         "serial":        SERIAL_TOPCAM,
+        "resolution":    f"{TOP_W}x{TOP_H}",
         "total_frames":  fcount_top,
         "fps_estimated": round(fps_top, 2),
         "video_file":    os.path.basename(video_top) if enc_top['proc'] is not None else None,
     },
     "frontcam": {
         "serial":        SERIAL_FRONTCAM,
+        "resolution":    f"{FRONT_W}x{FRONT_H}",
         "total_frames":  fcount_front,
         "fps_estimated": round(fps_front, 2),
         "video_file":    os.path.basename(video_front) if enc_front['proc'] is not None else None,

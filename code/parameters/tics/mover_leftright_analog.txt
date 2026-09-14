@@ -28,7 +28,7 @@ input_neutral_min: 0
 input_neutral_max: 205
 input_max: 4051
 output_min: 0
-output_max: 3840
+output_max: 1456
 encoder_prescaler: 1
 encoder_postscaler: 1
 encoder_unlimited: false
@@ -42,7 +42,7 @@ max_speed: 7500000
 starting_speed: 0
 max_accel: 200000
 max_decel: 0
-step_mode: 32
+step_mode: 16
 current_limit: 800
 current_limit_during_error: -1
 decay_mode: mixed25
