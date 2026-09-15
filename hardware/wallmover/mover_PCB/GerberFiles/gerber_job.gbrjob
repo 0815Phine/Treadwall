@@ -1,0 +1,24 @@
+{
+    "Header": {
+        "Comment": "All values are metric (mm)",
+        "CreationDate": "2025-08-18T11:09:16Z",
+        "GenerationSoftware": {
+            "Application": "Fusion Electronics",
+            "Vendor": "Autodesk",
+            "Version": "9.7.0"
+        },
+        "Part": "Single"
+    },
+    "Overall": {
+        "BoardThickness": 1.57,
+        "LayerNumber": 2,
+        "Name": {
+            "ProjectId": "Mover_PCB v17"
+        },
+        "Owner": "Josephine Timm <josephine.timm@uni-bonn.de>",
+        "Size": {
+            "X": 96.809006,
+            "Y": 44.12
+        }
+    }
+}
