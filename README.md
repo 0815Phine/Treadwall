@@ -9,7 +9,7 @@ machine, WaveSurfer data acquisition, and timestamped notes uploaded to RSpace �
 without restarting MATLAB between sessions.
 
 <p align="center">
-  <img src="./hardware/assembly.PNG" width="800">
+  <img src="./hardware/assembly.png" width="800">
 </p>
 
 This repository holds everything needed to **rebuild and run** the setup: hardware
@@ -27,7 +27,7 @@ Treadwall/
 │   ├── wallsynchronizer/    Arduino + PCB that syncs wall motion to running speed
 │   ├── wallmover/           PCB that drives wall position from Bpod
 │   ├── circuitbox/          enclosure electronics
-│   ├── assembly.PNG         setup overview (above)
+│   ├── assembly.png         setup overview (above)
 │   └── connections_overview.png
 └── code/                # see code/README.md
     ├── treadwallGUI.py      central session-launcher GUI
