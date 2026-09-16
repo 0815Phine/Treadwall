@@ -26,20 +26,20 @@ The Bpod-side serial link to these boards *is* configured centrally — see the
 
 | Constant | Value | Meaning |
 |---|---|---|
-| `ticSerial` pins | 10 (TX), 11 (RX) | SoftwareSerial to the Tic drivers |
+| `tic_serial` pins | 10 (TX), 11 (RX) | SoftwareSerial to the Tic drivers |
 | `tic1`, `tic2` device numbers | 14, 15 | Tic serial device IDs (left / right) |
-| `AnalogDataStreamPin` | `A0` | Analog speed output pin |
-| `encAPin`, `encBPin` | 2, 4 | Rotary encoder channels A / B |
-| `SpeedPin` | 3 | PWM speed output pin |
-| `RunningTimeout` | 5000 ms | Idle time before the wall is treated as stopped |
-| `MaxRunningSpeed` | 1 m/s | Speed clamp (min = −1 m/s) |
-| `MaxPWMValue` | 4095 | PWM count for 5 V (12-bit) |
-| `pwmBaseline` | 2045 | Idle/neutral PWM value |
-| `nSteps` | 1024 | Rotary encoder steps per rotation |
-| `StepsperRevolution` | 200 | Stepper motor steps per revolution |
-| `MicrostepsPerStep` | 2 | Stepper driver microstepping |
-| `WallWheelCircumference` | 109 mm | Roller wheel circumference |
-| `wheelRadius` | 53 mm | Running wheel radius |
+| `ANALOG_DATA_STREAM_PIN` | `A0` | Analog speed output pin |
+| `ENC_A_PIN`, `ENC_B_PIN` | 2, 4 | Rotary encoder channels A / B |
+| `SPEED_PIN` | 3 | PWM speed output pin |
+| `RUNNING_TIMEOUT` | 5000 ms | Idle time before the wall is treated as stopped |
+| `MAX_RUNNING_SPEED` | 1 m/s | Speed clamp (min = −1 m/s) |
+| `MAX_PWM_VALUE` | 4095 | PWM count for 5 V (12-bit) |
+| `PWM_BASELINE` | 2045 | Idle/neutral PWM value |
+| `N_STEPS` | 1024 | Rotary encoder steps per rotation |
+| `STEPS_PER_REVOLUTION` | 200 | Stepper motor steps per revolution |
+| `MICROSTEPS_PER_STEP` | 2 | Stepper driver microstepping |
+| `WALL_WHEEL_CIRCUMFERENCE` | 109 mm | Roller wheel circumference |
+| `WHEEL_RADIUS` | 53 mm | Running wheel radius |
 | Encoder interrupt edge | `RISING` | `attachInterrupt` trigger edge |
 | Tic startup delay | 20 ms | Delay after energizing the Tics |
 | Serial baud | 115385 | Both the Tic link and the USB serial |
@@ -52,20 +52,20 @@ utility, not by this sketch.
 
 | Constant | Value | Meaning |
 |---|---|---|
-| `lickOut` | 12 | TTL lick output pin |
-| `encAPin`, `encBPin` | 2, 4 | Rotary encoder channels A / B |
-| `Pump` | 3 | Reward pump output pin |
-| `Clean` | 13 | Pump-cleaning input pin |
+| `LICK_OUT` | 12 | TTL lick output pin |
+| `ENC_A_PIN`, `ENC_B_PIN` | 2, 4 | Rotary encoder channels A / B |
+| `PUMP` | 3 | Reward pump output pin |
+| `CLEAN` | 13 | Pump-cleaning input pin |
 | Capacitive sensor pins | 7, 8 | `CapacitiveSensor(7, 8)` (10 MΩ resistor; antenna on pin 8) |
-| `RunningTimeout` | 1000 ms | Idle time before running is treated as stopped |
-| `minDist` | 150 mm | Minimum distance run before reward is eligible |
-| `minProb` | 70 % | Minimum probability to deliver reward |
-| `nSteps` | 1024 | Rotary encoder steps per rotation |
-| `wheelRadius` | 53 mm | Running wheel radius |
+| `RUNNING_TIMEOUT` | 1000 ms | Idle time before running is treated as stopped |
+| `MIN_DIST` | 150 mm | Minimum distance run before reward is eligible |
+| `MIN_PROB` | 70 % | Minimum probability to deliver reward |
+| `N_STEPS` | 1024 | Rotary encoder steps per rotation |
+| `WHEEL_RADIUS` | 53 mm | Running wheel radius |
 | Capacitive sensor resolution | 80 | `capacitiveSensor(80)` sample count |
 | Lick threshold | 1000 | Raw capacitance above which a lick sample counts |
-| `csSum` threshold | 3800 | Cumulative capacitance that triggers a lick event |
-| Lick TTL pulse | 1 ms | `lickOut` HIGH duration |
-| Pump-on duration | 3 ms | `Pump` HIGH duration per reward |
+| `cs_sum` threshold | 3800 | Cumulative capacitance that triggers a lick event |
+| Lick TTL pulse | 1 ms | `LICK_OUT` HIGH duration |
+| Pump-on duration | 3 ms | `PUMP` HIGH duration per reward |
 | Encoder interrupt edge | `RISING` | `attachInterrupt` trigger edge |
 | Serial baud | 9600 | USB serial |

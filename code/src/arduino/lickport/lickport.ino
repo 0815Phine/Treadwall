@@ -7,48 +7,48 @@
 
 // CONSTANTS
 //    Arduino pins:
-#define lickOut 12
-#define encAPin 2 //Encoder A - Arduino pin 2 to Black
-#define encBPin 4 //Encoder B - Arduino pin 4 to White
-#define Pump 3 //
-#define Clean 13
+#define LICK_OUT 12
+#define ENC_A_PIN 2 //Encoder A - Arduino pin 2 to Black
+#define ENC_B_PIN 4 //Encoder B - Arduino pin 4 to White
+#define PUMP 3 //
+#define CLEAN 13
 CapacitiveSensor cs_7_8 = CapacitiveSensor(7,8); //10M Resistor between pins 7 and 8 -> connect antenna on pin 8
 //
-#define RunningTimeout 1000
+#define RUNNING_TIMEOUT 1000
 #define FW 1 //forwards
 #define BW -1 //backwards
-#define minDist 150 //minimum distance to deliver reward in mm
-#define minProb 70 //minimum probabiliyt to deliver reward
+#define MIN_DIST 150 //minimum distance to deliver reward in mm
+#define MIN_PROB 70 //minimum probabiliyt to deliver reward
 //    Hardware measurements:
-#define nSteps 1024 //Rotary Encoder: number of steps per rotation
-#define wheelRadius 53 //wheel radius in microns in mm
-#define wheelCircumference ((float)wheelRadius*2*PI)
-#define DistancePerStep ((float)wheelCircumference/nSteps) 
+#define N_STEPS 1024 //Rotary Encoder: number of steps per rotation
+#define WHEEL_RADIUS 53 //wheel radius in microns in mm
+#define WHEEL_CIRCUMFERENCE ((float)WHEEL_RADIUS*2*PI)
+#define DISTANCE_PER_STEP ((float)WHEEL_CIRCUMFERENCE/N_STEPS)
 
 // VARIABLES
 //    Time variables
-volatile uint32_t SampleStartTime = 0; 
-volatile uint32_t SampleStopTime = 0;
-volatile uint32_t ElapsedTime = 0;
-uint32_t TimeNoChange = 0;
-uint32_t ElapsedTimeNoChange = 0;
+volatile uint32_t sample_start_time = 0;
+volatile uint32_t sample_stop_time = 0;
+volatile uint32_t elapsed_time = 0;
+uint32_t time_no_change = 0;
+uint32_t elapsed_time_no_change = 0;
 //
-unsigned long csSum; // This variable stores accumulates capacitive values till reaching a threshold
-volatile bool DetectChange = false;
-volatile static float TotalDistanceInMM = 0.00;
-volatile bool DistanceFlag = false;
-volatile int Direction = 0;
+unsigned long cs_sum; // This variable stores accumulates capacitive values till reaching a threshold
+volatile bool detect_change = false;
+volatile static float total_distance_in_mm = 0.00;
+volatile bool distance_flag = false;
+volatile int direction = 0;
 int prob = 0;
 
 // Read capacitive sensor
-void CapacitiveSensorRead() {
+void capacitive_sensor_read() {
   long cs = cs_7_8.capacitiveSensor(80); // Sensor resolution is set to 80; will store the capacitance as an arbitrary value
-  //Serial.println(TotalDistanceInMM);
+  //Serial.println(total_distance_in_mm);
 
-  if (DistanceFlag == false) {
-    if (TotalDistanceInMM >= minDist) {
+  if (distance_flag == false) {
+    if (total_distance_in_mm >= MIN_DIST) {
       Serial.println("Distance reached");
-      DistanceFlag = true;
+      distance_flag = true;
     }
   }
 
@@ -57,94 +57,94 @@ void CapacitiveSensorRead() {
   //if (cs > 100) { //Arbitrary number; lower threshold
   ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-		csSum += cs; // Same as csSum = csSum + cs ; cumulative value for reachiung threshold
-		//Serial.println(cs); 
-		if (csSum >= 3800) //Testing if csSum reached threshold, a High value means it takes longer to trigger
+		cs_sum += cs; // Same as cs_sum = cs_sum + cs ; cumulative value for reachiung threshold
+		//Serial.println(cs);
+		if (cs_sum >= 3800) //Testing if cs_sum reached threshold, a High value means it takes longer to trigger
 		{
 			Serial.print("Trigger: ");
-			Serial.println(csSum);
-      TTLout();
-      DeliverReward();
-			if (csSum > 0) { csSum = 0; } //Reset of csSum
+			Serial.println(cs_sum);
+      ttl_out();
+      deliver_reward();
+			if (cs_sum > 0) { cs_sum = 0; } //Reset of cs_sum
 			cs_7_8.reset_CS_AutoCal(); //Stops readings and recalibration of capacitive sensor
 		}
 	} else {
-		csSum = 0; //Timeout caused by bad readings
+		cs_sum = 0; //Timeout caused by bad readings
 	}
-  ResetChange();
+  reset_change();
 }
 
 // Send lick events
-void TTLout() {
-  digitalWrite(lickOut, HIGH);
+void ttl_out() {
+  digitalWrite(LICK_OUT, HIGH);
   delay(1);
-  digitalWrite(lickOut, LOW);
+  digitalWrite(LICK_OUT, LOW);
 }
 
 // Detect movement and save distance
-void MeasureRotations() {
-  DetectChange = true;
-  if (digitalRead(encAPin) == digitalRead(encBPin)) {
-  TotalDistanceInMM += DistancePerStep;
-  Direction = FW;
+void measure_rotations() {
+  detect_change = true;
+  if (digitalRead(ENC_A_PIN) == digitalRead(ENC_B_PIN)) {
+  total_distance_in_mm += DISTANCE_PER_STEP;
+  direction = FW;
   } else {
-  TotalDistanceInMM -= DistancePerStep;
-  Direction = BW;
+  total_distance_in_mm -= DISTANCE_PER_STEP;
+  direction = BW;
   }
-  SampleStopTime = micros(); //in ms
-  ElapsedTime = SampleStopTime-SampleStartTime;
-  SampleStartTime = SampleStopTime;
+  sample_stop_time = micros(); //in ms
+  elapsed_time = sample_stop_time-sample_start_time;
+  sample_start_time = sample_stop_time;
 }
 
 // Start pump
-void DeliverReward() {
-  if (DetectChange == true && Direction == FW) {
-    if (TotalDistanceInMM >= minDist) {
+void deliver_reward() {
+  if (detect_change == true && direction == FW) {
+    if (total_distance_in_mm >= MIN_DIST) {
       prob = random(0,100); //probability of reward delivery
       Serial.print("Set probability:");
       Serial.println(prob);
-      if (prob >= minProb) {
+      if (prob >= MIN_PROB) {
         Serial.println("Deliver Reward");
-        digitalWrite(Pump, HIGH);
+        digitalWrite(PUMP, HIGH);
         delay(3);
-        digitalWrite(Pump, LOW);
+        digitalWrite(PUMP, LOW);
 
-        TotalDistanceInMM = 0; //reset distance count
-        DistanceFlag = false;
+        total_distance_in_mm = 0; //reset distance count
+        distance_flag = false;
       }
     }
   }
 }
 
-void ResetChange() {
-  if (DetectChange == true) {
-  DetectChange = false;
+void reset_change() {
+  if (detect_change == true) {
+  detect_change = false;
   }
 }
 
-void CleanPump() {
-  while (digitalRead(Clean) == LOW) {
-    digitalWrite(Pump, HIGH);
+void clean_pump() {
+  while (digitalRead(CLEAN) == LOW) {
+    digitalWrite(PUMP, HIGH);
   }
-  digitalWrite(Pump, LOW);
+  digitalWrite(PUMP, LOW);
 }
 
 void setup() {
   Serial.begin(9600);
-  pinMode(lickOut, OUTPUT);
-  pinMode(Pump, OUTPUT);
-  pinMode(encAPin, INPUT_PULLUP);
-  pinMode(encBPin, INPUT_PULLUP);
-  pinMode(Clean, INPUT_PULLUP);
+  pinMode(LICK_OUT, OUTPUT);
+  pinMode(PUMP, OUTPUT);
+  pinMode(ENC_A_PIN, INPUT_PULLUP);
+  pinMode(ENC_B_PIN, INPUT_PULLUP);
+  pinMode(CLEAN, INPUT_PULLUP);
 
-  attachInterrupt(digitalPinToInterrupt(encAPin), MeasureRotations, RISING);
-  SampleStartTime = micros();
+  attachInterrupt(digitalPinToInterrupt(ENC_A_PIN), measure_rotations, RISING);
+  sample_start_time = micros();
 }
 
 void loop() {
-  CapacitiveSensorRead();
-  if (digitalRead(Clean) == LOW) {
-    CleanPump();
+  capacitive_sensor_read();
+  if (digitalRead(CLEAN) == LOW) {
+    clean_pump();
   }
   //delay(5);
 }
