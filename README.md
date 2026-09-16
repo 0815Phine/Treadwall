@@ -1,8 +1,53 @@
 # Treadwall
 
+A Bpod-controlled behavioral rig for head-fixed mice: the animal runs on a
+treadmill while two motorized silicone "walls" move laterally to deliver
+tactile stimuli that are either synchronized to running speed or driven by an
+experimental protocol. A central Python GUI ([`code/treadwallGUI.py`](code/treadwallGUI.py))
+launches and coordinates a whole session — dual-camera video, the Bpod state
+machine, WaveSurfer data acquisition, and timestamped notes uploaded to RSpace —
+without restarting MATLAB between sessions.
+
 <p align="center">
-  <!-- TODO: setup overview image to be added -->
+  <img src="./hardware/assembly.PNG" width="800">
 </p>
+
+This repository holds everything needed to **rebuild and run** the setup: hardware
+files (3D-print STLs, laser-cut SVGs, PCB gerbers, parts lists) under
+[`hardware/`](hardware/) and all control software under [`code/`](code/) (see the
+[code README](code/README.md)).
+
+### Repository structure
+
+```
+Treadwall/
+├── hardware/            # build files + parts lists, one folder per component
+│   ├── treadmillmain/       running wheel / treadmill
+│   ├── treadwallmain/       moving-wall assembly (STLs, SVGs, assembly videos)
+│   ├── wallsynchronizer/    Arduino + PCB that syncs wall motion to running speed
+│   ├── wallmover/           PCB that drives wall position from Bpod
+│   ├── circuitbox/          enclosure electronics
+│   ├── assembly.PNG         setup overview (above)
+│   └── connections_overview.png
+└── code/                # see code/README.md
+    ├── treadwallGUI.py      central session-launcher GUI
+    ├── startsession.bat     double-click launcher
+    ├── src/                 utility + GUI-helper scripts, camera, Arduino sketches
+    ├── protocols/           the five Bpod experiment protocols
+    ├── parameters/          central config (treadwall_config.json) + device settings
+    └── dependencies/        vendored submodules (Bpod, WaveSurfer, IEECRSpace, …)
+```
+
+### Getting started
+1. Clone with submodules: `git clone --recurse-submodules https://github.com/0815Phine/Treadwall.git`
+   (or `git submodule update --init --recursive` after a plain clone).
+2. Create the `treadwall` conda environment (see [Python environment](#python-environment)).
+3. Set up the IEECRSpace submodule once (see [Software Dependencies](#software-dependencies)).
+4. Install **ffmpeg** and put it on `PATH` (see [Python environment](#python-environment)).
+5. Edit the paths in [`code/parameters/treadwall_config.json`](code/parameters/treadwall_config.json)
+   for this machine (MATLAB/Python executables, data + IPC directories).
+6. Launch a session by double-clicking [`code/startsession.bat`](code/startsession.bat)
+   — see [Running a Session](#running-a-session).
 
 ### Hardware Components
 - [Treadmill-Main](hardware/treadmillmain)
@@ -33,6 +78,14 @@ We used a Trotec Speedy Flex lasercutter with a 100W CO2 laser with the followin
 Red lines -> cut; black lines -> engrave; blue lines -> not assigned
 
 ## 3D Printing
+All 3D-printed parts are provided as `.stl` files inside the individual
+[`hardware/`](hardware/) component folders, and each component's README lists them
+with production amount and material (see the **File List** tables in
+[Treadwall-Main](hardware/treadwallmain), [Treadmill-Main](hardware/treadmillmain),
+[Wall Synchronizer](hardware/wallsynchronizer), [Wall Mover](hardware/wallmover)
+and [Circuit Box](hardware/circuitbox)).
+
+<!-- TODO: add printer model, filament/material and slicer settings once confirmed -->
 
 ## Bpod System
 Control of the system is done with the Bpod System. All used modules are controlled by a 'state machine' ([sanworks.io](https://sanworks.io/shop/viewproduct?productID=1036)).
@@ -69,7 +122,7 @@ then paste your RSpace API key into the app's **Settings** tab. See the
 **Arduino libraries** are installed via the Arduino IDE **Library Manager** (the IDE resolves
 libraries from its own sketchbook `libraries/` folder, not from this repo):
 - `CapacitiveSensor` (PaulStoffregen) — Lickport sketches.
-- `Tic` (Pololu) — Wall Mover / Wall Synchronizer sketches.
+- `Tic` (Pololu) — Wall Synchronizer sketches.
 - `Servo`, `SoftwareSerial` — ship with the Arduino IDE.
 
 ### Python environment
@@ -108,8 +161,53 @@ conda-forge build generally omits — otherwise capture silently falls back to C
 | Arduino IDE | 2.x ([arduino.cc](https://www.arduino.cc/en/software)) | Flash/modify the Wall-Synchronizer Arduino + rotary-encoder firmware |
 | git | ≥ 2.x | Clone the repo with `--recurse-submodules` |
 
-## Camera
+## Running a Session
 
+Sessions are launched and coordinated from the central GUI
+([`code/treadwallGUI.py`](code/treadwallGUI.py)), started by double-clicking
+[`code/startsession.bat`](code/startsession.bat). The GUI orchestrates the camera,
+the Bpod state machine, and WaveSurfer, and lets you take notes that upload
+directly to RSpace — all without restarting MATLAB between sessions.
 
-## Data aquisition
+<p align="center">
+  <!-- TODO: add GUI screenshot, e.g. ./code/docs/gui_screenshot.png -->
+  <img src="./code/docs/gui_screenshot.png" width="800">
+</p>
+
+Typical flow:
+1. Double-click `startsession.bat` — the GUI opens and MATLAB starts in the
+   background.
+2. Pick the RSpace notebook and animal ID from the dropdowns (fetched live from
+   RSpace), and choose a protocol.
+3. Press **Start** — the camera preview goes live and the Bpod protocol runs.
+4. Take timestamped notes during the session; they upload to RSpace.
+5. The GUI auto-detects when the Bpod protocol ends, lets the camera finish
+   saving, and prompts for note upload / WaveSurfer stop.
+
+For the internals (IPC files, session helpers, multi-session loop) see the
+[code README](code/README.md).
+
+### Camera
+Two Basler cameras are captured by
+[`code/src/videoacquisition.py`](code/src/videoacquisition.py) via `pypylon`:
+- a **top** camera (30 fps, hardware-triggered) and
+- a **front** camera (200 fps).
+
+Frames are encoded live to visually-lossless H.264 `.mp4` (per camera), preferring
+the GPU `h264_nvenc` encoder and falling back to CPU `libx264`. All camera
+settings — serials, resolution, exposure, fps, trigger lines, encode quality —
+live in the `cameras` block of
+[`code/parameters/treadwall_config.json`](code/parameters/treadwall_config.json),
+with full Basler feature sets in the `.pfs` files under
+[`code/parameters/camera/`](code/parameters/camera/). Each session produces, per
+camera, a `.mp4`, a `_timestamps.txt` (+ `_pc_timestamps.txt`) sidecar, and a
+`_cam_metadata.json`.
+
+### Data acquisition
+Synchronized analog/TTL signals are recorded with **WaveSurfer** over an NI-DAQ
+device, using the protocol file
+[`code/parameters/wavesurfer/treadwall.wsp`](code/parameters/wavesurfer/treadwall.wsp).
+The Bpod state machine writes its own session `.mat`. All outputs for a session
+are saved under the configured `data_root` (`paths.data_root` in
+`treadwall_config.json`), organized as `<data_root>\<animal>\<session>`.
 

@@ -1,4 +1,10 @@
-## Treadmill-Main
+# Treadmill-Main
+
+The running surface the animal sits on: a belt-driven treadmill whose rotation is
+read by a rotary encoder (running speed/distance) and monitored for belt slippage
+by a reflective sensor. The measured running speed drives the moving walls via the
+[Wall Synchronizer](../wallsynchronizer).
+
 ### File List
 | Treadwall Component | Production Amount | Material |
 | :---: | :---: | :---: |

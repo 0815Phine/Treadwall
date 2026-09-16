@@ -1,9 +1,26 @@
-## Treadwall-Main
+# Treadwall-Main
+
+The moving-wall assembly: two silicone bands ("walls") on either side of the
+animal, each driven laterally by a rack-and-pinion stepper stage and kept taut by
+a tensioner. The walls provide the tactile stimulus that moves relative to
+the animal during an experiment.
 
 <p align="center">
   <img src="./images/treadwall_1.png" height="300">
   <img src="./images/treadwall_2.png" height="300">
 </p>
+
+### Assembly
+
+Full-rig assembly walkthrough
+([download](./images/treadwall_assembly.mp4) if the player does not load):
+
+<video src="https://github.com/0815Phine/Treadwall/raw/main/hardware/treadwallmain/images/treadwall_assembly.mp4" controls width="800"></video>
+
+Wall assembly walkthrough
+([download](./images/wall_assembly.mp4)):
+
+<video src="https://github.com/0815Phine/Treadwall/raw/main/hardware/treadwallmain/images/wall_assembly.mp4" controls width="800"></video>
 
 ### File List
 | Treadwall Component | Production Amount | Material | Notes |
