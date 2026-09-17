@@ -30,7 +30,7 @@ The Bpod-side serial link to these boards *is* configured centrally — see the
 | `tic1`, `tic2` device numbers | 14, 15 | Tic serial device IDs (left / right) |
 | `ANALOG_DATA_STREAM_PIN` | `A0` | Analog speed output pin |
 | `ENC_A_PIN`, `ENC_B_PIN` | 2, 4 | Rotary encoder channels A / B |
-| `SPEED_PIN` | 3 | PWM speed output pin |
+| `SPEED_PIN` | 3 | PWM speed output pin (not active) |
 | `RUNNING_TIMEOUT` | 5000 µs (5 ms) | Idle time before the wall is treated as stopped (compared against a `micros()` delta, so the unit is microseconds) |
 | `MAX_RUNNING_SPEED` | 1 m/s | Speed clamp (min = −1 m/s) |
 | `MAX_PWM_VALUE` | 4095 | PWM count for 5 V (12-bit) |
@@ -42,7 +42,8 @@ The Bpod-side serial link to these boards *is* configured centrally — see the
 | `WHEEL_RADIUS` | 53 mm | Running wheel radius |
 | Encoder interrupt edge | `RISING` | `attachInterrupt` trigger edge |
 | `TIC_REARM_INTERVAL_MS` | 500 ms | How often both Tics are re-energized / taken out of safe start so hardware power-up order and mid-session driver power-cycles don't matter |
-| Serial baud | 115385 | Both the Tic link and the USB serial |
+| `BAUD` | 115385 | Both the Tic link and the USB serial baud rate |
+| `ANRES` | 12 | Analog resolution (only needed if speed is read out via analog pin) |
 
 Pololu Tic controller register settings (current limit, accel, step mode, etc.) live separately in
 [`../../parameters/tics/`](../../parameters/tics/) and are loaded onto the Tics with the Pololu Tic
@@ -61,10 +62,10 @@ utility, not by this sketch.
 | `MIN_PROB` | 70 % | Minimum probability to deliver reward |
 | `N_STEPS` | 1024 | Rotary encoder steps per rotation |
 | `WHEEL_RADIUS` | 53 mm | Running wheel radius |
-| Capacitive sensor resolution | 80 | `capacitiveSensor(80)` sample count |
-| Lick threshold | 1000 | Raw capacitance above which a lick sample counts |
-| `cs_sum` threshold | 3800 | Cumulative capacitance that triggers a lick event |
-| Lick TTL pulse | 1 ms | `LICK_OUT` HIGH duration |
-| Pump-on duration | 3 ms | `PUMP` HIGH duration per reward |
+| `SENRES` | 80 | `capacitiveSensor(80)` sample count |
+| `LICKTH` | 1000 | Raw capacitance above which a lick sample counts |
+| `CSTH` | 3800 | Cumulative capacitance that triggers a lick event |
+| `LICKTTLOUT` | 1 ms | `LICK_OUT` HIGH duration |
+| `PUMPONDUR` | 3 ms | `PUMP` HIGH duration per reward |
 | Encoder interrupt edge | `RISING` | `attachInterrupt` trigger edge |
-| Serial baud | 9600 | USB serial |
+| `BAUD` | 9600 | USB serial baud rate |
