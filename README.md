@@ -164,8 +164,7 @@ the Bpod state machine, and WaveSurfer, and lets you take notes that upload
 directly to RSpace — all without restarting MATLAB between sessions.
 
 <p align="center">
-  <!-- TODO: add GUI screenshot, e.g. ./code/docs/gui_screenshot.png -->
-  <img src="./code/docs/gui_screenshot.png" width="800">
+  <img src="./code/gui_screenshot.png" width="800">
 </p>
 
 Typical flow:
