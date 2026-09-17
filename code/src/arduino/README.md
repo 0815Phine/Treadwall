@@ -57,7 +57,6 @@ utility, not by this sketch.
 | `PUMP` | 3 | Reward pump output pin |
 | `CLEAN` | 13 | Pump-cleaning input pin |
 | Capacitive sensor pins | 7, 8 | `CapacitiveSensor(7, 8)` (10 MΩ resistor; antenna on pin 8) |
-| `RUNNING_TIMEOUT` | 1000 | Idle-time threshold before running is treated as stopped — **defined but not currently referenced** in the sketch |
 | `MIN_DIST` | 150 mm | Minimum distance run before reward is eligible |
 | `MIN_PROB` | 70 % | Minimum probability to deliver reward |
 | `N_STEPS` | 1024 | Rotary encoder steps per rotation |
