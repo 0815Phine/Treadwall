@@ -89,7 +89,7 @@ after cloning.
 
 | Submodule | Source | Notes |
 | :--- | :--- | :--- |
-| `Bpod_Gen2` | [LenaGschossmann/Bpod_Gen2](https://github.com/LenaGschossmann/Bpod_Gen2) @ `softcodes-udp-sync` | Bpod control framework (sanworks fork). The `softcodes-udp-sync` branch is required and is pinned in `.gitmodules`. |
+| `Bpod_Gen2` | [sanworks/Bpod_Gen2](https://github.com/sanworks/Bpod_Gen2) @ `master` (pinned `8e5b008`, v1.9.0) | Stock Bpod control framework. |
 | `Bpod_RotaryEncoder_Firmware` | [0815Phine/Bpod_RotaryEncoder_Firmware](https://github.com/0815Phine/Bpod_RotaryEncoder_Firmware) | Modified rotary-encoder module firmware (needed for the *predictable* experiments). |
 | `Wavesurfer` | [JaneliaSciComp/Wavesurfer](https://github.com/JaneliaSciComp/Wavesurfer) | WaveSurfer app for synchronized data acquisition. |
 | `IEECRSpace` | [IEECR-BeckGroup/IEECRSpace](https://github.com/IEECR-BeckGroup/IEECRSpace) | RSpace integration; `treadwallGUI.py` adds `IEECRSpace/src` to `sys.path` and imports `rspace`. |
