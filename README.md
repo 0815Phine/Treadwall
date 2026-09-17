@@ -50,44 +50,6 @@ Treadwall/
 8. Launch a session by double-clicking [`code/startsession.bat`](code/startsession.bat)
    — see [Running a Session](#running-a-session).
 
-### Hardware Components
-- [Treadmill-Main](hardware/treadmillmain)
-- [Treadwall-Main](hardware/treadwallmain)
-- [Wall Synchronizer](hardware/wallsynchronizer)
-- [Wall Mover](hardware/wallmover)
-- [Circuit Box](hardware/circuitbox)
-
-### Wiring Overview
-<p align="center">
-  <img src="./hardware/connections_overview.png" width="800">
-</p>
-
-## Lasercutting
-We used a Trotec Speedy Flex lasercutter with a 100W CO2 laser with the following settings:
-
-| Parameter | Cutting Quality | Engraving Quality |
-| :---: | :---: | :---: |
-| Power | 70 % | 70 % |
-| Speed | 0.2 % | 3.5 % |
-| Laser Source | CO2 | CO2 |
-| Frequency | 20'000 Hz | 1'000 Hz |
-| Passes | 1 | 1 |
-| Power Correction | 10 | 10 |
-| z-Offset | -2 | 0 |
-| Resolution | N.A. | 500 DPI |
-
-Red lines -> cut; black lines -> engrave; blue lines -> not assigned
-
-## 3D Printing
-All 3D-printed parts are provided as `.stl` files inside the individual
-[`hardware/`](hardware/) component folders, and each component's README lists them
-with production amount and material (see the **File List** tables in
-[Treadwall-Main](hardware/treadwallmain), [Treadmill-Main](hardware/treadmillmain),
-[Wall Synchronizer](hardware/wallsynchronizer), [Wall Mover](hardware/wallmover)
-and [Circuit Box](hardware/circuitbox)).
-
-<!-- TODO: add printer model, filament/material and slicer settings once confirmed -->
-
 ## Bpod System
 Control of the system is done with the Bpod System. All used modules are controlled by a 'state machine' ([sanworks.io](https://sanworks.io/shop/viewproduct?productID=1036)).
 
@@ -118,6 +80,7 @@ The 'Protocols' directory should point to ```code/protocols```.
 | Pololu Tic software (Tic Control Center) | — | Configure the Wall Mover / Wall Synchronizer stepper controllers |
 | Arduino IDE | 2.x ([arduino.cc](https://www.arduino.cc/en/software)) | Flash/modify the Wall-Synchronizer Arduino + rotary-encoder firmware |
 | git | ≥ 2.x | Clone the repo with `--recurse-submodules` |
+| PsychToolbox (*optional*) | — | **Not needed for Treadwall's default setup.** Bpod only requires it for legacy MATLAB (r2019a or older), displaying video/sound stimuli on the PC, or the legacy Bonsai UDP/TCP link — none of which Treadwall uses. Safe to keep installed if you already have it. |
 
 ### Submodules
 External code is vendored as **git submodules** under [code/dependencies/](code/dependencies/).
