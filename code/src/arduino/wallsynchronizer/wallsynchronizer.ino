@@ -12,6 +12,9 @@ TicSerial tic2(tic_serial, 15);
 #define ENC_A_PIN 2 //Encoder A - Arduino pin 2 to Black
 #define ENC_B_PIN 4 //Encoder B - Arduino pin 4 to White
 #define SPEED_PIN 3
+//    Serial config:
+#define BAUD 115385
+#define ANRES 12
 //    Data Stream:
 #define FW 1 //forwards
 #define BW -1 //backwards
@@ -24,7 +27,7 @@ TicSerial tic2(tic_serial, 15);
 #define N_STEPS 1024 //Rotary Encoder: number of steps per rotation
 #define STEPS_PER_REVOLUTION 200 //Steppers
 #define MICROSTEPS_PER_STEP 2 //Steppers
-//    Setup measurements
+//    Setup measurements:
 #define WALL_WHEEL_CIRCUMFERENCE (109*1000) //in microns (1mm is 1000 microns), of the roller wheel
 #define WHEEL_RADIUS (53*1000) //wheel radius in microns (1mm is 1000 microns)
 #define WHEEL_CIRCUMFERENCE ((float)WHEEL_RADIUS*2*PI)
@@ -142,10 +145,10 @@ void stream_data() {
 
 void setup() {
   //tic_serial.begin(9600);
-  tic_serial.begin(115385);
+  tic_serial.begin(BAUD);
   //Serial.begin(9600);
-  Serial.begin(115385);
-  analogWriteResolution(12);
+  Serial.begin(BAUD);
+  analogWriteResolution(ANRES);
 
   pinMode(ENC_A_PIN, INPUT_PULLUP);
   pinMode(ENC_B_PIN, INPUT_PULLUP);

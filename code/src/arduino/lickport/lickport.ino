@@ -5,6 +5,12 @@
 // if a certain distance crossed dispense reward after random time in a window in which animal is moving
 // simultaneously detect licks
 
+// Sensor Setup
+CapacitiveSensor cs_7_8 = CapacitiveSensor(7,8); //10M Resistor between pins 7 and 8 -> connect antenna on pin 8
+#define SENSRES 80 // Sensor resolution is set to 80; will store the capacitance as an arbitrary value
+#define LICKTH 1000 //Changed by AXEL from 100 to 1000 (arbitrary number)
+#define CSTH 3800 //cs_sum threshold
+
 // CONSTANTS
 //    Arduino pins:
 #define LICK_OUT 12
@@ -12,13 +18,17 @@
 #define ENC_B_PIN 4 //Encoder B - Arduino pin 4 to White
 #define PUMP 3 //
 #define CLEAN 13
-CapacitiveSensor cs_7_8 = CapacitiveSensor(7,8); //10M Resistor between pins 7 and 8 -> connect antenna on pin 8
-//
+//    Serial config:
+#define BAUD 9600
+//    Speed constants:
 #define RUNNING_TIMEOUT 1000
 #define FW 1 //forwards
 #define BW -1 //backwards
 #define MIN_DIST 150 //minimum distance to deliver reward in mm
 #define MIN_PROB 70 //minimum probabiliyt to deliver reward
+//    Timings
+#define LICKTTLOUT 1 //length of TTL pulse in ms
+#define PUMPONDUR 3 //length of pump being powered in ms
 //    Hardware measurements:
 #define N_STEPS 1024 //Rotary Encoder: number of steps per rotation
 #define WHEEL_RADIUS 53 //wheel radius in microns in mm
@@ -42,7 +52,7 @@ int prob = 0;
 
 // Read capacitive sensor
 void capacitive_sensor_read() {
-  long cs = cs_7_8.capacitiveSensor(80); // Sensor resolution is set to 80; will store the capacitance as an arbitrary value
+  long cs = cs_7_8.capacitiveSensor(SENSRES);
   //Serial.println(total_distance_in_mm);
 
   if (distance_flag == false) {
@@ -52,14 +62,10 @@ void capacitive_sensor_read() {
     }
   }
 
-  ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	if (cs > 1000) { //Changed by AXEL from 100 to 1000
-  //if (cs > 100) { //Arbitrary number; lower threshold
-  ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
+	if (cs > LICKTH) {
 		cs_sum += cs; // Same as cs_sum = cs_sum + cs ; cumulative value for reachiung threshold
 		//Serial.println(cs);
-		if (cs_sum >= 3800) //Testing if cs_sum reached threshold, a High value means it takes longer to trigger
+		if (cs_sum >= CSTH) //Testing if cs_sum reached threshold, a High value means it takes longer to trigger
 		{
 			Serial.print("Trigger: ");
 			Serial.println(cs_sum);
@@ -77,7 +83,7 @@ void capacitive_sensor_read() {
 // Send lick events
 void ttl_out() {
   digitalWrite(LICK_OUT, HIGH);
-  delay(1);
+  delay(LICKTTLOUT);
   digitalWrite(LICK_OUT, LOW);
 }
 
@@ -106,7 +112,7 @@ void deliver_reward() {
       if (prob >= MIN_PROB) {
         Serial.println("Deliver Reward");
         digitalWrite(PUMP, HIGH);
-        delay(3);
+        delay(PUMPONDUR);
         digitalWrite(PUMP, LOW);
 
         total_distance_in_mm = 0; //reset distance count
@@ -130,7 +136,7 @@ void clean_pump() {
 }
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(BAUD);
   pinMode(LICK_OUT, OUTPUT);
   pinMode(PUMP, OUTPUT);
   pinMode(ENC_A_PIN, INPUT_PULLUP);
