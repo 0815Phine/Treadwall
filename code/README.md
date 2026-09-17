@@ -65,8 +65,7 @@ stop, and end-of-session signalling. The shared `src/gui_*.m` helpers implement 
 protocol side of this, so all five protocols behave consistently.
 
 <p align="center">
-  <!-- TODO: add the same GUI screenshot referenced from the top-level README -->
-  <img src="./docs/gui_screenshot.png" width="800">
+  <img src="./gui_screenshot.png" width="800">
 </p>
 
 ## Requirements
