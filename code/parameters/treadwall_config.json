@@ -1,39 +1,71 @@
 {
   "paths": {
-    "data_root":   "D:\\",
-    "ipc_dir":     "C:\\Users\\TomBombadil\\Documents\\TreadwallGUI\\ipc",
+    "data_root": "D:\\",
+    "ipc_dir": "C:\\Users\\TomBombadil\\Documents\\TreadwallGUI\\ipc",
     "preview_dir": "C:\\Users\\TomBombadil\\Documents\\TreadwallGUI\\preview",
-    "matlab_exe":  "C:\\Program Files\\MATLAB\\R2024a\\bin\\matlab.exe",
-    "python_exe":  "C:\\Users\\TomBombadil\\anaconda3\\envs\\treadwall\\python.exe"
+    "matlab_exe": "C:\\Program Files\\MATLAB\\R2024a\\bin\\matlab.exe",
+    "python_exe": "C:\\Users\\TomBombadil\\anaconda3\\envs\\treadwall\\python.exe"
   },
   "rspace": {
     "notebook_label": "jtim > treadwall",
-    "method_tag":     "m_invivo_imaging"
+    "method_tag": "m_invivo_imaging"
   },
   "bpod": {
-    "arduino":    { "com": "COM9", "baud": 115385 },
-    "waveplayer": { "sampling_rate_khz": 100, "output_range": "0V:5V" },
-    "analogin":   { "sampling_rate_khz": 100, "input_range": "0V:10V", "n_active_channels": 3 }
+    "arduino": {
+      "com": "COM9",
+      "baud": 115385
+    },
+    "waveplayer": {
+      "sampling_rate_khz": 100,
+      "output_range": "0V:5V"
+    },
+    "analogin": {
+      "sampling_rate_khz": 100,
+      "input_range": "0V:10V",
+      "n_active_channels": 3
+    }
   },
   "cameras": {
     "topcam": {
-      "serial": "40486089", "fps": 30,
-      "width": 720, "height": 540,
-      "binning": 2, "binning_mode": "Average",
-      "pixel_format": "Mono8", "exposure_us": 6000, "gain": 5,
+      "serial": "40486089",
+      "fps": 30,
+      "width": 720,
+      "height": 540,
+      "binning": 2,
+      "binning_mode": "Average",
+      "pixel_format": "Mono8",
+      "exposure_us": 6000,
+      "gain": 5,
       "throughput_limit": true,
-      "trigger": { "selector": "FrameStart", "mode": "On", "source": "Line1", "activation": "RisingEdge" },
-      "lines": { "stop_input": "Line2", "exposure_output": "Line3" }
+      "trigger": {
+        "selector": "FrameStart",
+        "mode": "On",
+        "source": "Line1",
+        "activation": "RisingEdge"
+      },
+      "lines": {
+        "stop_input": "Line2",
+        "exposure_output": "Line3"
+      }
     },
     "frontcam": {
-      "serial": "40442087", "fps": 200,
-      "width": 1440, "height": 1080,
-      "binning": 1, "binning_mode": "Average",
-      "pixel_format": "Mono8", "exposure_us": 4900, "gain": 5
+      "serial": "40442087",
+      "fps": 200,
+      "width": 1440,
+      "height": 1080,
+      "binning": 1,
+      "binning_mode": "Average",
+      "pixel_format": "Mono8",
+      "exposure_us": 4900,
+      "gain": 5
     },
-    "encode_qp":  18,
+    "encode_qp": 18,
     "chunk_size": 200,
-    "preview": { "width": 320, "height": 240, "every_n": 2 },
+    "preview": {
+      "width": 320,
+      "height": 240,
+      "every_n": 2
+    },
     "encoder_finalize_timeout_s": 120
   },
   "gui": {
