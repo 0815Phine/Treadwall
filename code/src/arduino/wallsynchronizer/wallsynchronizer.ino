@@ -19,6 +19,7 @@ TicSerial tic2(tic_serial, 15);
 #define FW 1 //forwards
 #define BW -1 //backwards
 #define RUNNING_TIMEOUT 5000
+#define TIC_REARM_INTERVAL_MS 500 //slow blind re-arm; catches a late/re-powered driver in ~0.5 s
 #define MAX_RUNNING_SPEED 1 //in m/s
 #define MIN_RUNNING_SPEED (MAX_RUNNING_SPEED*-1)
 #define MAX_PWM_VALUE 4095 //Value to generate 5V with PWM
@@ -49,6 +50,7 @@ volatile uint32_t sample_stop_time = 0;
 volatile uint32_t elapsed_time = 0;
 uint32_t time_no_change = 0;
 uint32_t elapsed_time_no_change = 0;
+uint32_t last_rearm_time = 0;
 //    Scaling
 volatile uint32_t pulse_start = 0;
 volatile uint32_t pulse_width = 0;
@@ -59,6 +61,21 @@ volatile float scale_factor = 1.0; // Default scaling factor
 void reset_command_timeout() {
   tic1.resetCommandTimeout();
   tic2.resetCommandTimeout();
+}
+
+// Blindly re-arms both Tics so hardware power-up order (and mid-session driver
+// power-cycles) don't matter. Energizing + exiting safe start is idempotent: a
+// no-op on a Tic that is already running, and the recovery step for one that just
+// powered up in safe start. Re-asserts the current target so a freshly-powered
+// Tic resumes the correct speed instead of sitting at 0 (synch_walls() otherwise
+// only sends a target when it changes).
+void rearm_tics() {
+  tic1.energize();
+  tic1.exitSafeStart();
+  tic2.energize();
+  tic2.exitSafeStart();
+  tic1.setTargetVelocity(previous_target_velocity);
+  tic2.setTargetVelocity(previous_target_velocity * -1);
 }
 
 // Delays for the specified number of milliseconds while resetting the Tic's command timeout so that its movement does not get interrupted.
@@ -155,11 +172,10 @@ void setup() {
   //pinMode(SPEED_PIN, OUTPUT);
   //pinMode(ANALOG_DATA_STREAM_PIN, OUTPUT);
 
-  // Give the Tic some time to start up.
-  delay(20);
-  // Tells the Tic that it is OK to start driving the motor.
-  tic1.exitSafeStart();
-  tic2.exitSafeStart();
+  // Arm both Tics if they're already powered. If they're not, rearm_tics() in
+  // loop() will pick them up whenever they come online, so startup order and
+  // mid-session driver power-cycles don't matter.
+  rearm_tics();
 
   attachInterrupt(digitalPinToInterrupt(ENC_A_PIN), measure_rotations, RISING);
   sample_start_time = micros();
@@ -169,4 +185,8 @@ void loop() {
   synch_walls();
   //stream_data();
   reset_command_timeout();
+  if ((uint32_t)(millis() - last_rearm_time) >= TIC_REARM_INTERVAL_MS) {
+    rearm_tics();
+    last_rearm_time = millis();
+  }
 }

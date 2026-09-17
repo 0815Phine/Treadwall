@@ -26,12 +26,12 @@ The Bpod-side serial link to these boards *is* configured centrally — see the
 
 | Constant | Value | Meaning |
 |---|---|---|
-| `tic_serial` pins | 10 (TX), 11 (RX) | SoftwareSerial to the Tic drivers |
+| `tic_serial` pins | 10 (RX), 11 (TX) | SoftwareSerial to the Tic drivers (pin 10 ← Driver TX, pin 11 → Driver RX) |
 | `tic1`, `tic2` device numbers | 14, 15 | Tic serial device IDs (left / right) |
 | `ANALOG_DATA_STREAM_PIN` | `A0` | Analog speed output pin |
 | `ENC_A_PIN`, `ENC_B_PIN` | 2, 4 | Rotary encoder channels A / B |
 | `SPEED_PIN` | 3 | PWM speed output pin |
-| `RUNNING_TIMEOUT` | 5000 ms | Idle time before the wall is treated as stopped |
+| `RUNNING_TIMEOUT` | 5000 µs (5 ms) | Idle time before the wall is treated as stopped (compared against a `micros()` delta, so the unit is microseconds) |
 | `MAX_RUNNING_SPEED` | 1 m/s | Speed clamp (min = −1 m/s) |
 | `MAX_PWM_VALUE` | 4095 | PWM count for 5 V (12-bit) |
 | `PWM_BASELINE` | 2045 | Idle/neutral PWM value |
@@ -41,7 +41,7 @@ The Bpod-side serial link to these boards *is* configured centrally — see the
 | `WALL_WHEEL_CIRCUMFERENCE` | 109 mm | Roller wheel circumference |
 | `WHEEL_RADIUS` | 53 mm | Running wheel radius |
 | Encoder interrupt edge | `RISING` | `attachInterrupt` trigger edge |
-| Tic startup delay | 20 ms | Delay after energizing the Tics |
+| `TIC_REARM_INTERVAL_MS` | 500 ms | How often both Tics are re-energized / taken out of safe start so hardware power-up order and mid-session driver power-cycles don't matter |
 | Serial baud | 115385 | Both the Tic link and the USB serial |
 
 Pololu Tic controller register settings (current limit, accel, step mode, etc.) live separately in
@@ -57,7 +57,7 @@ utility, not by this sketch.
 | `PUMP` | 3 | Reward pump output pin |
 | `CLEAN` | 13 | Pump-cleaning input pin |
 | Capacitive sensor pins | 7, 8 | `CapacitiveSensor(7, 8)` (10 MΩ resistor; antenna on pin 8) |
-| `RUNNING_TIMEOUT` | 1000 ms | Idle time before running is treated as stopped |
+| `RUNNING_TIMEOUT` | 1000 | Idle-time threshold before running is treated as stopped — **defined but not currently referenced** in the sketch |
 | `MIN_DIST` | 150 mm | Minimum distance run before reward is eligible |
 | `MIN_PROB` | 70 % | Minimum probability to deliver reward |
 | `N_STEPS` | 1024 | Rotary encoder steps per rotation |

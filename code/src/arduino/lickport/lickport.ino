@@ -21,7 +21,6 @@ CapacitiveSensor cs_7_8 = CapacitiveSensor(7,8); //10M Resistor between pins 7 a
 //    Serial config:
 #define BAUD 9600
 //    Speed constants:
-#define RUNNING_TIMEOUT 1000
 #define FW 1 //forwards
 #define BW -1 //backwards
 #define MIN_DIST 150 //minimum distance to deliver reward in mm
