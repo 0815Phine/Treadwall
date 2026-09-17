@@ -9,8 +9,6 @@ ipc_dir = gui_ipcdir();
 gui_sessioninit(ipc_dir);
 
 %% ---------- Define task parameters --------------------------------------
-start_path = BpodSystem.Path.DataFolder; % folder selected in GUI;
-
 % initialize parameters
 S = struct();
 
@@ -18,6 +16,8 @@ S = struct();
 params_file = fullfile(treadwall_paramsdir(), 'treadwall_h2_parameters.m');
 run(params_file)
 cfg = treadwall_config();   % rig hardware (Arduino COM / WavePlayer)
+
+start_path = cfg.paths.data_root;
 
 % ------ GUI parameters
 S.GUI.SubjectID = BpodSystem.GUIData.SubjectName;
