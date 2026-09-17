@@ -46,7 +46,8 @@ Treadwall/
 5. Edit the paths in [`code/parameters/treadwall_config.json`](code/parameters/treadwall_config.json)
    for this machine (MATLAB/Python executables, data + IPC directories).
 6. Open Matlab and add the paths of wavesurfer and bpod (both found under `code/dependencies`).
-7. Launch a session by double-clicking [`code/startsession.bat`](code/startsession.bat)
+7. Launch Bpod by typing bpod in the Matlab console and set it up (see [setting up Bpod])
+8. Launch a session by double-clicking [`code/startsession.bat`](code/startsession.bat)
    — see [Running a Session](#running-a-session).
 
 ### Hardware Components
@@ -98,6 +99,12 @@ Modules used for scrambled and predictable experiments:
 | Rotary Encoder Module V2 | [sanworks.io](https://sanworks.io/shop/viewproduct?productID=1034) | connected directly to the rotary encoder, provides power and sends speed information to analog input module, loaded with modified firmware ([github.com](https://github.com/0815Phine/Bpod_RotaryEncoder_Firmware)) |
 
 For further modules see [sanworks.io/products](https://sanworks.io/shop/products.php).
+
+### setting up Bpod
+On **first start** Bpod has to be configured to run properly. Therefore start the Bpod GUI by typing ```bpod``` in the Matlab console.
+All modules have to be coupled with the correct COM of your system (also check the Arduino COM in the main treadwall_config.json).
+Also once you have to configure the data paths. Use the same 'Data Root' as defined in the config file (this is not strictly needed but in case of falling back to this, it is good to match).
+The 'Protocols' directory should point to ```code/protocols```.
 
 ## Software Dependencies
 | Tool | Version / build | Purpose |
