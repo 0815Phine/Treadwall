@@ -46,7 +46,7 @@ Treadwall/
 5. Edit the paths in [`code/parameters/treadwall_config.json`](code/parameters/treadwall_config.json)
    for this machine (MATLAB/Python executables, data + IPC directories).
 6. Open Matlab and add the paths of wavesurfer and bpod (both found under `code/dependencies`).
-7. Launch Bpod by typing bpod in the Matlab console and set it up (see [setting up Bpod])
+7. Launch Bpod by typing bpod in the Matlab console and set it up (see [Bpod setup])
 8. Launch a session by double-clicking [`code/startsession.bat`](code/startsession.bat)
    — see [Running a Session](#running-a-session).
 
@@ -100,7 +100,7 @@ Modules used for scrambled and predictable experiments:
 
 For further modules see [sanworks.io/products](https://sanworks.io/shop/products.php).
 
-### setting up Bpod
+### Bpod setup
 On **first start** Bpod has to be configured to run properly. Therefore start the Bpod GUI by typing ```bpod``` in the Matlab console.
 All modules have to be coupled with the correct COM of your system (also check the Arduino COM in the main treadwall_config.json).
 Also once you have to configure the data paths. Use the same 'Data Root' as defined in the config file (this is not strictly needed but in case of falling back to this, it is good to match).
