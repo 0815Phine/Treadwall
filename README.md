@@ -4,9 +4,8 @@ A Bpod-controlled behavioral rig for head-fixed mice: the animal runs on a
 treadmill while two motorized silicone "walls" move laterally to deliver
 tactile stimuli that are either synchronized to running speed or driven by an
 experimental protocol. A central Python GUI ([`code/treadwallGUI.py`](code/treadwallGUI.py))
-launches and coordinates a whole session — dual-camera video, the Bpod state
-machine, WaveSurfer data acquisition, and timestamped notes uploaded to RSpace —
-without restarting MATLAB between sessions.
+launches and coordinates a whole session: dual-camera video, the Bpod state
+machine, WaveSurfer data acquisition, and timestamped notes uploaded to RSpace.
 
 <p align="center">
   <img src="./hardware/assembly.png" width="800">
@@ -31,7 +30,7 @@ Treadwall/
 │   └── connections_overview.png
 └── code/                # see code/README.md
     ├── treadwallGUI.py      central session-launcher GUI
-    ├── startsession.bat     double-click launcher
+    ├── startsession.bat     double-click to launch
     ├── src/                 utility + GUI-helper scripts, camera, Arduino sketches
     ├── protocols/           the five Bpod experiment protocols
     ├── parameters/          central config (treadwall_config.json) + device settings
@@ -46,7 +45,8 @@ Treadwall/
 4. Install **ffmpeg** and put it on `PATH` (see [Python environment](#python-environment)).
 5. Edit the paths in [`code/parameters/treadwall_config.json`](code/parameters/treadwall_config.json)
    for this machine (MATLAB/Python executables, data + IPC directories).
-6. Launch a session by double-clicking [`code/startsession.bat`](code/startsession.bat)
+6. Open Matlab and add the paths of wavesurfer and bpod (both found under `code/dependencies`).
+7. Launch a session by double-clicking [`code/startsession.bat`](code/startsession.bat)
    — see [Running a Session](#running-a-session).
 
 ### Hardware Components
@@ -100,6 +100,19 @@ Modules used for scrambled and predictable experiments:
 For further modules see [sanworks.io/products](https://sanworks.io/shop/products.php).
 
 ## Software Dependencies
+| Tool | Version / build | Purpose |
+| :--- | :--- | :--- |
+| MATLAB | R2024a | Runs Bpod (`Bpod_Gen2`) + WaveSurfer |
+| WaveSurfer | 1.0.x (see `code/dependencies/Wavesurfer`) | Synchronized data acquisition (needs a DAQ) |
+| ffmpeg ([ffmpeg.org](https://ffmpeg.org/)) | gyan.dev **full** build, on `PATH` | Live H.264 encoding in `videoacquisition.py`; full build needed for `h264_nvenc` (GPU) |
+| Anaconda / Python | Python 3.11 | Runs the GUI + camera scripts (`treadwall` env) |
+| Basler pylon Camera Software Suite | matching pypylon 4.1 | Camera drivers/runtime for `pypylon` |
+| NI-DAQmx driver + NI DAQ device | — | WaveSurfer acquisition + TTL sync (the "DAQ-Box") |
+| Pololu Tic software (Tic Control Center) | — | Configure the Wall Mover / Wall Synchronizer stepper controllers |
+| Arduino IDE | 2.x ([arduino.cc](https://www.arduino.cc/en/software)) | Flash/modify the Wall-Synchronizer Arduino + rotary-encoder firmware |
+| git | ≥ 2.x | Clone the repo with `--recurse-submodules` |
+
+### Submodules
 External code is vendored as **git submodules** under [code/dependencies/](code/dependencies/).
 Clone with `git clone --recurse-submodules`, or run `git submodule update --init --recursive`
 after cloning.
@@ -118,12 +131,6 @@ first-time setup — on Windows double-click
 launch downloads its own private Python + dependencies, so it needs an internet connection) — and
 then paste your RSpace API key into the app's **Settings** tab. See the
 [IEECRSpace README](code/dependencies/IEECRSpace/README.md) for the full instructions.
-
-**Arduino libraries** are installed via the Arduino IDE **Library Manager** (the IDE resolves
-libraries from its own sketchbook `libraries/` folder, not from this repo):
-- `CapacitiveSensor` (PaulStoffregen) — Lickport sketches.
-- `Tic` (Pololu) — Wall Synchronizer sketches.
-- `Servo`, `SoftwareSerial` — ship with the Arduino IDE.
 
 ### Python environment
 The GUI and camera scripts run on a dedicated conda environment pinned in
@@ -148,21 +155,38 @@ builders on its [download page](https://ffmpeg.org/download.html) (→ *Windows*
 auto-detects and prefers the `h264_nvenc` (NVIDIA GPU) encoder, which the full build ships but the
 conda-forge build generally omits — otherwise capture silently falls back to CPU `libx264`.
 
-### External tools
-| Tool | Version / build | Purpose |
-| :--- | :--- | :--- |
-| MATLAB | R2024a | Runs Bpod (`Bpod_Gen2`) + WaveSurfer |
-| WaveSurfer | 1.0.x (see `code/dependencies/Wavesurfer`) | Synchronized data acquisition (needs a DAQ) |
-| ffmpeg ([ffmpeg.org](https://ffmpeg.org/)) | gyan.dev **full** build, on `PATH` | Live H.264 encoding in `videoacquisition.py`; full build needed for `h264_nvenc` (GPU) |
-| Anaconda / Python | Python 3.11 | Runs the GUI + camera scripts (`treadwall` env) |
-| Basler pylon Camera Software Suite | matching pypylon 4.1 | Camera drivers/runtime for `pypylon` |
-| NI-DAQmx driver + NI DAQ device | — | WaveSurfer acquisition + TTL sync (the "DAQ-Box") |
-| Pololu Tic software (Tic Control Center) | — | Configure the Wall Mover / Wall Synchronizer stepper controllers |
-| Arduino IDE | 2.x ([arduino.cc](https://www.arduino.cc/en/software)) | Flash/modify the Wall-Synchronizer Arduino + rotary-encoder firmware |
-| git | ≥ 2.x | Clone the repo with `--recurse-submodules` |
+### Arduino libraries
+**Arduino libraries** are installed via the Arduino IDE **Library Manager** (the IDE resolves
+libraries from its own sketchbook `libraries/` folder, not from this repo):
+- `CapacitiveSensor` (PaulStoffregen) — Lickport sketches.
+- `Tic` (Pololu) — Wall Synchronizer sketches.
+- `Servo`, `SoftwareSerial` — ship with the Arduino IDE.
+
+## Camera
+Two Basler cameras are captured by
+[`code/src/videoacquisition.py`](code/src/videoacquisition.py) via `pypylon`:
+- a **top** camera (30 fps, hardware-triggered) and
+- a **front** camera (200 fps).
+
+Frames are encoded live to visually-lossless H.264 `.mp4` (per camera), preferring
+the GPU `h264_nvenc` encoder and falling back to CPU `libx264`. All camera
+settings — serials, resolution, exposure, fps, trigger lines, encode quality —
+live in the `cameras` block of
+[`code/parameters/treadwall_config.json`](code/parameters/treadwall_config.json),
+with full Basler feature sets in the `.pfs` files under
+[`code/parameters/camera/`](code/parameters/camera/). Each session produces, per
+camera, a `.mp4`, a `_timestamps.txt` (+ `_pc_timestamps.txt`) sidecar, and a
+`_cam_metadata.json`.
+
+## Data acquisition
+Synchronized analog/TTL signals are recorded with **WaveSurfer** over an NI-DAQ
+device, using the protocol file
+[`code/parameters/wavesurfer/treadwall.wsp`](code/parameters/wavesurfer/treadwall.wsp).
+The Bpod state machine writes its own session `.mat`. All outputs for a session
+are saved under the configured `data_root` (`paths.data_root` in
+`treadwall_config.json`), organized as `<data_root>\<animal>\<session>`.
 
 ## Running a Session
-
 Sessions are launched and coordinated from the central GUI
 ([`code/treadwallGUI.py`](code/treadwallGUI.py)), started by double-clicking
 [`code/startsession.bat`](code/startsession.bat). The GUI orchestrates the camera,
@@ -186,28 +210,3 @@ Typical flow:
 
 For the internals (IPC files, session helpers, multi-session loop) see the
 [code README](code/README.md).
-
-### Camera
-Two Basler cameras are captured by
-[`code/src/videoacquisition.py`](code/src/videoacquisition.py) via `pypylon`:
-- a **top** camera (30 fps, hardware-triggered) and
-- a **front** camera (200 fps).
-
-Frames are encoded live to visually-lossless H.264 `.mp4` (per camera), preferring
-the GPU `h264_nvenc` encoder and falling back to CPU `libx264`. All camera
-settings — serials, resolution, exposure, fps, trigger lines, encode quality —
-live in the `cameras` block of
-[`code/parameters/treadwall_config.json`](code/parameters/treadwall_config.json),
-with full Basler feature sets in the `.pfs` files under
-[`code/parameters/camera/`](code/parameters/camera/). Each session produces, per
-camera, a `.mp4`, a `_timestamps.txt` (+ `_pc_timestamps.txt`) sidecar, and a
-`_cam_metadata.json`.
-
-### Data acquisition
-Synchronized analog/TTL signals are recorded with **WaveSurfer** over an NI-DAQ
-device, using the protocol file
-[`code/parameters/wavesurfer/treadwall.wsp`](code/parameters/wavesurfer/treadwall.wsp).
-The Bpod state machine writes its own session `.mat`. All outputs for a session
-are saved under the configured `data_root` (`paths.data_root` in
-`treadwall_config.json`), organized as `<data_root>\<animal>\<session>`.
-
