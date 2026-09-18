@@ -8,7 +8,7 @@ Two Arduino sketches drive the rig hardware:
 - [`lickport/lickport.ino`](lickport/lickport.ino) — detects licks with a capacitive sensor,
   measures running distance from the encoder, and dispenses reward via a pump.
 
-## Why these parameters aren't in `treadwall_config.json`
+### Why these parameters aren't in `treadwall_config.json`
 
 Everything in the rest of the rig reads its tunable parameters from
 [`../../parameters/treadwall_config.json`](../../parameters/treadwall_config.json) (via
@@ -62,7 +62,7 @@ utility, not by this sketch.
 | `MIN_PROB` | 70 % | Minimum probability to deliver reward |
 | `N_STEPS` | 1024 | Rotary encoder steps per rotation |
 | `WHEEL_RADIUS` | 53 mm | Running wheel radius |
-| `SENRES` | 80 | `capacitiveSensor(80)` sample count |
+| `SENRES` | 80 | Sensor sample count |
 | `LICKTH` | 1000 | Raw capacitance above which a lick sample counts |
 | `CSTH` | 3800 | Cumulative capacitance that triggers a lick event |
 | `LICKTTLOUT` | 1 ms | `LICK_OUT` HIGH duration |
