@@ -29,7 +29,7 @@ Wall assembly
 | Guidingplate top | [cutlines.svg](guidingplate_top_cutlines.svg) ([measurments](guidingplate_top_measurments.pdf)) | 1 piece | Acrylic glass 6mm | cut with lasercutter |
 | Guidingplate bottom | [cutlines.svg](guidingplate_bottom_cutlines.svg) ([measurements](gguidingplate_bottom_measuremnets.pdf)) | 1 piece | Acrylic glass 6mm | cut with lasercutter |
 | Walls | [wall.stl](wall.stl) | 2 pieces |  | without tensioner attachement |
-| Wall-band |  | 2 pieces | Silicone | use mould [wallband_mould.stl](wallband_mould.stl) and buck [wallband_buck.stl](wallband_buck.stl) |
+| Wall-band |  | 2 pieces | Silicone | use mould ([wallband_mould.stl](wallband_mould.stl)) and buck ([wallband_buck.stl](wallband_buck.stl)) |
 | Tensioner holder | [tension_holder.stl](tension_holder.stl) | 2 pieces |  |  |
 | Tensioner roller | [tension_roller.stl](tension_roller.stl) | 2 pieces |  |  |
 | Motorized roller | [roller_motorized.zip](roller_motorized.zip) | 2 pieces |  | only top and bottom part need to be printed |
