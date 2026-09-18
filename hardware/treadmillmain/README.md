@@ -9,11 +9,11 @@ by a reflective sensor. The measured running speed drives the moving walls via t
 | Treadwall Component | File | Production Amount | Material |
 | :---: | :---: | :---: | :---: |
 | Platform | [platform.stl](platform.stl) | 1 piece |  |
-| Platform extention (optional) || 1 piece |  |
-| Wheel || 2 pieces |  |
-| Wheel gummy || 12 pieces |  |
-| Rot Sensor Holder || 1 piece |  |
-| Ball Bearing Holder || 3 pieces |  |
+| Platform extention (optional) | [platfrom_extention.stl](platfrom_extention.stl) | 1 piece |  |
+| Wheel | [wheel.stl](wheel.stl) | 2 pieces |  |
+| Wheel gummy | [wheelgummy.stl](wheelgummy.stl) | 12 pieces |  |
+| Rot Sensor Holder | [rotsensor_holder.stl](rotsensor_holder.stl) | 1 piece |  |
+| Ball Bearing Holder | [ballbearing_holder.stl](ballbearing_holder.stl) | 3 pieces |  |
 
 All files are available as .stl for 3D-printing.
 
