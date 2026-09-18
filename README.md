@@ -13,7 +13,7 @@ machine, WaveSurfer data acquisition, and timestamped notes uploaded to RSpace.
 
 This repository holds everything needed to **rebuild and run** the setup: hardware
 files (3D-print STLs, laser-cut SVGs, PCB gerbers, parts lists) under
-[`hardware/`](hardware/) and all control software under [`code/`](code/) (see the
+[`hardware/`](hardware/) (see the [hardware README](hardware/README.md)) and all control software under [`code/`](code/) (see the
 [code README](code/README.md)).
 
 ### Repository structure
@@ -35,6 +35,7 @@ Treadwall/
     ├── protocols/           the five Bpod experiment protocols
     ├── parameters/          central config (treadwall_config.json) + device settings
     └── dependencies/        vendored submodules (Bpod, WaveSurfer, IEECRSpace, …)
+    └── gui_screenshot.png   GUI while running (see below)
 ```
 
 ### Getting started
@@ -44,29 +45,29 @@ Treadwall/
 3. Set up the IEECRSpace submodule once (see [Software Dependencies](#software-dependencies)).
 4. Install **ffmpeg** and put it on `PATH` (see [Python environment](#python-environment)).
 5. Edit the paths in [`code/parameters/treadwall_config.json`](code/parameters/treadwall_config.json)
-   for this machine (MATLAB/Python executables, data + IPC directories).
-6. Open Matlab and add the paths of wavesurfer and bpod (both found under `code/dependencies`).
-7. Launch Bpod by typing bpod in the Matlab console and set it up (see [Bpod setup])
+   for your machine (MATLAB/Python executables, data + IPC directories).
+6. Open Matlab and add the paths of wavesurfer and bpod (both found under [`code/dependencies`](code/dependencies)).
+7. Launch Bpod by typing Bpod in the Matlab console and set it up (see [Bpod setup](#bpod-setup))
 8. Launch a session by double-clicking [`code/startsession.bat`](code/startsession.bat)
    — see [Running a Session](#running-a-session).
 
 ## Bpod System
 Control of the system is done with the Bpod System. All used modules are controlled by a 'state machine' ([sanworks.io](https://sanworks.io/shop/viewproduct?productID=1036)).
 
-Modules used for scrambled and predictable experiments:
+Modules used:
 | Module | Link | Functionality |
 | :---: | :---: | :---: |
-| Analog Output Module | [sanworks.io](https://sanworks.io/shop/viewproduct?productID=1038) | loaded with Waveplayer Firmware, can play certain analog signals, controls lateral movement of walls |
+| Analog Output Module | [sanworks.io](https://sanworks.io/shop/viewproduct?productID=1038) | loaded with Waveplayer Firmware, can play analog signals, controls lateral movement of walls |
 | Analog Input Module | [sanworks.io](https://sanworks.io/shop/viewproduct?productID=1037) | reads analog signals, used for zone transition in predictable paradigm |
 | Rotary Encoder Module V2 | [sanworks.io](https://sanworks.io/shop/viewproduct?productID=1034) | connected directly to the rotary encoder, provides power and sends speed information to analog input module, loaded with modified firmware ([github.com](https://github.com/0815Phine/Bpod_RotaryEncoder_Firmware)) |
 
 For further modules see [sanworks.io/products](https://sanworks.io/shop/products.php).
 
 ### Bpod setup
-On **first start** Bpod has to be configured to run properly. Therefore start the Bpod GUI by typing ```bpod``` in the Matlab console.
+On **first start** Bpod has to be configured to run properly. Therefore start the Bpod GUI by typing ```Bpod``` in the Matlab console.
 All modules have to be coupled with the correct COM of your system (also check the Arduino COM in the main treadwall_config.json).
-Also once you have to configure the data paths. Use the same 'Data Root' as defined in the config file (this is not strictly needed but in case of falling back to this, it is good to match).
-The 'Protocols' directory should point to ```code/protocols```.
+You additionally have to configure the data paths once. Use the same 'Data Root' as defined in the config file (this is not strictly needed but in case of falling back to this, it is good to match).
+The 'Protocols' directory should point to [`code/protocols`](code/protocols).
 
 ## Software Dependencies
 | Tool | Version / build | Purpose |
