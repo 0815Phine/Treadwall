@@ -1,4 +1,4 @@
-# Treadwall — control software
+# Treadwall Code
 
 All software for running the rig. A session is launched and coordinated from the
 central GUI ([`treadwallGUI.py`](treadwallGUI.py)); see
@@ -10,24 +10,24 @@ together.
 
 ```
 code/
-├── treadwallGUI.py     # central PyQt5 GUI: session setup, live camera preview,
-│                       #   notes → RSpace, protocol-parameter panel, emergency stop
-├── startsession.bat    # double-click launcher (points at the treadwall conda env)
-├── src/                # utility + GUI-helper scripts
-│   ├── videoacquisition.py     dual-camera capture + live H.264 encoding
-│   ├── start_bpodsession.m     launches Bpod non-interactively, multi-session loop
-│   ├── start_wavesurfer.m      launches / stops WaveSurfer, renames its .h5
-│   ├── gui_*.m                 shared GUI↔protocol helpers (IPC dir, session init,
-│   │                             param publish/read, estop timer, done signal)
-│   ├── treadwall_config.m      MATLAB reader for the central JSON config
-│   ├── create_triallist.m / create_zones.m / get_stimoutput.m  stimulus helpers
-│   └── arduino/                on-board firmware — see arduino/README.md
-├── protocols/          # the five Bpod experiment protocols
-│   ├── treadwall_baseline/         treadwall_habituation_1/   treadwall_habituation_2/
-│   └── treadwall_scrambled/        treadwall_predictable/
-├── parameters/         # ALL tunable settings (see below)
-└── dependencies/       # vendored submodules (Bpod_Gen2, Wavesurfer, IEECRSpace,
-                        #   Bpod_RotaryEncoder_Firmware) — see top-level README
+├── treadwallGUI.py           # central PyQt5 GUI: session setup, live camera preview,
+│                               notes → RSpace, protocol-parameter panel, emergency stop
+├── startsession.bat          # double-click launcher (points at the treadwall conda env)
+├── src/                      # utility + GUI-helper scripts
+│   ├── videoacquisition.py        dual-camera capture + live H.264 encoding
+│   ├── start_bpodsession.m        launches Bpod non-interactively, multi-session loop
+│   ├── start_wavesurfer.m         launches / stops WaveSurfer, renames its .h5
+│   ├── gui_*.m                    shared GUI↔protocol helpers (IPC dir, session init,
+│   │                                param publish/read, estop timer, done signal)
+│   ├── treadwall_config.m         MATLAB reader for the central JSON config
+│   ├── create_triallist.m / create_zones.m / get_stimoutput.m       stimulus helpers
+│   └── arduino/                   on-board firmware — see arduino/README.md
+├── protocols/                # the five Bpod experiment protocols
+│   ├── treadwall_baseline/    treadwall_habituation_1/   treadwall_habituation_2/
+│   └── treadwall_scrambled/   treadwall_predictable/
+├── parameters/               # ALL tunable settings (see below)
+└── dependencies/             # vendored submodules (Bpod_Gen2, Wavesurfer, IEECRSpace,
+                                  Bpod_RotaryEncoder_Firmware) — see top-level README
 ```
 
 ## Configuration
@@ -43,7 +43,7 @@ Device-specific settings that don't belong in the JSON live alongside it:
 | Path | What |
 | :-- | :-- |
 | [`parameters/bpod/`](parameters/bpod/) | Bpod protocol parameter `.m` files + a test trial list |
-| [`parameters/camera/`](parameters/camera/) | Basler `.pfs` full-feature camera profiles |
+| [`parameters/camera/`](parameters/camera/) | Basler `.pfs` full-feature camera profiles (tunable features already listed in `treadwall_config.json`) |
 | [`parameters/tics/`](parameters/tics/) | Pololu Tic stepper-controller register settings |
 | [`parameters/wavesurfer/`](parameters/wavesurfer/) | WaveSurfer protocol (`treadwall.wsp`) |
 
@@ -60,7 +60,7 @@ documented in [`src/arduino/README.md`](src/arduino/README.md).
 3. drives WaveSurfer via [`src/start_wavesurfer.m`](src/start_wavesurfer.m).
 
 The GUI and the MATLAB scripts coordinate through small files in the IPC directory
-(`paths.ipc_dir` in the config) — session hand-off, live parameter edits, emergency
+(`paths.ipc_dir` in the config): session hand-off, live parameter edits, emergency
 stop, and end-of-session signalling. The shared `src/gui_*.m` helpers implement the
 protocol side of this, so all five protocols behave consistently.
 
