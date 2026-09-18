@@ -12,34 +12,34 @@ the animal during an experiment.
 
 ### Assembly
 
-Full-rig assembly walkthrough
+Full-rig assembly
 ([download](./images/treadwall_assembly.mp4) if the player does not load):
 
 <video src="https://github.com/0815Phine/Treadwall/raw/main/hardware/treadwallmain/images/treadwall_assembly.mp4" controls width="800"></video>
 
-Wall assembly walkthrough
+Wall assembly
 ([download](./images/wall_assembly.mp4)):
 
 <video src="https://github.com/0815Phine/Treadwall/raw/main/hardware/treadwallmain/images/wall_assembly.mp4" controls width="800"></video>
 
 ### File List
-| Treadwall Component | Production Amount | Material | Notes |
-| :---: | :---: | :---: | :---: |
-| Guidingplater topper | 1 piece | Acrylic glass 3mm |  |
-| Guidingplate top | 1 piece | Acrylic glass 6mm |  |
-| Guidingplate bottom | 1 piece | Acrylic glass 6mm |  |
-| Walls | 2 pieces |  | without tensioner attachement |
-| Wall-band | 2 pieces | Silicone | use Mould and Buck |
-| Tensioner add-on | 2 pieces |  |  |
-| Tensioner roller | 2 pieces |  |  |
-| Motorized roller | 2 pieces |  |
-| Passive roller | 2 pieces |  |  |
-| Rack left | 1 piece |  |  |
-| Rack right | 1 piece |  |  |
-| Pinion gear left | 1 piece |  |  |
-| Pinion gear right | 1 piece |  |  |
-| Motor mount | 2 pieces |  |  |
-| Motor mount V2.2 | 2 pieces |  | can be used as heat sink |
+| Treadwall Component | File | Production Amount | Material | Notes |
+| :---: | :---: | :---:  | :---: | :---: |
+| Guidingplater topper | [cutlines.svg](guidingplate_topper_cutlines.svg) | 1 piece | Acrylic glass 3mm | cut with lasercutter |
+| Guidingplate top | [cutlines.svg](guidingplate_top_cutlines.svg) ([measurments](guidingplate_top_measurments.pdf)) | 1 piece | Acrylic glass 6mm | cut with lasercutter |
+| Guidingplate bottom | [cutlines.svg](guidingplate_bottom_cutlines.svg) ([measurements](gguidingplate_bottom_measuremnets.pdf)) | 1 piece | Acrylic glass 6mm | cut with lasercutter |
+| Walls | [wall.stl](wall.stl) | 2 pieces |  | without tensioner attachement |
+| Wall-band |  | 2 pieces | Silicone | use mould [wallband_mould.stl](wallband_mould.stl) and buck [wallband_buck.stl](wallband_buck.stl) |
+| Tensioner holder | [tension_holder.stl](tension_holder.stl) | 2 pieces |  |  |
+| Tensioner roller | [tension_roller.stl](tension_roller.stl) | 2 pieces |  |  |
+| Motorized roller | [roller_motorized.zip](roller_motorized.zip) | 2 pieces |  | only top and bottom part need to be printed |
+| Passive roller | [roller_passive.zip](roller_passive.zip) | 2 pieces |  | only top and bottom part need to be printed |
+| Rack left | [rack_left.stl](rack_left.stl) | 1 piece |  |  |
+| Rack right | [rack_right.stl](rack_right.stl) | 1 piece |  |  |
+| Pinion gear left | [piniongear_left.stl](piniongear_left.stl) | 1 piece |  |  |
+| Pinion gear right | [piniongear_right.stl](piniongear_right.stl) | 1 piece |  |  |
+| Motor mount | [motormount_v2.stl](motormount_vr.stl) | 2 pieces |  |  |
+| Heat sink | [measurments](motormount_v1.pdf) | 2 pieces | metal | old motor mount, fabricated with CNC-machine |
 
 All files are available as .stl for 3D-printing. Cutlines for lasercutting are available as .svg
 
