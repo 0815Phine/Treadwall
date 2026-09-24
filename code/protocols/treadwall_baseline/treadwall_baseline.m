@@ -55,6 +55,23 @@ end
 %R.startUSBStream() -> moved to after restarting timer for proper alignment
 %R.streamUI() % for live streaming position, good for troubleshooting
 
+%% ---------- Analog Input Module ----------------------------------------
+try
+    A = BpodAnalogIn(BpodSystem.ModuleUSB.AnalogIn1);
+catch
+    error(['The Analog Input Module is not coupled to the correct COM, ' ...
+        'check the Bpod Console!'])
+end
+
+A.SamplingRate = cfg.bpod.analogin.sampling_rate_khz; % kHz
+A.nActiveChannels = N_ACTIVE_CHAN;
+A.InputRange = repmat({cfg.bpod.analogin.input_range}, 1, 8);
+A.Thresholds(1,1) = ANALOG_THRESHOLDS;
+A.ResetVoltages(1,1) = ANALOG_RESET_VOLTAGES;
+A.SMeventsEnabled(1,1) = 1;
+
+%A.scope() % for live streaming inputs, good for troubleshooting
+
 %% ---------- Restart Timer -----------------------------------------------
 % Discard any stale bytes left in the Bpod serial buffer (e.g. after an
 % emergency stop) so the clock-reset confirmation byte is read correctly.
@@ -66,6 +83,7 @@ if Confirmed ~= 1, error('Faulty clock reset'); end
 
 % start rotary encoder stream
 R.startUSBStream()
+A.startReportingEvents()
 
 %% ---------- Emergency-stop watcher --------------------------------------
 % Poll for the GUI emergency-stop flag
@@ -91,7 +109,8 @@ end
 % Clean exit if user stopped Bpod while waiting for WaveSurfer.
 if BpodSystem.Status.BeingUsed == 0
     disp('Session stopped while waiting for WaveSurfer. Exiting cleanly.');
-    R.stopUSBStream();
+    R.stopUSBStream()
+    A.stopReportingEvents()
     gui_signalaborted(ipc_dir);
     return
 end
@@ -134,6 +153,7 @@ else
     Warning('No rotary encoder data recorded')
 end
 R.stopUSBStream()
+A.stopReportingEvents()
 
 BpodSystem.Status.BeingUsed = 0;
 try close(BpodSystem.ProtocolFigures.ParameterGUI); catch, end

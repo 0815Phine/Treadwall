@@ -12,6 +12,7 @@ SESSION_DUR = 1200;                             % s, session timer (fires SendBp
 MAX_WAVE_DUR = 1800;                            % s, max waveform length loaded on the WavePlayer
 END_BUFFER_DUR = 10;                            % s, end buffer before stopping the camera
 ENCODER_THRESHOLDS = [-5, 5];                   % rotary-encoder direction thresholds
+N_ACTIVE_CHAN = 3;
 ANALOG_THRESHOLDS = [4.0, 2.5, 1.5];            % V, zone-transition thresholds (AnalogIn ch 1-3)
 ANALOG_RESET_VOLTAGES = [3.2, 1.65, 1.65];      % V, threshold reset voltages (AnalogIn ch 1-3)
 

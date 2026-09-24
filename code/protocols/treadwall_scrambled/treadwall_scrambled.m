@@ -107,6 +107,23 @@ for i = 1:length(WAVEFORMS)
     W.loadWaveform(i, WAVEFORMS{i}*ones(1,lengthWave));
 end
 
+%% ---------- Analog Input Module ----------------------------------------
+try
+    A = BpodAnalogIn(BpodSystem.ModuleUSB.AnalogIn1);
+catch
+    error(['The Analog Input Module is not coupled to the correct COM, ' ...
+        'check the Bpod Console!'])
+end
+
+A.SamplingRate = cfg.bpod.analogin.sampling_rate_khz; % kHz
+A.nActiveChannels = N_ACTIVE_CHAN;
+A.InputRange = repmat({cfg.bpod.analogin.input_range}, 1, 8);
+A.Thresholds(1,1) = ANALOG_THRESHOLDS;
+A.ResetVoltages(1,1) = ANALOG_RESET_VOLTAGES;
+A.SMeventsEnabled(1,1) = 1;
+
+%A.scope() % for live streaming inputs, good for troubleshooting
+
 %% ---------- Restart Timer -----------------------------------------------
 % Discard any stale bytes left in the Bpod serial buffer (e.g. after an
 % emergency stop) so the clock-reset confirmation byte is read correctly.
@@ -118,6 +135,7 @@ if Confirmed ~= 1, error('Faulty clock reset'); end
 
 % start rotary encoder stream
 R.startUSBStream()
+A.startReportingEvents()
 
 %% ---------- Emergency-stop watcher --------------------------------------
 % Poll for the GUI emergency-stop flag
@@ -145,6 +163,7 @@ if BpodSystem.Status.BeingUsed == 0
     disp('Session stopped while waiting for WaveSurfer. Exiting cleanly.');
     W.setFixedVoltage([1 2], 0);
     R.stopUSBStream();
+    A.stopReportingEvents()
     gui_signalaborted(ipc_dir);
     return
 end
@@ -260,6 +279,7 @@ RotData = R.readUSBStream();
 rotary_src = fullfile(session_dir, [base_name '_bpod_rotdata.mat']);
 save(rotary_src, 'RotData')
 R.stopUSBStream()
+A.stopReportingEvents()
 
 % Signal the GUI: session complete, stop WaveSurfer
 gui_signaldone(ipc_dir);

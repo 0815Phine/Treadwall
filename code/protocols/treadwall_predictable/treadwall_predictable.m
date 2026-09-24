@@ -126,12 +126,11 @@ catch
 end
 
 A.SamplingRate = cfg.bpod.analogin.sampling_rate_khz; % kHz
-A.nActiveChannels = cfg.bpod.analogin.n_active_channels;
+A.nActiveChannels = N_ACTIVE_CHAN;
 A.InputRange = repmat({cfg.bpod.analogin.input_range}, 1, 8);
 A.Thresholds(1,1:3) = ANALOG_THRESHOLDS;
 A.ResetVoltages(1,1:3) = ANALOG_RESET_VOLTAGES; % TO DO: check reset voltage for first trigger
 A.SMeventsEnabled(1,1:3) = [1, 1, 1];
-A.startReportingEvents()
 
 %A.scope() % for live streaming inputs, good for troubleshooting
 
@@ -148,6 +147,7 @@ end
 
 % start rotary encoder stream
 R.startUSBStream()
+A.startReportingEvents()
 
 %% ---------- Emergency-stop watcher --------------------------------------
 % Poll for the GUI emergency-stop flag
@@ -457,7 +457,6 @@ for currentTrial = 1:S.GUI.MaxTrialNumber
     if ~isempty(fieldnames(RawEvents)) % If trial data was returned
         BpodSystem.Data = AddTrialEvents(BpodSystem.Data,RawEvents); % Computes trial events from raw data
         BpodSystem.Data.TrialSettings(currentTrial) = S;
-        BpodSystem.Data.Loop(currentTrial) = currentTrial;
         SaveBpodSessionData; % Saves the field BpodSystem.Data to the current data file
     end
 
@@ -492,6 +491,7 @@ RotData = R.readUSBStream();
 rotary_src = fullfile(session_dir, [base_name '_bpod_rotdata.mat']);
 save(rotary_src, 'RotData')
 R.stopUSBStream()
+A.stopReportingEvents()
 
 BpodSystem.Status.BeingUsed = 0;
 try close(BpodSystem.ProtocolFigures.ParameterGUI); catch, end

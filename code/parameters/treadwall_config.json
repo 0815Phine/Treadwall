@@ -21,8 +21,7 @@
     },
     "analogin": {
       "sampling_rate_khz": 100,
-      "input_range": "0V:10V",
-      "n_active_channels": 3
+      "input_range": "0V:10V"
     }
   },
   "cameras": {

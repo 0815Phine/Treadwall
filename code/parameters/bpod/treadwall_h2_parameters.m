@@ -7,6 +7,9 @@ ITI_DUR = 15;                                          % s, inter-trial interval
 WAVEFORMS = {0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5};  % V per distance step
 INIT_SCALING_FACTOR = 1;                               % initial wall-sync scaling factor
 WAVE_BUFFER = 5;                                       % s, extra waveform length added beyond stimDur
+N_ACTIVE_CHAN = 1;
+ANALOG_THRESHOLDS = 4.0;     % V, zone-transition thresholds (AnalogIn ch 1)
+ANALOG_RESET_VOLTAGES = 3.2; % V, threshold reset voltages (AnalogIn ch 1)
 
 % -------- Hardware --------
 WAVEPLAYER_TRIGGER_MODE = 'Master';                    % Bpod WavePlayer trigger mode
