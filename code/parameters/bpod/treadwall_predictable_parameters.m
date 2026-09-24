@@ -4,7 +4,7 @@
 %  live in the central config: treadwall_config().bpod.analogin.)
 
 % -------- Behaviour --------
-ITI_DUR = 10;                                   % s, start-buffer / inter-trial interval
+ITI_DUR = 5;                                   % s, start-buffer / inter-trial interval
 WAVEFORMS = {1.5, 2.1, 2.6, 3.2, 3.8, 4.2, 5}; % V per zone (5V = C27)
 INIT_SCALING_FACTOR = 1;                        % initial wall-sync scaling factor
 MAX_LAPS = 100;                                 % max trials (laps) per session
