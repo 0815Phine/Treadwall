@@ -47,7 +47,7 @@ gui_publishloadedparams(ipc_dir, S);
 
 %% ---------- Create Triallist and load Trials ----------------------------
 % create triallist (adjust function according to trials needed)
-create_triallist(session_dir, base_name); % adaptable trial list (not all offsets used)
+create_triallist(session_dir, base_name, REPS); % adaptable trial list (not all offsets used)
 
 % read triallist
 trialList_Info = dir(fullfile(session_dir, [base_name '_triallist.csv']));

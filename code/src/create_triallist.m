@@ -1,4 +1,4 @@
-function create_triallist(session_dir, base_name)
+function create_triallist(session_dir, base_name, reps)
 % Ensure directories exist
 if ~exist(session_dir, 'dir')
     mkdir(session_dir);
@@ -30,7 +30,7 @@ for i = 1:numel(distance)
 end
 
 % Duplicate each trial type
-trial_types = repmat(trial_types, 2, 1); % Create two copies of each trial type
+trial_types = repmat(trial_types, reps, 1); % Create copies of each trial type
 
 % Shuffle the trial list
 trial_types = trial_types(randperm(numel(trial_types)));
