@@ -574,6 +574,10 @@ class TreadwallWindow(QMainWindow):
             except Exception:
                 pass
 
+        # New session spinning up — show the state chip as idle/grey until the
+        # protocol reports its first real state.
+        self._on_bpod_state("")
+
         if self._matlab_is_alive():
             # MATLAB already running — write two separate IPC files so the
             # WaveSurfer timer and the Bpod waiting loop each read their own
@@ -834,6 +838,7 @@ class TreadwallWindow(QMainWindow):
             self._estop_btn.setEnabled(False)
             self._start_btn.setEnabled(False)
             self._set_connect_mode(connected=False, enabled=True)
+            self._on_bpod_state("")                 # idle — reset state chip to grey
             self._set_status(
                 "Bpod disconnected — press \"Reconnect Bpod\" to reconnect, "
                 "or close the windows to quit."
@@ -853,6 +858,7 @@ class TreadwallWindow(QMainWindow):
             self._start_btn.setEnabled(True)        # idle — can start again
             self._disconnect_btn.setEnabled(True)   # idle now — disconnect allowed
             self._set_setup_enabled(True)           # idle — setup editable again
+            self._on_bpod_state("")                 # session idle — reset state chip to grey
             # Startup error → the camera never got its trigger and recorded
             # nothing, so stop it immediately rather than waiting it out.
             self._stop_camera()
@@ -880,6 +886,7 @@ class TreadwallWindow(QMainWindow):
         self._start_btn.setEnabled(True)        # idle — can start again
         self._disconnect_btn.setEnabled(True)   # idle now — disconnect allowed
         self._set_setup_enabled(True)           # idle — setup editable again
+        self._on_bpod_state("")                 # session idle — reset state chip to grey
         if aborted:
             self._stop_camera()
         else:
