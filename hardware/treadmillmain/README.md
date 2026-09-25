@@ -1,0 +1,29 @@
+# Treadmill-Main
+
+The running surface the animal sits on: a belt-driven treadmill whose rotation is
+read by a rotary encoder (running speed/distance) and monitored for belt slippage
+by a reflective sensor. The measured running speed drives the moving walls via the
+[Wall Synchronizer](../wallsynchronizer).
+
+### File List
+| Treadwall Component | File | Production Amount | Material |
+| :---: | :---: | :---: | :---: |
+| Platform | [platform.stl](platform.stl) | 1 piece |  |
+| Platform extention (optional) | [platfrom_extention.stl](platfrom_extention.stl) | 1 piece |  |
+| Wheel | [wheel.stl](wheel.stl) | 2 pieces |  |
+| Wheel gummy | [wheelgummy.stl](wheelgummy.stl) | 12 pieces |  |
+| Rot Sensor Holder | [rotsensor_holder.stl](rotsensor_holder.stl) | 1 piece |  |
+| Ball Bearing Holder | [ballbearing_holder.stl](ballbearing_holder.stl) | 3 pieces |  |
+
+All files are available as .stl for 3D-printing.
+
+### Commercial Parts List
+| Item | Quantity | Notes | Product Example Link |
+| :---: | :---: | :---: | :---: |
+| Rotary encoder | 1 piece |  | [sanworks.io](https://sanworks.io/shop/viewproduct?productID=1307)  |
+| Reflective sensor | 1 piece | to measure belt slippage | [adafruit.com](https://www.adafruit.com/product/3930?srsltid=AfmBOoqHi9kokLFhfNtaCtoBjj8dQEUZTka99oJ9M-Xgqp1RmW8L5P0L) |
+| Rod | ~ | to hold wheels | [conrad.de](https://www.conrad.de/de/p/silberstahl-welle-reely-o-x-l-6-mm-x-500-mm-237086.html) |
+| Shaft Colar | 7 pieces | to fix wheels on rod | [conrad.de](https://www.conrad.de/de/p/famotec-stellring-sortiment-passend-fuer-welle-details-6-mm-m3-10-st-2106638.html?searchType=SearchRedirect) |
+| Ball Bearings | 3 pieces |  | [conrad.de](https://www.conrad.de/de/p/reely-hk-0608-nadelhuelse-6-mm-10-mm-8-mm-217042.html) |
+| Aluprofile | ~ |  | [thorlabs.com](https://www.thorlabs.com/newgrouppage9.cfm?objectgroup_id=194) |
+| Belt | ~2m long |  | from [Luigs & Neumann](https://www.luigs-neumann.org/) (Part number: 700-100 900 0201) |

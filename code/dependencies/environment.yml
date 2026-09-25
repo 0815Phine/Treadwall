@@ -1,0 +1,12 @@
+name: treadwall
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - pip
+  - pip:
+      - numpy==1.24.3
+      - opencv-python==4.11.0.86
+      - pypylon==4.1.0
+      - PyQt5==5.15.10
+      - requests==2.32.5

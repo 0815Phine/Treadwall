@@ -1,0 +1,672 @@
+import pypylon.pylon as py
+import cv2
+import time
+import os
+import sys
+import threading
+import queue
+import json
+import numpy as np
+import subprocess
+from pathlib import Path
+
+# ------ Configuration (camera settings from parameters/treadwall_config.json) ------
+# This file lives in code/src/, so code/ (which holds parameters/) is parents[1].
+_CFG = json.load(open(Path(__file__).resolve().parents[1] / "parameters" / "treadwall_config.json"))
+_CAM = _CFG["cameras"]
+_TOP = _CAM["topcam"]
+_FRONT = _CAM["frontcam"]
+
+CHUNK_SIZE = _CAM["chunk_size"]   # frames per chunk piped to the encoder (200 = 1 s at 200 Hz)
+
+# Per-camera frame dimensions (from config). The two cameras differ, so each
+# gets its own width/height for its buffers, encoder -s, and metadata.
+TOP_W,   TOP_H   = _TOP["width"],   _TOP["height"]
+FRONT_W, FRONT_H = _FRONT["width"], _FRONT["height"]
+
+# Preview downsample size + write cadence (GUI live view).
+PREVIEW_W       = _CAM["preview"]["width"]
+PREVIEW_H       = _CAM["preview"]["height"]
+_PREVIEW_EVERY  = _CAM["preview"]["every_n"]   # write preview frame every N iterations
+ENCODER_FINALIZE_TIMEOUT_S = _CAM["encoder_finalize_timeout_s"]
+
+# Encoder settings — frames are encoded live to visually-lossless H.264 .mp4
+# instead of being dumped as uncompressed .npy (which was ~93 GB/session).
+TOPCAM_FPS_NOMINAL = float(_TOP["fps"])   # top cam is hardware-triggered; .mp4 -r is
+                            # nominal, true timing lives in the timestamp .txt files
+ENCODE_QP = _CAM["encode_qp"]   # constant quality (h264_nvenc -qp / libx264 -crf);
+                            # lower = higher quality + larger file (15 ≈ near-lossless)
+
+
+def _has_nvenc():
+    """True if this ffmpeg build exposes the NVIDIA hardware H.264 encoder."""
+    try:
+        result = subprocess.run(
+            ["ffmpeg", "-hide_banner", "-encoders"],
+            capture_output=True, text=True, timeout=10
+        )
+        return "h264_nvenc" in result.stdout
+    except Exception:
+        return False
+
+
+def _start_encoder(out_path, fps, use_nvenc, w, h):
+    """Launch an ffmpeg subprocess that reads raw Mono8 frames on stdin and
+    encodes them straight to a visually-lossless H.264 .mp4.
+
+    Feed it with proc.stdin.write(frame_bytes) and close stdin when done.
+    """
+    cmd = [
+        "ffmpeg", "-y",
+        "-f", "rawvideo",
+        "-vcodec", "rawvideo",
+        "-pix_fmt", "gray",
+        "-s", f"{w}x{h}",
+        "-r", str(fps),
+        "-i", "pipe:0",
+    ]
+    if use_nvenc:
+        # NVENC has huge headroom at 720x540@200 fps, so use a slower preset
+        # (better compression) with constant-QP rate control.
+        cmd += [
+            "-c:v", "h264_nvenc",
+            "-preset", "p5",
+            "-rc", "constqp",
+            "-qp", str(ENCODE_QP),
+        ]
+    else:
+        # CPU fallback — 'veryfast' keeps libx264 above 200 fps at this size.
+        cmd += [
+            "-c:v", "libx264",
+            "-preset", "veryfast",
+            "-crf", str(ENCODE_QP),
+        ]
+    # Fragmented mp4: if the process is killed mid-session (emergency stop /
+    # crash) the file is still playable instead of a headerless stub.
+    cmd += [
+        "-pix_fmt", "yuv420p",
+        "-an",
+        "-movflags", "+frag_keyframe+empty_moov+default_base_moof",
+        out_path,
+    ]
+    return subprocess.Popen(
+        cmd,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.PIPE,
+    )
+
+# Basler serial numbers come from the central config (parameters/treadwall_config.json).
+# Run the script with no cameras configured to print detected serials.
+SERIAL_TOPCAM   = _CAM["topcam"]["serial"]
+SERIAL_FRONTCAM = _CAM["frontcam"]["serial"]
+
+# ------ Set up Output Directory ------
+session_folder = sys.argv[1]   # full LTS path, e.g. D:\Animals\Cohort01_Training\OPI2714\S1_B1
+animal_name = sys.argv[2]
+session_name = sys.argv[3]
+date_time    = sys.argv[4]     # e.g. 20260609_1030, generated once by MATLAB at session start
+
+# Optional flags (may follow the 4 required positional args)
+#   --preview-dir <path>  write downsampled frames for the GUI live view
+#   --no-display          skip cv2.imshow (GUI shows the preview instead)
+#   --overwrite           overwrite existing frame folders without prompting
+preview_dir  = None
+show_display = True
+overwrite    = False
+_i = 5
+while _i < len(sys.argv):
+    if sys.argv[_i] == '--preview-dir' and _i + 1 < len(sys.argv):
+        preview_dir = sys.argv[_i + 1]
+        _i += 2
+    elif sys.argv[_i] == '--no-display':
+        show_display = False
+        _i += 1
+    elif sys.argv[_i] == '--overwrite':
+        overwrite = True
+        _i += 1
+    else:
+        _i += 1
+
+base_name = f"{animal_name}_{date_time}_{session_name}"
+
+# Write straight into the session's data folder (the LTS path the GUI passes as
+# argv[1]) so the videos + timestamps land next to the Bpod/WaveSurfer data with
+# no separate move step. Live H.264 encoding keeps the output small enough that
+# NVMe staging is no longer needed.
+session_out = session_folder
+os.makedirs(session_out, exist_ok=True)
+
+video_top   = os.path.join(session_out, f"{base_name}_topcam.mp4")
+video_front = os.path.join(session_out, f"{base_name}_frontcam.mp4")
+# One timestamp file per camera: each line is "cam_ts,pc_ts" (no header) — the
+# Basler device clock (res.TimeStamp, precise inter-frame timing) alongside the
+# PC perf_counter_ns clock (aligns the free-running front cam to the session).
+ts_file_top   = os.path.join(session_out, f"{base_name}_topcam_timestamps.txt")
+ts_file_front = os.path.join(session_out, f"{base_name}_frontcam_timestamps.txt")
+
+for vpath in (video_top, video_front):
+    if os.path.exists(vpath):
+        if overwrite:
+            os.remove(vpath)
+        else:
+            print(f"ERROR: Video file '{vpath}' already exists. Pass --overwrite to replace it.")
+            sys.exit(1)
+
+# ------ Camera Discovery ------
+tlf = py.TlFactory.GetInstance()
+devices = tlf.EnumerateDevices()
+if not devices:
+    raise RuntimeError("No cameras found!")
+
+detected_serials = [d.GetSerialNumber() for d in devices]
+print(f"Detected cameras: {detected_serials}")
+
+if not SERIAL_TOPCAM or not SERIAL_FRONTCAM:
+    print("\nERROR: SERIAL_TOPCAM and SERIAL_FRONTCAM must be set at the top of this script.")
+    print("Detected serials:")
+    for serial in detected_serials:
+        print(f"  {serial}")
+    sys.exit(1)
+
+def _open_camera(serial):
+    for dev in devices:
+        if dev.GetSerialNumber() == serial:
+            cam = py.InstantCamera(tlf.CreateDevice(dev))
+            cam.Open()
+            return cam
+    raise RuntimeError(f"Camera with serial '{serial}' not found. Detected: {detected_serials}")
+
+cam_top   = _open_camera(SERIAL_TOPCAM)
+cam_front = _open_camera(SERIAL_FRONTCAM)
+
+# ------ Top Camera Settings (hardware-triggered, 30 Hz) ------
+cam_top.BinningHorizontal.Value     = _TOP["binning"]
+cam_top.BinningVertical.Value       = _TOP["binning"]
+cam_top.BinningHorizontalMode.Value = _TOP["binning_mode"]
+cam_top.BinningVerticalMode.Value   = _TOP["binning_mode"]
+cam_top.Width.Value  = TOP_W
+cam_top.Height.Value = TOP_H
+cam_top.PixelFormat.Value = _TOP["pixel_format"]   # explicit — Pylon Viewer can leave Mono12
+cam_top.ExposureTime.Value = _TOP["exposure_us"]
+cam_top.ExposureAuto.Value = "Off"
+cam_top.Gain.Value = _TOP["gain"]
+cam_top.DeviceLinkThroughputLimitMode.Value = "On" if _TOP["throughput_limit"] else "Off" # Off = higher frame rate
+cam_top.AcquisitionFrameRateEnable.Value = False
+
+# TriggerSelector must be set BEFORE TriggerMode/Source — it selects which trigger to configure
+_TRIG = _TOP["trigger"]
+cam_top.TriggerSelector.Value   = _TRIG["selector"]
+cam_top.TriggerMode.Value       = _TRIG["mode"]
+cam_top.TriggerSource.Value     = _TRIG["source"]
+cam_top.TriggerActivation.Value = _TRIG["activation"]
+
+cam_top.LineSelector.Value = _TOP["lines"]["stop_input"]
+cam_top.LineMode.Value     = "Input"
+
+cam_top.LineSelector.Value = _TOP["lines"]["exposure_output"]
+cam_top.LineMode.Value     = "Output"
+cam_top.LineSource.Value   = "ExposureActive"
+
+# ------ Front Camera Settings (free-running) ------
+FRONTCAM_FPS = float(_FRONT["fps"])
+
+cam_front.BinningHorizontal.Value     = _FRONT["binning"]
+cam_front.BinningVertical.Value       = _FRONT["binning"]
+cam_front.BinningHorizontalMode.Value = _FRONT["binning_mode"]
+cam_front.BinningVerticalMode.Value   = _FRONT["binning_mode"]
+cam_front.Width.Value  = FRONT_W
+cam_front.Height.Value = FRONT_H
+cam_front.PixelFormat.Value = _FRONT["pixel_format"]
+cam_front.ExposureTime.Value = _FRONT["exposure_us"]
+cam_front.ExposureAuto.Value = "Off"
+cam_front.Gain.Value = _FRONT["gain"]
+cam_front.AcquisitionFrameRateEnable.Value = True
+cam_front.AcquisitionFrameRate.Value = FRONTCAM_FPS
+cam_front.TriggerMode.Value = "Off"  # free-running
+
+# ------ Pre-allocate Double Buffers ------
+# Each slot holds one full chunk. Writer reads the completed slot while
+# acquisition fills the other. Fill time (1 s) >> np.save time (~256 ms).
+
+def _make_buffers(h, w):
+    return (
+        [np.empty((CHUNK_SIZE, h, w), dtype=np.uint8),
+         np.empty((CHUNK_SIZE, h, w), dtype=np.uint8)],
+        [np.empty(CHUNK_SIZE, dtype=np.int64),
+         np.empty(CHUNK_SIZE, dtype=np.int64)],
+        [np.empty(CHUNK_SIZE, dtype=np.int64),
+         np.empty(CHUNK_SIZE, dtype=np.int64)],
+    )
+
+chunk_top,   cam_ts_top,   pc_ts_top   = _make_buffers(TOP_H,   TOP_W)
+chunk_front, cam_ts_front, pc_ts_front = _make_buffers(FRONT_H, FRONT_W)
+
+# ------ Shared Events ------
+stop_event  = threading.Event()  # set by topcam when Line2 fires or trigger lost
+start_event = threading.Event()  # set when topcam receives its first hardware trigger
+
+# ------ Live Stream State ------
+latest_top   = None
+latest_front = None
+display_lock = threading.Lock()
+_DIVIDER     = np.zeros((PREVIEW_H, 4), dtype=np.uint8)  # 4-pixel separator between views
+
+# ------ Writer Threads ------
+write_queue_top   = queue.Queue()
+write_queue_front = queue.Queue()
+
+
+def _writer(write_queue, frame_buffers, cam_ts_buffers, pc_ts_buffers, enc, ts_accum, label):
+    """Pipe each completed chunk's raw bytes to its ffmpeg encoder (started lazily
+    on the first chunk) and keep the chunk's timestamps in memory (.copy(), since
+    the buffer slot is reused).
+
+    Starting the encoder only when the first chunk arrives means a session that
+    captured no frames (e.g. aborted while waiting for WaveSurfer, before the
+    camera was ever triggered) leaves no .mp4 behind — nothing to save and no
+    empty stub / orphaned encoder to clean up.
+
+    If the encoder pipe breaks, the encoder has died — there is no raw .npy
+    fallback, so stop the whole acquisition immediately and surface the error
+    rather than silently losing the rest of the session.
+    """
+    while True:
+        item = write_queue.get()
+        if item is None:
+            write_queue.task_done()
+            break
+        slot, n, chunk_idx = item
+        try:
+            if enc['proc'] is None:
+                enc['proc'] = _start_encoder(enc['path'], enc['fps'], use_nvenc, enc['w'], enc['h'])
+                print(f"{label}: encoder started on first chunk.")
+            enc['proc'].stdin.write(frame_buffers[slot][:n].tobytes())
+            ts_accum['cam'].append(cam_ts_buffers[slot][:n].copy())
+            ts_accum['pc'].append(pc_ts_buffers[slot][:n].copy())
+        except (BrokenPipeError, OSError, ValueError) as e:
+            print(f"ERROR: {label} encoder pipe broke at chunk {chunk_idx}: {e}")
+            stop_event.set()
+        write_queue.task_done()
+
+
+# ------ Acquisition Threads ------
+fcount_top   = 0
+fcount_front = 0
+f_failed_top   = 0
+f_failed_front = 0
+etime_top = None
+
+
+def acquire_topcam():
+    global fcount_top, f_failed_top, etime_top, latest_top
+
+    slot    = 0
+    fill    = 0
+    counter = 0
+    trigger_lost = None
+    stime = None
+
+    cam_top.StartGrabbing(py.GrabStrategy_OneByOne)
+
+    try:
+        print("Topcam: waiting for first trigger...")
+        # LineSelector is pointing to Line3 (ExposureActive output).
+        # Wait until the first hardware trigger fires.
+        while not cam_top.LineStatus.Value:
+            time.sleep(0.001)
+
+        start_event.set()
+        cam_top.LineSelector.Value = "Line2"  # switch to monitor stop signal
+        print("Topcam: acquisition running...")
+        stime = time.perf_counter()
+
+        try:
+            while cam_top.IsGrabbing():
+                try:
+                    res = cam_top.RetrieveResult(1000, py.TimeoutHandling_ThrowException)
+                    if res.GrabSucceeded():
+                        image = res.Array
+                        chunk_top[slot][fill]  = image
+                        cam_ts_top[slot][fill] = res.TimeStamp
+                        pc_ts_top[slot][fill]  = time.perf_counter_ns()
+                        fill += 1
+                        fcount_top += 1
+
+                        with display_lock:
+                            latest_top = cv2.resize(image, (PREVIEW_W, PREVIEW_H))
+
+                        if fill == CHUNK_SIZE:
+                            write_queue_top.put((slot, CHUNK_SIZE, counter))
+                            slot ^= 1
+                            fill  = 0
+                            counter += 1
+                    else:
+                        f_failed_top += 1
+                        if f_failed_top <= 3:
+                            print(f"  Topcam grab failed: code={res.ErrorCode}, {res.ErrorDescription}")
+
+                    res.Release()
+
+                    if cam_top.LineStatus.Value:
+                        etime_top = time.perf_counter()
+                        print("Topcam: stop signal received (Line2 HIGH).")
+                        stop_event.set()
+                        break
+
+                except py.TimeoutException:
+                    print("Topcam: grab timeout.")
+                    if not cam_top.LineStatus.Value:
+                        if trigger_lost is None:
+                            etime_top = time.perf_counter()
+                            trigger_lost = time.perf_counter()
+                        elif time.perf_counter() - trigger_lost > 0.01:
+                            print("Topcam: trigger lost. Ending acquisition.")
+                            stop_event.set()
+                            break
+                    else:
+                        trigger_lost = None
+
+        except KeyboardInterrupt:
+            print("Topcam: interrupted by user.")
+            etime_top = time.perf_counter()
+            stop_event.set()
+
+    finally:
+        if etime_top is None:
+            etime_top = time.perf_counter()
+
+        try:
+            cam_top.StopGrabbing()
+            cam_top.Close()
+        except Exception as e:
+            print(f"Topcam cleanup error: {e}")
+
+        if fill > 0:
+            write_queue_top.put((slot, fill, counter))
+            counter += 1
+
+        write_queue_top.put(None)
+
+    elapsed = etime_top - (stime or etime_top)
+    fps = fcount_top / elapsed if fcount_top > 0 and elapsed > 0 else 0.0
+    print(f"Topcam: {fcount_top} frames, {f_failed_top} failed, {elapsed:.2f}s, {fps:.2f} fps")
+
+    return counter, fps
+
+
+def acquire_frontcam():
+    global fcount_front, f_failed_front, latest_front
+
+    slot    = 0
+    fill    = 0
+    counter = 0
+    stime   = None
+
+    cam_front.StartGrabbing(py.GrabStrategy_OneByOne)
+
+    try:
+        # Wait for topcam to receive its first trigger before capturing
+        while not start_event.is_set():
+            if stop_event.is_set():
+                return 0, 0.0
+            time.sleep(0.01)
+
+        # Free-running camera streamed into the grab queue while we waited for
+        # WaveSurfer. Discard those stale pre-trigger frames so recording starts
+        # clean (no jump) at session start.
+        flushed = 0
+        while True:
+            res = cam_front.RetrieveResult(0, py.TimeoutHandling_Return)
+            if not res.IsValid():
+                break
+            res.Release()
+            flushed += 1
+        print(f"Frontcam: flushed {flushed} pre-trigger frames.")
+
+        print("Frontcam: acquisition running...")
+        stime = time.perf_counter()
+
+        while not stop_event.is_set():
+            try:
+                res = cam_front.RetrieveResult(100, py.TimeoutHandling_Return)
+                if res.IsValid():
+                    if res.GrabSucceeded():
+                        image = res.Array
+                        chunk_front[slot][fill]   = image
+                        cam_ts_front[slot][fill]  = res.TimeStamp
+                        pc_ts_front[slot][fill]   = time.perf_counter_ns()
+                        fill += 1
+                        fcount_front += 1
+
+                        with display_lock:
+                            latest_front = cv2.resize(image, (PREVIEW_W, PREVIEW_H))
+
+                        if fill == CHUNK_SIZE:
+                            write_queue_front.put((slot, CHUNK_SIZE, counter))
+                            slot ^= 1
+                            fill  = 0
+                            counter += 1
+                    else:
+                        f_failed_front += 1
+                    res.Release()
+
+            except Exception as e:
+                print(f"Frontcam: error during grab: {e}")
+
+    finally:
+        etime = time.perf_counter()
+
+        try:
+            cam_front.StopGrabbing()
+            cam_front.Close()
+        except Exception as e:
+            print(f"Frontcam cleanup error: {e}")
+
+        if fill > 0:
+            write_queue_front.put((slot, fill, counter))
+            counter += 1
+
+        write_queue_front.put(None)
+
+    elapsed = etime - (stime or etime)
+    fps = fcount_front / elapsed if fcount_front > 0 and elapsed > 0 else 0.0
+    print(f"Frontcam: {fcount_front} frames, {f_failed_front} failed, {elapsed:.2f}s, {fps:.2f} fps")
+
+    return counter, fps
+
+
+# ------ Thread Result Holders ------
+top_results   = [0, 0.0]
+front_results = [0, 0.0]
+
+
+def _run_topcam():
+    try:
+        top_results[0], top_results[1] = acquire_topcam()
+    except Exception:
+        import traceback
+        print(f"FATAL ERROR in topcam thread:\n{traceback.format_exc()}")
+        stop_event.set()
+
+
+def _run_frontcam():
+    try:
+        front_results[0], front_results[1] = acquire_frontcam()
+    except Exception:
+        import traceback
+        print(f"FATAL ERROR in frontcam thread:\n{traceback.format_exc()}")
+        stop_event.set()
+
+
+# ------ Encoders (lazily started on the first chunk) ------
+# One ffmpeg process per camera. Rather than spawning them up front, each writer
+# thread starts its encoder when the first frame chunk arrives (see _writer), so
+# an untriggered/aborted session produces no .mp4 at all. Each 'proc' is filled
+# in by the writer and read back here for finalizing.
+use_nvenc = _has_nvenc()
+print(f"Encoder: {'h264_nvenc (GPU)' if use_nvenc else 'libx264 (CPU)'}, qp/crf={ENCODE_QP}")
+enc_top   = {'proc': None, 'path': video_top,   'fps': TOPCAM_FPS_NOMINAL, 'w': TOP_W,   'h': TOP_H}
+enc_front = {'proc': None, 'path': video_front, 'fps': FRONTCAM_FPS,       'w': FRONT_W, 'h': FRONT_H}
+
+# Per-camera in-memory timestamp accumulators (filled by the writer threads).
+ts_accum_top   = {'cam': [], 'pc': []}
+ts_accum_front = {'cam': [], 'pc': []}
+
+# ------ Start All Threads ------
+wt_top   = threading.Thread(target=_writer,
+                            args=(write_queue_top, chunk_top, cam_ts_top, pc_ts_top,
+                                  enc_top, ts_accum_top, "Topcam"),
+                            daemon=False)
+wt_front = threading.Thread(target=_writer,
+                            args=(write_queue_front, chunk_front, cam_ts_front, pc_ts_front,
+                                  enc_front, ts_accum_front, "Frontcam"),
+                            daemon=False)
+
+acq_top_thread   = threading.Thread(target=_run_topcam,   daemon=False)
+acq_front_thread = threading.Thread(target=_run_frontcam, daemon=False)
+
+wt_top.start()
+wt_front.start()
+acq_top_thread.start()
+acq_front_thread.start()
+
+# Main thread: live display and/or preview-file writing.
+# cv2.imshow must be called from the main thread on Windows.
+_preview_tick  = 0
+# _PREVIEW_EVERY (frames between preview writes) comes from config; ≈ 15 fps at 33 ms loop.
+
+while acq_top_thread.is_alive() or acq_front_thread.is_alive():
+    with display_lock:
+        top_frame   = latest_top
+        front_frame = latest_front
+
+    if show_display:
+        if top_frame is not None and front_frame is not None:
+            combined = np.hstack([top_frame, _DIVIDER, front_frame])
+        elif top_frame is not None:
+            combined = top_frame
+        elif front_frame is not None:
+            combined = front_frame
+        else:
+            combined = None
+        if combined is not None:
+            cv2.imshow("Live Stream  [top | front]", combined)
+        cv2.waitKey(33)
+    else:
+        time.sleep(0.033)
+
+    if preview_dir is not None and top_frame is not None:
+        _preview_tick += 1
+        if _preview_tick >= _PREVIEW_EVERY:
+            _preview_tick = 0
+            try:
+                _tmp = os.path.join(preview_dir, 'preview_top.tmp.npy')
+                np.save(_tmp, top_frame)
+                os.replace(_tmp, os.path.join(preview_dir, 'preview_top.npy'))
+                if front_frame is not None:
+                    _tmp = os.path.join(preview_dir, 'preview_front.tmp.npy')
+                    np.save(_tmp, front_frame)
+                    os.replace(_tmp, os.path.join(preview_dir, 'preview_front.npy'))
+            except Exception:
+                pass
+
+if show_display:
+    cv2.destroyAllWindows()
+
+# Acquisition threads are done; wait for pending writes to flush
+acq_top_thread.join()
+acq_front_thread.join()
+write_queue_top.join()
+write_queue_front.join()
+wt_top.join()
+wt_front.join()
+
+counter_top,   fps_top   = top_results
+counter_front, fps_front = front_results
+
+
+# ------ Finalize Encoders ------
+# Close stdin so ffmpeg writes the trailer/index, then drain stderr while it
+# exits (proc.wait() alone can deadlock on a full stderr pipe). Must always run
+# so the .mp4 is finalized even on emergency stop / early exit.
+def _finalize_encoder(enc, label):
+    proc = enc['proc']
+    if proc is None:
+        # No chunk ever arrived — the encoder was never started and no .mp4 was
+        # created, so there is nothing to finalize.
+        print(f"{label}: no frames captured — no video written.")
+        return
+    try:
+        if proc.stdin and not proc.stdin.closed:
+            proc.stdin.close()
+    except Exception:
+        pass
+    try:
+        _, err = proc.communicate(timeout=ENCODER_FINALIZE_TIMEOUT_S)
+    except Exception as e:
+        print(f"{label} encoder: finalize error ({e}); killing.")
+        proc.kill()
+        _, err = proc.communicate()
+    if proc.returncode:
+        msg = (err or b"").decode("utf-8", errors="replace")
+        print(f"{label} encoder exited with code {proc.returncode}:\n{msg}")
+    else:
+        print(f"{label} encoder finalized OK.")
+
+
+print("Finalizing encoders...")
+_finalize_encoder(enc_top,   "Topcam")
+_finalize_encoder(enc_front, "Frontcam")
+
+
+# ------ Save Timestamps ------
+def _save_timestamps(cam_chunks, pc_chunks, ts_file):
+    if not cam_chunks:
+        # No frames captured — don't create an empty timestamp file.
+        return
+    cam = np.concatenate(cam_chunks)
+    pc  = np.concatenate(pc_chunks)
+    with open(ts_file, 'w') as f:
+        for c, p in zip(cam, pc):
+            f.write(f"{c},{p}\n")
+    print(f"Timestamps saved: {len(cam)} entries -> {ts_file}")
+
+
+print("Saving timestamps...")
+_save_timestamps(ts_accum_top['cam'],   ts_accum_top['pc'],   ts_file_top)
+_save_timestamps(ts_accum_front['cam'], ts_accum_front['pc'], ts_file_front)
+
+
+# ------ Save Session Metadata ------
+metadata = {
+    "animal":          animal_name,
+    "date_time":       date_time,
+    "session":         session_name,
+    "base_name":       base_name,
+    "session_dir_lts": session_folder,
+    "video": {
+        "format":     "mp4",
+        "codec":      "h264_nvenc" if use_nvenc else "libx264",
+        "qp_or_crf":  ENCODE_QP,
+        "pix_fmt_in": "gray",
+    },
+    "topcam": {
+        "serial":        SERIAL_TOPCAM,
+        "resolution":    f"{TOP_W}x{TOP_H}",
+        "total_frames":  fcount_top,
+        "fps_estimated": round(fps_top, 2),
+        "video_file":    os.path.basename(video_top) if enc_top['proc'] is not None else None,
+    },
+    "frontcam": {
+        "serial":        SERIAL_FRONTCAM,
+        "resolution":    f"{FRONT_W}x{FRONT_H}",
+        "total_frames":  fcount_front,
+        "fps_estimated": round(fps_front, 2),
+        "video_file":    os.path.basename(video_front) if enc_front['proc'] is not None else None,
+    },
+}
+meta_path = os.path.join(session_out, f"{base_name}_cam_metadata.json")
+with open(meta_path, 'w') as f:
+    json.dump(metadata, f, indent=2)
+print(f"Metadata saved -> {meta_path}")

@@ -3,3 +3,6 @@
 # Python build artifacts
 __pycache__/
 *.pyc
+
+# Bpod local settings/calibration folder (created at runtime by Bpod)
+code/dependencies/Bpod Local/

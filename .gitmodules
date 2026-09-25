@@ -1,0 +1,13 @@
+[submodule "code/dependencies/Bpod_RotaryEncoder_Firmware"]
+	path = code/dependencies/Bpod_RotaryEncoder_Firmware
+	url = https://github.com/0815Phine/Bpod_RotaryEncoder_Firmware.git
+[submodule "code/dependencies/IEECRSpace"]
+	path = code/dependencies/IEECRSpace
+	url = https://github.com/IEECR-BeckGroup/IEECRSpace.git
+[submodule "code/dependencies/Bpod_Gen2"]
+	path = code/dependencies/Bpod_Gen2
+	url = https://github.com/sanworks/Bpod_Gen2.git
+	branch = master
+[submodule "code/dependencies/Wavesurfer"]
+	path = code/dependencies/Wavesurfer
+	url = https://github.com/JaneliaSciComp/Wavesurfer.git

@@ -1,0 +1,7 @@
+Partlist exported from Fusion Hub: ACES-Advanced Collaborative Engineering Services   Project: AG Beck Phine TreadWall  Board: Synchronizer_PCB v13 at 25/08/2025 15:19
+
+Qty Value                 Device                Package                    Parts      Description 
+1   ARDUINO_UNO_REV4_WIFI ARDUINO_UNO_REV4_WIFI ARDUINO_UNO_R4_WIFI_SHIELD U$1                    
+1   PINHD-1X05_1X05M      PINHD-1X05_1X05M      1X05                       U$2                    
+1   SCREW_TERMINAL_82836  SCREW_TERMINAL_82836  SCREW_TERMINAL             U$3                    
+2   TIC_T834              TIC_T834              TIC_T834                   TIC1, TIC2             
