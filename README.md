@@ -146,8 +146,8 @@ live in the `cameras` block of
 [`code/parameters/treadwall_config.json`](code/parameters/treadwall_config.json),
 with full Basler feature sets in the `.pfs` files under
 [`code/parameters/camera/`](code/parameters/camera/). Each session produces, per
-camera, a `.mp4`, a `_timestamps.txt` (+ `_pc_timestamps.txt`) sidecar, and a
-`_cam_metadata.json`.
+camera, a `.mp4`, a `_timestamps.txt` sidecar (one line per frame, `cam_ts,pc_ts`
+— Basler device clock + PC `perf_counter` clock), and a `_cam_metadata.json`.
 
 ## Data acquisition
 Synchronized analog/TTL signals are recorded with **WaveSurfer** over an NI-DAQ

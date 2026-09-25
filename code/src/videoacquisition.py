@@ -139,12 +139,11 @@ os.makedirs(session_out, exist_ok=True)
 
 video_top   = os.path.join(session_out, f"{base_name}_topcam.mp4")
 video_front = os.path.join(session_out, f"{base_name}_frontcam.mp4")
+# One timestamp file per camera: each line is "cam_ts,pc_ts" (no header) — the
+# Basler device clock (res.TimeStamp, precise inter-frame timing) alongside the
+# PC perf_counter_ns clock (aligns the free-running front cam to the session).
 ts_file_top   = os.path.join(session_out, f"{base_name}_topcam_timestamps.txt")
 ts_file_front = os.path.join(session_out, f"{base_name}_frontcam_timestamps.txt")
-# PC (perf_counter_ns) timestamps kept as a sidecar — previously saved as
-# per-chunk _pc_ts.npy, which no longer exists now that frames are encoded live.
-pc_ts_file_top   = os.path.join(session_out, f"{base_name}_topcam_pc_timestamps.txt")
-pc_ts_file_front = os.path.join(session_out, f"{base_name}_frontcam_pc_timestamps.txt")
 
 for vpath in (video_top, video_front):
     if os.path.exists(vpath):
@@ -413,6 +412,18 @@ def acquire_frontcam():
                 return 0, 0.0
             time.sleep(0.01)
 
+        # Free-running camera streamed into the grab queue while we waited for
+        # WaveSurfer. Discard those stale pre-trigger frames so recording starts
+        # clean (no jump) at session start.
+        flushed = 0
+        while True:
+            res = cam_front.RetrieveResult(0, py.TimeoutHandling_Return)
+            if not res.IsValid():
+                break
+            res.Release()
+            flushed += 1
+        print(f"Frontcam: flushed {flushed} pre-trigger frames.")
+
         print("Frontcam: acquisition running...")
         stime = time.perf_counter()
 
@@ -610,22 +621,21 @@ _finalize_encoder(enc_front, "Frontcam")
 
 
 # ------ Save Timestamps ------
-def _save_timestamps(ts_chunks, ts_file):
-    if not ts_chunks:
+def _save_timestamps(cam_chunks, pc_chunks, ts_file):
+    if not cam_chunks:
         # No frames captured — don't create an empty timestamp file.
         return
-    combined = np.concatenate(ts_chunks)
+    cam = np.concatenate(cam_chunks)
+    pc  = np.concatenate(pc_chunks)
     with open(ts_file, 'w') as f:
-        for ts in combined:
-            f.write(f"{ts}\n")
-    print(f"Timestamps saved: {len(combined)} entries -> {ts_file}")
+        for c, p in zip(cam, pc):
+            f.write(f"{c},{p}\n")
+    print(f"Timestamps saved: {len(cam)} entries -> {ts_file}")
 
 
 print("Saving timestamps...")
-_save_timestamps(ts_accum_top['cam'],    ts_file_top)
-_save_timestamps(ts_accum_top['pc'],     pc_ts_file_top)
-_save_timestamps(ts_accum_front['cam'],  ts_file_front)
-_save_timestamps(ts_accum_front['pc'],   pc_ts_file_front)
+_save_timestamps(ts_accum_top['cam'],   ts_accum_top['pc'],   ts_file_top)
+_save_timestamps(ts_accum_front['cam'], ts_accum_front['pc'], ts_file_front)
 
 
 # ------ Save Session Metadata ------
