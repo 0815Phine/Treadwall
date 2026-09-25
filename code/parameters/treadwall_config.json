@@ -22,7 +22,8 @@
     "analogin": {
       "sampling_rate_khz": 100,
       "input_range": "0V:10V"
-    }
+    },
+    "stop_camera_delay_s": 2
   },
   "cameras": {
     "topcam": {

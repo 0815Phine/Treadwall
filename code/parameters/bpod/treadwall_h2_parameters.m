@@ -13,4 +13,3 @@ ANALOG_RESET_VOLTAGES = 3.2; % V, threshold reset voltages (AnalogIn ch 1)
 
 % -------- Hardware --------
 WAVEPLAYER_TRIGGER_MODE = 'Master';                    % Bpod WavePlayer trigger mode
-STOP_CAMERA_DELAY = 1;                                 % s, BNC1 pulse hold that stops the camera
