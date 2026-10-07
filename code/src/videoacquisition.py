@@ -17,6 +17,25 @@ _CAM = _CFG["cameras"]
 _TOP = _CAM["topcam"]
 _FRONT = _CAM["frontcam"]
 
+# ------ Belt-marker live detection (optional; see treadwall_config topcam.beltmarker) ------
+# Detects the belt's visual marker live from the top camera and, once armed by the
+# Bpod protocol (cue_arm.flag), relays the next crossing to MATLAB (cue_detected.flag)
+# so the predictable protocol can start zone 1 at a fixed belt position. ALL work
+# for this happens on a separate detector thread (see _marker_detector); the grab
+# loop only computes one ROI mean + a non-blocking queue put so capture is never slowed.
+_MARKER        = _TOP.get("beltmarker", {})
+MARKER_ENABLED = bool(_MARKER.get("enabled", False))
+IPC_DIR        = _CFG["paths"].get("ipc_dir")
+if MARKER_ENABLED and IPC_DIR:
+    # ROI is fractional [x, y, w, h] (0-1 of frame), matching TreadwallAnalysis;
+    # convert to clamped pixel ranges on the full-res topcam frame (TOP_W x TOP_H).
+    _fx, _fy, _fw, _fh = (float(v) for v in _MARKER["roi"])
+    _TW, _TH = _TOP["width"], _TOP["height"]
+    _MX0 = max(0, round(_fx * _TW)); _MX1 = min(_TW, round(_fx * _TW) + round(_fw * _TW))
+    _MY0 = max(0, round(_fy * _TH)); _MY1 = min(_TH, round(_fy * _TH) + round(_fh * _TH))
+else:
+    MARKER_ENABLED = False  # no IPC dir -> nothing to relay to, disable cleanly
+
 CHUNK_SIZE = _CAM["chunk_size"]   # frames per chunk piped to the encoder (200 = 1 s at 200 Hz)
 
 # Per-camera frame dimensions (from config). The two cameras differ, so each
@@ -256,6 +275,75 @@ _DIVIDER     = np.zeros((PREVIEW_H, 4), dtype=np.uint8)  # 4-pixel separator bet
 write_queue_top   = queue.Queue()
 write_queue_front = queue.Queue()
 
+# ------ Belt-marker Detector (off the hot path) ------
+# Bounded so a slow detector drops samples (a little extra detection latency)
+# instead of ever back-pressuring the acquisition thread.
+marker_queue = queue.Queue(maxsize=256)
+
+
+def _flag_path(name):
+    return os.path.join(IPC_DIR, name)
+
+
+def _write_flag_atomic(name):
+    """Write an IPC flag file atomically (tmp + os.replace), matching the preview-
+    write idiom so the reader never sees a half-written file."""
+    tmp = _flag_path(name + '.tmp')
+    with open(tmp, 'w') as f:
+        f.write('1')
+    os.replace(tmp, _flag_path(name))
+
+
+def _marker_detector():
+    """Consume (frame_idx, roi_mean) samples from marker_queue and detect belt-marker
+    crossings using the same absolute-cutoff rule as TreadwallAnalysis'
+    decide_beltmarker: dark -> roi_mean < thresh, bright -> roi_mean > thresh,
+    with a 3-frame median despeckle (matching movmedian(.,3) >= 0.5).
+
+    Once the protocol writes cue_arm.flag, the *next* rising edge writes
+    cue_detected.flag for the MATLAB cue-watcher to relay as a soft code. Runs on
+    its own thread: all stats and file I/O stay off the acquisition/encoder threads.
+    """
+    from collections import deque
+    polarity = str(_MARKER.get("polarity", "dark")).lower()
+    thresh   = float(_MARKER.get("thresh", 40))
+    arm_flag = _flag_path("cue_arm.flag")
+
+    recent     = deque(maxlen=3)       # 3-sample median despeckle
+    prev_state = False
+    armed      = False
+    delivered  = False
+
+    print(f"Beltmarker: detector thread running (polarity={polarity}, thresh={thresh:g}).")
+    while not stop_event.is_set():
+        try:
+            _, roi_mean = marker_queue.get(timeout=0.2)
+        except queue.Empty:
+            continue
+
+        raw = (roi_mean < thresh) if polarity == 'dark' else (roi_mean > thresh)
+        recent.append(1.0 if raw else 0.0)
+        in_marker = float(np.median(np.fromiter(recent, dtype=float))) >= 0.5
+
+        rising     = in_marker and not prev_state
+        prev_state = in_marker
+
+        if not delivered:
+            if not armed and os.path.exists(arm_flag):
+                armed = True
+                print("Beltmarker: armed, waiting for next crossing...")
+            if armed and rising:
+                try:
+                    _write_flag_atomic("cue_detected.flag")
+                    if os.path.exists(arm_flag):
+                        os.remove(arm_flag)
+                    print("Beltmarker: crossing detected -> cue_detected.flag written.")
+                    delivered = True
+                    armed = False
+                except Exception as e:
+                    print(f"Beltmarker: failed to write cue flag: {e}")
+        # keep draining the queue after delivery so acquisition never back-pressures
+
 
 def _writer(write_queue, frame_buffers, cam_ts_buffers, pc_ts_buffers, enc, ts_accum, label):
     """Pipe each completed chunk's raw bytes to its ffmpeg encoder (started lazily
@@ -332,6 +420,16 @@ def acquire_topcam():
                         pc_ts_top[slot][fill]  = time.perf_counter_ns()
                         fill += 1
                         fcount_top += 1
+
+                        # Belt-marker: cheap ROI mean (view, no copy) handed to the
+                        # detector thread via a non-blocking put; drop on overflow so
+                        # acquisition is never blocked.
+                        if MARKER_ENABLED:
+                            roi_mean = float(image[_MY0:_MY1, _MX0:_MX1].mean())
+                            try:
+                                marker_queue.put_nowait((fcount_top, roi_mean))
+                            except queue.Full:
+                                pass
 
                         with display_lock:
                             latest_top = cv2.resize(image, (PREVIEW_W, PREVIEW_H))
@@ -530,6 +628,11 @@ wt_top.start()
 wt_front.start()
 acq_top_thread.start()
 acq_front_thread.start()
+
+# Belt-marker detector: daemon so it never holds up shutdown; exits on stop_event.
+if MARKER_ENABLED:
+    marker_thread = threading.Thread(target=_marker_detector, daemon=True)
+    marker_thread.start()
 
 # Main thread: live display and/or preview-file writing.
 # cv2.imshow must be called from the main thread on Windows.

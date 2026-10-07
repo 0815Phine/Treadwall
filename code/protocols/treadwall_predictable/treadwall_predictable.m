@@ -149,11 +149,25 @@ end
 R.startUSBStream()
 A.startReportingEvents()
 
-%% ---------- Emergency-stop watcher --------------------------------------
+%% ---------- GUI watcher -------------------------------------------------
 % Poll for the GUI emergency-stop flag
 % onCleanup guarantees the timer is removed on every exit path (normal end, early return, or error).
 t_estop = gui_start_estoptimer(ipc_dir);
 estopCleanup = onCleanup(@() stop_estoptimer(t_estop));
+
+% Belt-visual-cue gate (trial 1 only): arm the live top-camera marker detector when
+% the state machine reaches the gate and relay its detection as a soft code, so
+% zone 1 starts at a fixed belt position across sessions. Inert when disabled or
+% once the cue has fired. stop_estoptimer is a generic timer stop/delete helper.
+if USE_CUE_START
+    t_cue = gui_start_cuewatcher(ipc_dir, 'waitforCue', CUE_SOFTCODE);
+    cueCleanup = onCleanup(@() stop_estoptimer(t_cue)); %#ok<NASGU>
+    % Only offset 1 (start on the next trigger after the cue) is wired up. Larger
+    % offsets would need extra pass-through trigger-wait states before z1f.
+    if CUE_TRIGGER_OFFSET ~= 1
+        warning('CUE_TRIGGER_OFFSET=%d not yet implemented; using 1 (next trigger after cue).', CUE_TRIGGER_OFFSET);
+    end
+end
 
 %% ---------- Synching with WaveSurfer ------------------------------------
 sma = NewStateMachine();
@@ -211,6 +225,20 @@ for currentTrial = 1:S.GUI.MaxTrialNumber
 
     %first trial: with start buffer
     if currentTrial == 1
+        % With the visual-cue gate on, readDirection routes into the cue gate
+        % (waitforCuef/b) instead of straight to the trigger wait. The gate holds
+        % until the belt marker is detected (SoftCode3) or CUE_TIMEOUT elapses, then
+        % falls through to the normal trigger wait so zone 1 starts on the next
+        % hardware zone trigger. Off -> original behaviour (straight to trigger wait).
+        if USE_CUE_START
+            dirf_target = 'waitforCuef';
+            dirb_target = 'waitforCueb';
+            cue_event = sprintf('SoftCode%d', CUE_SOFTCODE);  % matches what cuewatch sends
+        else
+            dirf_target = 'waitforTriggerf';
+            dirb_target = 'waitforTriggerb';
+        end
+
         sma = AddState(sma, 'Name', 'StartBuffer', ...
             'Timer', S.GUI.ITIDur,...
             'StateChangeConditions', {'Tup', 'readDirection', 'SoftCode2', 'StopCamera'},...
@@ -218,8 +246,20 @@ for currentTrial = 1:S.GUI.MaxTrialNumber
 
         sma = AddState(sma, 'Name', 'readDirection', ...
             'Timer', 0,...
-            'StateChangeConditions', {'RotaryEncoder1_2', 'waitforTriggerf', 'RotaryEncoder1_1', 'waitforTriggerb', 'SoftCode1', 'EndBuffer', 'SoftCode2', 'StopCamera'},...
+            'StateChangeConditions', {'RotaryEncoder1_2', dirf_target, 'RotaryEncoder1_1', dirb_target, 'SoftCode1', 'EndBuffer', 'SoftCode2', 'StopCamera'},...
             'OutputActions', {'WavePlayer1', ['!' 3 0 0], 'RotaryEncoder1', 'ZE'});
+
+        % Visual-cue gate: wait for the belt marker (SoftCode3) before arming the
+        % first zone. Tup is a safety fallback (start on the next trigger anyway).
+        sma = AddState(sma, 'Name', 'waitforCuef', ...
+            'Timer', CUE_TIMEOUT,...
+            'StateChangeConditions', {cue_event, 'waitforTriggerf', 'Tup', 'waitforTriggerf', 'SoftCode1', 'EndBuffer', 'SoftCode2', 'StopCamera'},...
+            'OutputActions', {'WavePlayer1', ['!' 3 0 0]});
+        sma = AddState(sma, 'Name', 'waitforCueb', ...
+            'Timer', CUE_TIMEOUT,...
+            'StateChangeConditions', {cue_event, 'waitforTriggerb', 'Tup', 'waitforTriggerb', 'SoftCode1', 'EndBuffer', 'SoftCode2', 'StopCamera'},...
+            'OutputActions', {'WavePlayer1', ['!' 3 0 0]});
+      
 
         sma = AddState(sma, 'Name', 'waitforTriggerf', ...
             'Timer', 0,...
