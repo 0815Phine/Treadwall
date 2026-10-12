@@ -22,6 +22,10 @@ USE_CUE_START = true;                           % master on/off (per-session kno
 CUE_SOFTCODE = 3;                               % soft code relaying the cue (1,2 taken)
 CUE_TIMEOUT = 120;                               % s, fallback: start on first trigger if no cue
 CUE_TRIGGER_OFFSET = 1;                          % zone 1 starts on the Nth trigger after the cue
+CUE_MAX_BACKTRACK = 3;                           % max marks the animal may walk back after the cue
+                                                 % and still anchor zone 1 to the mark after the cue
+                                                 % (1 belt loop; beyond this the animal has run a
+                                                 % full loop back and the cue re-arms to re-anchor)
 N_ACTIVE_CHAN = 3;
 ANALOG_THRESHOLDS = [4.0, 2.5, 1.5];            % V, zone-transition thresholds (AnalogIn ch 1-3)
 ANALOG_RESET_VOLTAGES = [3.2, 1.65, 1.65];      % V, threshold reset voltages (AnalogIn ch 1-3)
