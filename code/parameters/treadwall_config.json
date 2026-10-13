@@ -46,6 +46,17 @@
       "lines": {
         "stop_input": "Line2",
         "exposure_output": "Line3"
+      },
+      "beltmarker": {
+        "enabled": true,
+        "roi": [
+          0.4083,
+          0.7722,
+          0.1722,
+          0.1963
+        ],
+        "polarity": "dark",
+        "thresh": 20
       }
     },
     "frontcam": {

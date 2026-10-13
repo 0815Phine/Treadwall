@@ -149,11 +149,25 @@ end
 R.startUSBStream()
 A.startReportingEvents()
 
-%% ---------- Emergency-stop watcher --------------------------------------
+%% ---------- GUI watcher -------------------------------------------------
 % Poll for the GUI emergency-stop flag
 % onCleanup guarantees the timer is removed on every exit path (normal end, early return, or error).
 t_estop = gui_start_estoptimer(ipc_dir);
 estopCleanup = onCleanup(@() stop_estoptimer(t_estop));
+
+% Belt-visual-cue gate (trial 1 only): arm the live top-camera marker detector when
+% the state machine reaches the gate and relay its detection as a soft code, so
+% zone 1 starts at a fixed belt position across sessions. Inert when disabled or
+% once the cue has fired. stop_estoptimer is a generic timer stop/delete helper.
+if USE_CUE_START
+    t_cue = gui_start_cuewatcher(ipc_dir, 'waitforCue', CUE_SOFTCODE);
+    cueCleanup = onCleanup(@() stop_estoptimer(t_cue)); %#ok<NASGU>
+    % Only offset 1 (start on the next trigger after the cue) is wired up. Larger
+    % offsets would need extra pass-through trigger-wait states before z1f.
+    if CUE_TRIGGER_OFFSET ~= 1
+        warning('CUE_TRIGGER_OFFSET=%d not yet implemented; using 1 (next trigger after cue).', CUE_TRIGGER_OFFSET);
+    end
+end
 
 %% ---------- Synching with WaveSurfer ------------------------------------
 sma = NewStateMachine();
@@ -211,6 +225,20 @@ for currentTrial = 1:S.GUI.MaxTrialNumber
 
     %first trial: with start buffer
     if currentTrial == 1
+        % With the visual-cue gate on, readDirection routes into the cue gate
+        % (waitforCuef/b) instead of straight to the trigger wait. The gate holds
+        % until the belt marker is detected (SoftCode3) or CUE_TIMEOUT elapses, then
+        % falls through to the normal trigger wait so zone 1 starts on the next
+        % hardware zone trigger. Off -> original behaviour (straight to trigger wait).
+        if USE_CUE_START
+            dirf_target = 'waitforCuef';
+            dirb_target = 'waitforCueb';
+            cue_event = sprintf('SoftCode%d', CUE_SOFTCODE);  % matches what cuewatch sends
+        else
+            dirf_target = 'waitforTriggerf';
+            dirb_target = 'waitforTriggerb';
+        end
+
         sma = AddState(sma, 'Name', 'StartBuffer', ...
             'Timer', S.GUI.ITIDur,...
             'StateChangeConditions', {'Tup', 'readDirection', 'SoftCode2', 'StopCamera'},...
@@ -218,18 +246,69 @@ for currentTrial = 1:S.GUI.MaxTrialNumber
 
         sma = AddState(sma, 'Name', 'readDirection', ...
             'Timer', 0,...
-            'StateChangeConditions', {'RotaryEncoder1_2', 'waitforTriggerf', 'RotaryEncoder1_1', 'waitforTriggerb', 'SoftCode1', 'EndBuffer', 'SoftCode2', 'StopCamera'},...
+            'StateChangeConditions', {'RotaryEncoder1_2', dirf_target, 'RotaryEncoder1_1', dirb_target, 'SoftCode1', 'EndBuffer', 'SoftCode2', 'StopCamera'},...
             'OutputActions', {'WavePlayer1', ['!' 3 0 0], 'RotaryEncoder1', 'ZE'});
 
+        % Visual-cue gate: wait for the belt marker (SoftCode3) before arming the
+        % first zone. Tup is a safety fallback (start on the next trigger anyway).
+        sma = AddState(sma, 'Name', 'waitforCuef', ...
+            'Timer', CUE_TIMEOUT,...
+            'StateChangeConditions', {cue_event, 'waitforTriggerf', 'Tup', 'waitforTriggerf', 'AnalogIn1_3', 'waitforCueb', 'SoftCode1', 'EndBuffer', 'SoftCode2', 'StopCamera'},...
+            'OutputActions', {'WavePlayer1', ['!' 3 0 0]});
+        sma = AddState(sma, 'Name', 'waitforCueb', ...
+            'Timer', CUE_TIMEOUT,...
+            'StateChangeConditions', {cue_event, 'waitforTriggerb', 'Tup', 'waitforTriggerb', 'AnalogIn1_2', 'waitforCuef', 'SoftCode1', 'EndBuffer', 'SoftCode2', 'StopCamera'},...
+            'OutputActions', {'WavePlayer1', ['!' 3 0 0]});
+      
         sma = AddState(sma, 'Name', 'waitforTriggerf', ...
             'Timer', 0,...
             'StateChangeConditions', {'AnalogIn1_1','z1f', 'AnalogIn1_3', 'waitforTriggerb', 'SoftCode1', 'EndBuffer', 'SoftCode2', 'StopCamera'},...
             'OutputActions', {'WavePlayer1', ['!' 3 0 0]});
 
+        % waitforTriggerb = mark counter c=0, moving backward. A backward mark
+        % crossing is COUNTED (AnalogIn1_1 -> waitforTriggerb1) so zone 1 anchors to
+        % the first mark FORWARD of the cue even if the animal walks back across
+        % earlier marks (see the signed-counter chain below).
         sma = AddState(sma, 'Name', 'waitforTriggerb', ...
             'Timer', 0,...
-            'StateChangeConditions', {'AnalogIn1_2', 'waitforTriggerf', 'SoftCode1', 'EndBuffer', 'SoftCode2', 'StopCamera'},...
+            'StateChangeConditions', {'AnalogIn1_1', 'waitforTriggerb1', 'AnalogIn1_2', 'waitforTriggerf', 'SoftCode1', 'EndBuffer', 'SoftCode2', 'StopCamera'},...
             'OutputActions', {'WavePlayer1', ['!' 3 0 0]});
+
+        % Signed mark counter. Treating the cue position as count c=0, a forward
+        % mark crossing is +1 and a backward crossing is -1; zone 1 fires the first
+        % time c reaches +1 (the first mark forward of the cue), however far the
+        % animal backtracks or oscillates. waitforTriggerf/waitforTriggerb are the
+        % c=0 states (above); waitforTriggerf{i}/waitforTriggerb{i} are the
+        % forward/backward wait states at count c=-i. AnalogIn1_1 = mark crossing,
+        % AnalogIn1_2 = turned forward, AnalogIn1_3 = turned backward.
+        for i = 1:CUE_MAX_BACKTRACK
+            % forward mark crossing from count -i steps toward 0 -> -(i-1)
+            if i == 1
+                fwd_up = 'waitforTriggerf';                    % c=0 (fires z1 on next fwd mark)
+            else
+                fwd_up = sprintf('waitforTriggerf%d', i-1);
+            end
+            % backward mark crossing from count -i -> -(i+1). At the bound the animal
+            % has backtracked a full belt loop; the belt is periodic, so this is the
+            % same physical anchor as the cue. Wrap the count back to 0 (waitforTriggerb)
+            % rather than re-detecting the cue: zone 1 stays anchored to the mark after
+            % the cue, with no second cue wait (and no cue-timeout to worry about).
+            if i == CUE_MAX_BACKTRACK
+                bwd_down = 'waitforTriggerb';
+            else
+                bwd_down = sprintf('waitforTriggerb%d', i+1);
+            end
+
+            sma = AddState(sma, 'Name', sprintf('waitforTriggerb%d', i), ...
+                'Timer', 0,...
+                'StateChangeConditions', {'AnalogIn1_1', bwd_down, 'AnalogIn1_2', sprintf('waitforTriggerf%d', i), 'SoftCode1', 'EndBuffer', 'SoftCode2', 'StopCamera'},...
+                'OutputActions', {'WavePlayer1', ['!' 3 0 0]});
+
+            sma = AddState(sma, 'Name', sprintf('waitforTriggerf%d', i), ...
+                'Timer', 0,...
+                'StateChangeConditions', {'AnalogIn1_1', fwd_up, 'AnalogIn1_3', sprintf('waitforTriggerb%d', i), 'SoftCode1', 'EndBuffer', 'SoftCode2', 'StopCamera'},...
+                'OutputActions', {'WavePlayer1', ['!' 3 0 0]});
+        end
 
         % zone 1
         sma = AddState(sma, 'Name', 'z1f',...
