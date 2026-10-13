@@ -6,3 +6,6 @@ __pycache__/
 
 # Bpod local settings/calibration folder (created at runtime by Bpod)
 code/dependencies/Bpod Local/
+
+# Local, un-tracked repo overview (Claude-generated)
+/REPO_SUMMARY.md
