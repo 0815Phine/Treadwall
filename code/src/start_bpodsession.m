@@ -55,11 +55,13 @@ end
 % For a pre-warm, skip this and go straight to the waiting loop below.
 if ~prewarm
     fprintf('Starting protocol: %s\n\n', protocol_name);
+    reset_session_state(protocol_name, animal_id);
     try
         feval(protocol_name)
     catch e
         fprintf('Protocol error: %s\n', e.message);
         write_session_error(IPC_DIR, e.message);
+        try, BpodSystem.Status.BeingUsed = 0; catch, end
     end
 else
     fprintf('Bpod ready (pre-warm). Waiting for the first session from the GUI...\n');
@@ -118,11 +120,13 @@ while true   % outer cycle: connected -> disconnected -> (reconnected) -> ...
                 BpodSystem.Path.CurrentDataFile = fullfile(new_session_dir, [new_base_name '_bpod.mat']);
 
                 fprintf('Starting new session: %s\n\n', new_base_name);
+                reset_session_state(protocol_name, animal_id);
                 feval(protocol_name)
                 print_ready_message();
             catch e
                 fprintf('Error starting new session: %s\n', e.message);
                 write_session_error(IPC_DIR, e.message);
+                try, BpodSystem.Status.BeingUsed = 0; catch, end
             end
         end
     end
@@ -238,4 +242,18 @@ try
     fclose(fid);
 catch
 end
+end
+
+function reset_session_state(protocol_name, animal_id)
+global BpodSystem
+BpodSystem.Data = struct;
+BpodSystem.Status.Live = 1;
+BpodSystem.Status.LastEvent = 0;
+BpodSystem.Status.LoadSerialMessagesUsed = false;
+BpodSystem.Status.BeingUsed = 1;
+BpodSystem.Status.SessionStartFlag = 1;
+BpodSystem.Status.CurrentProtocolName = protocol_name;
+BpodSystem.Status.CurrentSubjectName = animal_id;
+BpodSystem.GUIData.ProtocolName = protocol_name;
+BpodSystem.ProtocolStartTime = now*100000;
 end
